@@ -471,7 +471,6 @@ lab:saleLab,
 guest:saleGuest,
 show:()=>`<div class="stage">${img('stage','')}${img('angora','onstage')}</div><div class="tabs">${b('私人赛')}${b('公开赛')}${b('奖杯册','collection',true)}</div>${card('私人赛 · 今日主题','<p>每天三场可选，本轮只能报名一次。</p><small>20:00 开放 · 次日 18:00 截止 · 20:00 出结果</small>', '<span class="pill">28 场循环</span>')}${card('公开赛 · 本周主题','<p>免费报名 · 按物种分榜</p><small>周一 20:00—周五 18:00 报名<br>周六 20:00 比赛奖励，周日 20:00 排名奖励</small>','<span class="pill">12 场循环</span>')}${note('报名保存动物当时状态，不锁定动物。之后出售、死亡或繁育均不影响奖励与奖杯。')}<div class="grid2">${b('选择报名动物','profile',true)}${b('查看结果示例','result')}</div>`,
 collection:()=>`<div class="row">${img('collection-book-192-v2','heroicon')}<div><h3>小店的荣誉</h3><p class="muted">永久收集 · 首获动物留念</p></div></div><div class="tabs">${b('私人赛 · 28')}${b('公开赛 · 12')}</div>${card('公开赛奖杯档位',trophies())}${card('本场已收藏',`<div class="row">${img('trophy-gold-192-v2','heroicon')}<div><h3>金奖</h3><p class="muted">首次获奖：小花 · 安哥拉兔<br>同档累计：2 次</p></div></div><p class="smallnote">首获动物离店后，本记录仍永久保存。</p>`)}${card('店铺收益',`<b class="stat">+4%</b><p class="muted">该公开赛最高奖杯档位生效；金银铜不叠加。</p>`)}${note('高档解锁低档奖励，但不会补发低档奖杯。空位需实际获得对应档位。')}`,
-research:()=>`${banner('lab','研究技能树')}${note('兔、猫、狗独立研究 · 每支10级 · 以下为0级静态样例，不扣金币。')}${['兔','猫','狗'].map(n=>card(n+' · 物种研究',`${n==='兔'?'房间已开放':'房间未开放 · 仅可预览'}${[['稀有标签研究','原随机稀有概率 ×1.00 → ×1.05','满级 ×1.50；不改变继承、货架、复评与赠送'],['六维选育研究','正向变异概率 ×1.00 → ×1.03','满级 ×1.30；不增加幅度与上限，可关闭'],['繁育后价值研究','售价保留 20% → 20.5%','满级 25%；只作用于本物种已繁育动物']].map(([t,e,d])=>`<div class="row node">${img('ui-node-lock-72-v2')}<div><b>${t} · 0 / 10</b><p>${e}</p><small>${d}</small></div></div>`).join('')}${b('查看'+n+'研究说明')}`)).join('')}${card('前置关系','1–3级：本支逐级；4–6级：指定关联分支达到目标等级−3；7–10级：另两支均达到目标等级−3。关联：稀有→六维→价值→稀有。')}${note('费用仍为试算候选，本页不展示可购买假按钮。研究效果在新繁育开始时快照，六维开关应在开始前设置。')}`,
 unlock:()=>`${title('扩展动物房间','解锁即获得一对种源')}${['cat|猫房|3000|90 分钟|英国短毛猫','dog|狗房|20000|120 分钟|柴犬'].map(x=>{let[k,n,p,t,breed]=x.split('|');return card(n,`${img(k+'-room','opening')}<p>${breed} · 基础幼年一公一母</p><small>基础稀有度与标签 · 未繁育 · 成熟 ${t}</small><div class="spread"><b>${p} 金币（含两只动物）</b>${b('查看解锁确认')}</div>`)}).join('')}`,
 items:()=>`${title('研究所用品','低操作量 · 开始前选用')}${[['item-trait-review-192-v2','特征复评单','选择动物和目标标签，再查看复评确认。'],['item-breeding-guidance-192-v2','选育指导单','在繁育前使用，辅助保留目标属性。']].map(([k,n,t])=>card(n,`<div class="row">${img(k,'heroicon')}<p class="muted">${t}</p></div>${b('查看使用确认')}`)).join('')}${note('道具实际效果、概率及扣除以定稿规则为准。本次仅展示入口与确认界面。')}`,
 decor:()=>`${title('装饰小铺','固定位置 · 可摆放或收起')}<div style="height:250px">${scene(true)}</div>${[['fence','蕨叶矮篱','80'],['lamp','琥珀台灯','60'],['decor-plant-192-v2','窗边绿植','100'],['decor-rug-192-v2','织纹地毯','120']].map(([k,n,p])=>card(n,`<div class="spread">${img(k)}<span>${p} 金币 · 展示价格</span>${b('预览摆放')}</div>`)).join('')}`,
@@ -959,10 +958,10 @@ const RabbitUI = (() => {
 
 const DotResearch = (() => {
   const branches = [
-    {name:'稀有标签研究', short:'稀有标签', metric:'重抽时的稀有概率', art:'item-trait-review-128-v2',
-      help:'仅提高出生时重抽标签的稀有概率。父母标签的继承机会、货架、复评与赠送维持原规则。'},
-    {name:'六维选育研究', short:'六维选育', metric:'正向变异概率', art:'item-breeding-guidance-128-v2',
-      help:'提高六维正向变异的机会，升档幅度及属性上限保持原值。繁育开始前可关闭加成，所选设置随本窝记录。'},
+    {name:'稀有标签研究', short:'稀有标签', metric:'重抽稀有概率加成', art:'item-trait-review-128-v2',
+      help:'幼体出生时重抽标签，每级增加基础稀有概率的 5%。父母标签继承、货架、复评与赠送沿用原规则。'},
+    {name:'六维选育研究', short:'六维选育', metric:'正向变异概率加成', art:'item-breeding-guidance-128-v2',
+      help:'每级增加基础正向变异概率的 3%。升档幅度和属性上限按原规则计算。繁育前可关闭加成，设置随本窝记录。'},
     {name:'繁育后价值研究', short:'繁育后价值', metric:'已繁育售价保留', art:'ui-market',
       help:'出售时按该物种当前等级保留一部分未繁育估值。荣誉、交易渠道与店铺评分照常计算。'}
   ];
@@ -982,7 +981,8 @@ const DotResearch = (() => {
   const record=()=>records[kind];
   function effect(index, level) {
     if(index===2) return (20+level*.5).toFixed(level%2?1:0)+'%';
-    return '×'+(1+level*(index===0?.05:.03)).toFixed(2);
+    if(level===0) return '0%';
+    return '+'+level*(index===0?5:3)+'%';
   }
   function prerequisites(index, target) {
     const indices=target<=3?[]:target<=6?[(index+1)%3]:[0,1,2].filter(i=>i!==index);
