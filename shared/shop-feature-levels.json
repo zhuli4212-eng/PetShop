@@ -1,0 +1,20 @@
+{
+  "featureLevels": {
+    "rooms": 1,
+    "login": 1,
+    "orders": 2,
+    "show": 4,
+    "lab": 2,
+    "market": 1,
+    "profile": 1,
+    "breed": 1,
+    "decor": 8,
+    "guest": 3,
+    "collection": 4
+  },
+  "maxLevel": 60,
+  "levelUpCosts": [10, 10, 10, 30, 40, 50, 70],
+  "laterCostPerLevel": 10,
+  "raceOpensDay": { "private": 2, "public": 3 },
+  "saleXp": { "base": 10, "coinsPerBonus": 200, "maxBonus": 20 }
+}

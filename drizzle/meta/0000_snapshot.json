@@ -1,0 +1,18 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "c6699404-3705-4ac0-96ce-e70b695faa1a",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "cloud_shops": {
+      "name": "cloud_shops",
+      "columns": {
+        "account_id": {"name":"account_id","type":"text","primaryKey":true,"notNull":true,"autoincrement":false},
+        "revision": {"name":"revision","type":"integer","primaryKey":false,"notNull":true,"autoincrement":false},
+        "snapshot": {"name":"snapshot","type":"text","primaryKey":false,"notNull":true,"autoincrement":false}
+      },
+      "indexes": {}, "foreignKeys": {}, "compositePrimaryKeys": {}, "uniqueConstraints": {}, "checkConstraints": {}
+    }
+  },
+  "views": {}, "enums": {}, "_meta": {"schemas":{},"tables":{},"columns":{}}, "internal": {"indexes":{}}
+}
