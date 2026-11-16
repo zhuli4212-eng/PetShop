@@ -1,0 +1,16 @@
+{
+  "name": "maisui-petshop-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "sync:game": "node scripts/sync-game.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "wrangler dev --local --config dist/server/wrangler.json --ip 127.0.0.1 --inspector-port 0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.0",
+    "wrangler": "4.92.0"
+  }
+}

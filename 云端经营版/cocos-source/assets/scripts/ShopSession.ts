@@ -1,0 +1,383 @@
+import { Label, Node, ScrollView, sys, UITransform } from 'cc';
+import { api, connectShop, requestId, ServerError, type Args, type Choice, type Command, type LedgerPage, type ShopSnapshot, type ShopLetter } from './ShopConnection';
+import { drawLedger, confirmBox, ledgerModal } from './ShopEntranceView';
+import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
+import { accessFeature, featureFor, GameBrowserBack } from './ShopNavigation';
+
+interface Visit { key:string; args:Args; selected:Set<string>; offset:number; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; }
+interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
+interface ResponseReceipt { message:string; requestId:string; }
+interface Host {
+    layer:Node; origin:string; height:()=>number; wallet:()=>ShopSnapshot;
+    update:(shop:ShopSnapshot)=>void; activate:(open:boolean)=>void; notice:(message:string)=>void;
+    readNotes:(profile:string,ids:string[])=>void;
+}
+const storagePrefix='petshop.command.';
+const clockMs=()=>globalThis.performance?.now?.()??Date.now();
+function renderState(page?:LedgerPage):LedgerPage|undefined {
+    if(page?.presentation?.kind!=='breeding')return page;
+    // The breeding card draws from the deadline and parents. The API's snapshot
+    // duration and summary row count down even when nothing on the card changed.
+    return {...page,rows:undefined,presentation:{...page.presentation,remaining:undefined}};
+}
+function updateSaleNotice(visit:Visit, next:LedgerPage):void {
+    if(visit.key!=='saleQuote'&&visit.key!=='litterSale')return;
+    const before=visit.data?.actions?.find(choice=>choice.type==='sale.commit')?.args;
+    const after=next.actions?.find(choice=>choice.type==='sale.commit')?.args;
+    if(!after)return;
+    if(before&&before.hash!==after.hash){
+        const changed:string[]=[];
+        const previousPrices=new Map<string,number>();
+        before.ids.forEach((id:string,i:number)=>previousPrices.set(id,before.amounts[i]));
+        for(let i=0;i<after.ids.length;i++){
+            const previous=previousPrices.get(after.ids[i]);
+            if(previous===undefined||previous===after.amounts[i])continue;
+            const name=next.rows?.[i]?.title||'动物';
+            changed.push(name+' #'+String(after.ids[i]).slice(0,6).toUpperCase()+' 从 '+previous+' 改为 '+after.amounts[i]+' 金币');
+        }
+        visit.quoteNotice=changed.length?changed.join('。')+'。请核对新报价。':'本房的可留种余量发生了变化，请核对当前报价。';
+    }
+    if(visit.quoteNotice)next.rows?.push({title:'请重新核对报价',text:visit.quoteNotice});
+}
+function clearLayer(n:Node):void {for(const child of [...n.children]) {child.removeFromParent();child.destroy();}}
+function payment(stage:string):LedgerPage {
+    const desc:Record<string,string>={start:'本地演示商品 · 店铺礼券样张',review:'展示商品确认流程，未发起付款。',processing:'模拟处理中',success:'演示成功，未发放任何游戏资产。',failed:'演示失败，未扣费。',cancel:'已取消演示。'};
+    const options=stage==='start'?[['查看示意商品','review']]:stage==='review'?[['模拟提交','processing'],['取消','cancel']]:
+        stage==='processing'?[['演示成功','success'],['演示失败','failed'],['取消','cancel']]:[['重新演示','start']];
+    return {title:'模拟支付',subtitle:'流程演示 · 不扣费、不到账',rows:[{title:desc[stage]||desc.start}],
+        actions:options.map(([label,next])=>({label,type:'ui.payment',args:{stage:next}}))};
+}
+export class ShopSession {
+    private feature?:Visit;
+    private panel?:Visit;
+    private owner?:string;
+    private editDraft?:Visit;
+    private navigation=0;
+    private browser:GameBrowserBack;
+    private scroll:ScrollView|null=null;
+    private renderedVisit?:Visit;
+    private confirm?:{text:string;submit:()=>void};
+    private dropdown:Node|null=null;
+    private serial=0;
+    private busy=false;
+    private receiptRoute?:{id:string;apply:()=>void};
+    private reading=false;
+    private online=true;
+    private paymentStage='start';
+    private closed=false;
+    private lastRead=0;
+    private dismissLetter?:()=>void;
+    constructor(private host:Host){this.browser=new GameBrowserBack(()=>this.active,()=>this.back());}
+    get active():boolean{return !!this.feature;}
+    showLetter(letter:ShopLetter,dismiss:()=>void):void {
+        if(this.active||this.closed)return;
+        this.feature={key:'visitBook',args:{},selected:new Set(),offset:0,data:letter.page,version:this.host.wallet().version};
+        this.owner='login';this.dismissLetter=dismiss;
+        this.host.activate(true);this.browser.sync();this.render(false);
+    }
+    private get current():Visit|undefined{return this.panel||this.feature;}
+    private get stack():Visit[]{return this.feature?(this.panel?[this.feature,this.panel]:[this.feature]):[];}
+    private remember():void{if(this.renderedVisit&&this.scroll?.isValid)this.renderedVisit.offset=Math.max(0,this.scroll.getScrollOffset().y);}
+    private closeFilter():void {
+        if(!this.dropdown)return;
+        this.dropdown.removeFromParent();
+        this.dropdown.destroy();
+        this.dropdown=null;
+    }
+    private showFilter(fields:FilterField[],index:number):void {
+        if(this.busy||this.confirm)return;
+        this.closeFilter();
+        this.scroll?.stopAutoScroll();
+        this.dropdown=filterMenu(this.host.layer,fields,index,()=>this.closeFilter(),
+            next=>this.showFilter(fields,next),option=>this.choose(option));
+    }
+    dispose():void{this.browser.dispose();this.closeFilter();this.closed=true;this.serial++;}
+    async open(key:string,args:Args={}):Promise<void>{
+        if(this.closed||this.confirm)return;
+        const rule=this.host.wallet().featureAccess?.[accessFeature(key,args)];
+        if(rule&&!rule.unlocked){this.host.notice(rule.name+'需要店铺达到 '+rule.requiredLevel+' 级。');return;}
+        if(this.current?.key==='visitBook'){
+            const dismiss=this.dismissLetter;this.dismissLetter=undefined;dismiss?.();
+        }
+        this.navigate(key,args);
+        await this.read();
+    }
+    private navigate(key:string,args:Args):void{
+        this.remember();this.closeFilter();this.navigation++;
+        if(key==='roomRoster')key='rooms';
+        if(key==='sale'&&args.preselectId&&['market','recycle'].includes(args.channel))key=args.channel;
+        const dest=featureFor(key,args,this.owner);
+        const visit:Visit={key,args,selected:new Set(),offset:0};
+        if((key==='market'||key==='recycle')&&typeof args.preselectId==='string')visit.selected.add(args.preselectId);
+        if(dest){
+            // A button that points back at the same section restores its selection
+            // and scroll. Changed filters, columns and rooms start a fresh list.
+            const existing=this.feature;
+            const same=existing&&existing.key===key&&JSON.stringify(existing.args)===JSON.stringify(args);
+            this.feature=same?existing:visit;
+            this.owner=dest;this.panel=undefined;this.editDraft=undefined;
+        }else{
+            if(!this.feature)throw new Error('请先进入相应的店铺功能。');
+            if(key==='saleQuote'||key==='litterSale') {
+                const previous=this.current;
+                if(previous&&['sale','market','recycle','litterKeep'].includes(previous.key))this.editDraft=previous;
+            }else{this.editDraft=undefined;}
+            this.panel=visit;
+        }
+        if(key==='payment')this.paymentStage='start';
+        this.host.activate(true);this.browser.sync();
+    }
+    private closePanel():void {
+        this.panel=undefined;this.confirm=undefined;this.editDraft=undefined;
+    }
+    back():void{
+        if(this.dropdown){this.closeFilter();return;}
+        if(!this.feature)return;
+        this.remember();this.navigation++;this.serial++;this.reading=false;
+        if(this.confirm||this.panel)this.closePanel();
+        else{
+            const dismiss=this.dismissLetter;
+            this.feature=undefined;this.owner=undefined;this.dismissLetter=undefined;
+            dismiss?.();
+        }
+        this.browser.sync();
+        if(!this.current){this.scroll=null;this.renderedVisit=undefined;clearLayer(this.host.layer);this.host.activate(false);return;}
+        void this.read();
+    }
+    private editSelection():void {
+        const draft=this.editDraft;
+        if(!draft||draft===this.feature){this.back();return;}
+        this.remember();this.navigation++;this.panel=draft;this.editDraft=undefined;
+        void this.read();
+    }
+    async refresh(force=false):Promise<void>{
+        if(this.current&&this.current.key!=='visitBook'&&!this.busy&&!this.reading&&!this.confirm&&!this.dropdown&&(force||Date.now()-this.lastRead>=4500))await this.read(true);
+    }
+    private bindBirthCountdown(visit:Visit,label:Label,endsAt:number):void {
+        let shown=-1,refreshRequested=false;
+        const tick=()=>{
+            const seconds=Math.max(0,Math.ceil((endsAt-(clockMs()+visit.serverClockOffset!))/1000));
+            if(seconds!==shown){
+                label.string=Math.floor(seconds/60)+' 分 '+String(seconds%60).padStart(2,'0')+' 秒';
+                shown=seconds;
+            }
+            if(seconds>0){refreshRequested=false;return;}
+            if(!refreshRequested&&this.current===visit&&this.online&&!this.closed&&!this.reading&&!this.busy&&!this.confirm&&!this.dropdown){
+                refreshRequested=true;
+                void this.read(true);
+            }
+        };
+        tick();
+        label.schedule(tick,.1);
+    }
+    private async read(quiet=false):Promise<void>{
+        const visit=this.current;if(!visit||this.closed)return;
+        const serial=++this.serial;this.reading=true;
+        if(!quiet) {if(!visit.data)visit.data={title:'店铺',rows:[{title:'正在翻开账簿…'}]};this.render();}
+        try {
+            if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
+            const result=await api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
+            if(this.closed||serial!==this.serial)return;
+            // A delayed response gives an older lower bound for the server clock.
+            const offset=result.shop.now-clockMs();
+            visit.serverClockOffset=Math.max(visit.serverClockOffset??offset,offset);
+            if(!quiet)await prepareIllustration(visit.key,visit.args,result.page);
+            if(this.closed||serial!==this.serial||(quiet&&this.dropdown))return;
+            updateSaleNotice(visit,result.page);
+            const redraw=!quiet||!this.online||JSON.stringify(renderState(visit.data))!==JSON.stringify(renderState(result.page))||result.shop.coins!==this.host.wallet().coins;
+            this.online=true;this.host.update(result.shop);
+            const ids=new Set((result.page.rows||[]).map(r=>r.select).filter(Boolean));
+            if(visit.version===undefined)for(const id of result.page.initialSelection||[]){if(ids.has(id))visit.selected.add(id);}
+            visit.selected.forEach(id=>{if(!ids.has(id))visit.selected.delete(id);});
+            this.remember();this.keepRoomPosition(visit,result.page);
+            visit.data=result.page;visit.version=result.shop.version;
+            if(redraw)this.render(false);
+            if(!quiet&&result.page.readNoteIds?.length)this.host.readNotes(result.shop.profileId,result.page.readNoteIds);
+        } catch(err){
+            if(this.closed||serial!==this.serial||(quiet&&this.dropdown))return;
+            if(err instanceof ServerError&&err.status>=400&&err.status<500){
+                this.online=true;
+                visit.version=undefined;
+                visit.data={title:'重新核对',rows:[{title:err.message}],actions:[this.editDraft?
+                    {label:'修改选择',type:'ui.editSelection'}:{label:'返回',type:'ui.back'}]};
+                if(visit.quoteNotice&&visit.quoteNotice!==err.message)
+                    visit.data.rows!.push({title:'此前的报价变化',text:visit.quoteNotice});
+                this.render();
+            } else {
+                const wasOnline=this.online;this.online=false;
+                if(wasOnline||!quiet){this.render();this.host.notice((err as Error).message);}
+            }
+        } finally {if(serial===this.serial){this.reading=false;this.lastRead=Date.now();}}
+    }
+    private keepRoomPosition(v:Visit,next:LedgerPage):void {
+        if(v.key!=='rooms'||this.renderedVisit!==v||!this.scroll?.content||!v.offset)return;
+        const petIds=(data?:LedgerPage)=>(data?.rows||[]).filter(r=>r.link?.page==='pet').map(r=>String(r.link!.args!.id));
+        const before=petIds(v.data),after=petIds(next);
+        if(before.length===after.length&&before.every((id,i)=>id===after[i]))return;
+        const content=this.scroll.content;
+        const first=content.getChildByName('Animal0');
+        if(!first)return;
+        const height=first.getComponent(UITransform)!.height;
+        const top=-first.position.y-height/2;
+        if(v.offset<top)return;
+        const index=Math.min(before.length-1,Math.floor((v.offset-top)/height));
+        // Anchor the first visible animal. If it left the store, keep the nearest
+        // surviving row in its visual position.
+        for(let distance=0;distance<before.length;distance++){
+            for(const i of distance?[index+distance,index-distance]:[index]){
+                if(i<0||i>=before.length)continue;
+                const j=after.indexOf(before[i]);
+                if(j>=0){v.offset=Math.max(0,v.offset+(j-index)*height);return;}
+            }
+        }
+    }
+    render(remember=true):void {
+        const v=this.current;if(!v||!v.data)return;
+        this.closeFilter();
+        if(remember)this.remember();
+        this.renderedVisit=undefined;this.scroll=null;
+        clearLayer(this.host.layer);
+        const modal=!!this.panel&&ledgerModal(v.key);
+        const views=this.confirm?[this.feature!]:modal?this.stack:[v];
+        for(const view of views){
+            if(!view.data)continue;
+            const backdrop=!!this.confirm||view!==v;
+            const scroll=drawLedger(this.host.layer,view.data,this.host.height(),this.host.wallet().coins,{
+                back:()=>this.back(),choose:a=>this.choose(a),openFilter:(fields,index)=>this.showFilter(fields,index),
+                bindBirthCountdown:(label,endsAt)=>this.bindBirthCountdown(view,label,endsAt),
+                selected:view.selected,offset:view.offset,
+                detailPage:view.detailPage||0,turnPage:index=>{
+                    if(view!==this.current||this.confirm)return;
+                    view.detailPage=index;this.render(false);
+                },
+                toggle:id=>{
+                    if(this.busy||this.confirm)return;
+                    if(v.selected.has(id))v.selected.delete(id);else v.selected.add(id);
+                    this.render();
+                }
+            },view.key,view.args,{
+                backdrop,modal:!backdrop&&modal,
+                ready:view.version!==undefined||view.key==='payment',
+                pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
+            });
+            if(!backdrop){this.scroll=scroll;this.renderedVisit=view;}
+        }
+        const confirm=this.confirm;
+        if(confirm)confirmBox(this.host.layer,confirm.text,()=>{
+            if(this.confirm!==confirm||this.busy)return;
+            this.confirm=undefined;this.render(false);confirm.submit();
+        },()=>this.back());
+    }
+    private choose(a:Choice):void {
+        const v=this.current;if(!v||this.confirm)return;
+        if(a.type==='ui.retry'){void this.read();return;}
+        if(a.type==='ui.back'){this.back();return;}
+        if(a.type==='ui.editSelection'){this.editSelection();return;}
+        const args={...(a.args||{})};if(a.useSelection)args.ids=Array.from(v.selected);
+        if(a.page){void this.open(a.page,args);return;}
+        if(this.busy)return;
+        if(a.type==='ui.receipt'){void this.checkReceipt();return;}
+        if(a.type==='ui.payment'){this.paymentStage=a.args!.stage;v.data=payment(this.paymentStage);this.render();return;}
+        if(a.type==='ui.selectAll'){
+            this.remember();v.selected.clear();if(!a.args!.clear)for(const id of a.args!.ids)v.selected.add(id);this.render();return;
+        }
+        if(!this.online){this.host.notice('服务器未连接。请重新连接后操作。');return;}
+        if(!a.type||v.version===undefined)return;
+        const agreedVersion=v.version;
+        const proceed=()=>{void this.commit(a,args,agreedVersion);};
+        if(a.confirm){
+            this.remember();this.confirm={text:a.confirm,submit:proceed};this.render(false);
+        } else proceed();
+    }
+    private async send(command:Command):Promise<ResponseReceipt>{
+        const key=storagePrefix+command.requestId;
+        sys.localStorage.setItem(key,JSON.stringify(command));
+        try{
+            const receipt=await api<ResponseReceipt>(this.host.origin,'action',command);
+            sys.localStorage.removeItem(key);return receipt;
+        }catch(e){
+            if(e instanceof ServerError && e.status>0 && e.status<500)sys.localStorage.removeItem(key);
+            throw e;
+        }
+    }
+    private pending():string[] {
+        const storage=sys.localStorage,keys:string[]=[];
+        for(let i=0;i<storage.length;i++){const k=storage.key(i);if(k?.startsWith(storagePrefix))keys.push(k);}
+        return keys;
+    }
+    private async checkReceipt():Promise<void>{
+        this.busy=true;let msg='';
+        try{msg=await this.recover();}catch(err){msg=(err as Error).message;}
+        finally{this.busy=false;}
+        if(!this.closed){await this.read();this.host.notice(msg||'已核对经营账簿。');}
+    }
+    async recover():Promise<string>{
+        const storage=sys.localStorage,keys=this.pending();
+        let message='';
+        for(const k of keys){
+            const raw=storage.getItem(k);if(!raw)continue;
+            let cmd:Command;try{cmd=JSON.parse(raw);}catch{continue;}
+            if(cmd.profileId!==this.host.wallet().profileId)continue;
+            try {
+                const receipt=await api<ResponseReceipt>(this.host.origin,'receipts/'+encodeURIComponent(cmd.requestId));
+                message=receipt.message;storage.removeItem(k);this.finishReceipt(cmd.requestId,true);
+            }
+            catch(err){if(!(err instanceof ServerError)||err.status!==404)throw err;
+                try{message=(await this.send(cmd)).message;this.finishReceipt(cmd.requestId,true);}
+                catch(replay){
+                    if(!(replay instanceof ServerError)||replay.status===0||replay.status>=500)throw replay;
+                    message=replay.message;this.finishReceipt(cmd.requestId,false);
+                }
+            }
+        }
+        return message;
+    }
+    private finishReceipt(id:string,success:boolean):void {
+        const route=this.receiptRoute;if(route?.id!==id)return;
+        this.receiptRoute=undefined;
+        if(success&&!this.closed)route.apply();
+    }
+    private async commit(a:Choice,args:Args,version:number):Promise<void>{
+        if(this.busy)return;
+        const origin=this.navigation;
+        this.busy=true;this.serial++;this.reading=false;
+        const command={requestId:requestId(),profileId:this.host.wallet().profileId,version,type:a.type!,args};
+        let feedback='',done=false;
+        try {
+            const existing=await this.recover();
+            if(existing){feedback=existing+' 请重新核对当前操作。';}
+            else {
+                // The same landing applies to an immediate response and a receipt
+                // recovered after a timeout, provided the player is still here.
+                this.receiptRoute={id:command.requestId,apply:()=>{
+                    if(origin!==this.navigation)return;
+                    if(a.type==='sale.commit'||a.type==='care.keepLitter'){
+                        for(const id of args.ids||[])this.feature?.selected.delete(id);
+                        this.closePanel();
+                    }else if(a.type==='care.unlock'){
+                        this.navigate('rooms',{species:args.species});
+                        this.navigate('roomReceipt',{species:args.species});
+                    }else if(a.type==='care.buyPet'||a.type==='order.cancel'){
+                        this.closePanel();
+                    }else if(a.go)this.navigate(a.go,a.goArgs||{});
+                }};
+                feedback=(await this.send(command)).message;
+                done=true;this.finishReceipt(command.requestId,true);
+            }
+        } catch(e){
+            feedback=(e as Error).message;
+            if(e instanceof ServerError&&e.status>0&&e.status<500){
+                this.finishReceipt(command.requestId,false);
+                if(a.type==='sale.commit'&&origin===this.navigation&&this.current)this.current.quoteNotice=feedback;
+            }
+        }
+        finally{this.busy=false;}
+        if(this.closed)return;
+        if(this.current)await this.read();
+        else if(done){
+            try{const shop=await connectShop(this.host.origin);if(!this.closed)this.host.update(shop);}
+            catch{/* The normal store poll will retry the snapshot. */}
+        }
+        if(!this.closed)this.host.notice(feedback);
+    }
+}

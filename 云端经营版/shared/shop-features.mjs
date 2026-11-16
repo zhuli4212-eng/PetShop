@@ -1,0 +1,39 @@
+import shopRules from './shop-feature-levels.json' with { type: 'json' };
+export { shopRules };
+
+export const featureNames = {
+  rooms:'动物房间', login:'店主登记簿', orders:'普通订单', show:'宠物赛展', lab:'研究所',
+  market:'自由市场', profile:'每日签到', breed:'繁育台', decor:'店铺装饰', guest:'特殊来客', collection:'奖杯收藏',
+};
+
+export function featureAccess(rules, level) {
+  return Object.fromEntries(Object.keys(featureNames).map(key => {
+    const requiredLevel = rules.featureLevels[key];
+    return [key, { name:featureNames[key], requiredLevel, unlocked: level >= requiredLevel }];
+  }));
+}
+
+const owner = new Map();
+const sections = {
+  rooms:['roomRoster','roomReceipt','pet','care.unlock','care.retain'],
+  login:['payment'],
+  orders:['orderDesk','credits','order.cancel','order.buyCredit'],
+  lab:['shelf','offer','services','review','recycle','research','researchNode','researchTable',
+    'care.buyPet','care.buyItem','care.review','research.upgrade'],
+  profile:['care.checkin'],
+  breed:['litter','litterKeep','litterSale','care.breed','care.toggle','care.keepLitter'],
+  decor:['decor.buy','decor.place'],
+  guest:['guest.dismiss'],
+};
+for (const [feature, keys] of Object.entries(sections)) {
+  for (const key of keys) owner.set(key, feature);
+}
+const saleFeatures = new Map([['market','market'],['order','orders'],['guest','guest'],['recycle','lab']]);
+
+export function operationFeature(key, args) {
+  if (key === 'sale' || key === 'saleQuote' || key === 'sale.commit') return saleFeatures.get(args.channel);
+  if (Object.hasOwn(featureNames, key)) return key;
+  if (key.startsWith('show.')) return 'show';
+  if (key.startsWith('collection.')) return 'collection';
+  return owner.get(key);
+}
