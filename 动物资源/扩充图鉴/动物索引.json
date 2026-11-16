@@ -1,0 +1,1837 @@
+{
+  "version": 1,
+  "stage": "成年期",
+  "frame": {
+    "width": 96,
+    "height": 96,
+    "baselineExclusive": 90
+  },
+  "breeds": [
+    {
+      "id": "persian",
+      "name": "波斯猫",
+      "speciesId": "cat",
+      "species": "猫",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "纯白"
+        },
+        {
+          "id": "coat02",
+          "name": "炭黑"
+        },
+        {
+          "id": "coat03",
+          "name": "奶油"
+        },
+        {
+          "id": "coat04",
+          "name": "蓝灰"
+        },
+        {
+          "id": "coat05",
+          "name": "橘虎斑"
+        },
+        {
+          "id": "coat06",
+          "name": "海豹重点"
+        }
+      ]
+    },
+    {
+      "id": "british",
+      "name": "英国短毛猫",
+      "speciesId": "cat",
+      "species": "猫",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "蓝灰"
+        },
+        {
+          "id": "coat02",
+          "name": "乳白"
+        },
+        {
+          "id": "coat03",
+          "name": "黑白双色"
+        },
+        {
+          "id": "coat04",
+          "name": "金渐层"
+        },
+        {
+          "id": "coat05",
+          "name": "银虎斑"
+        },
+        {
+          "id": "coat06",
+          "name": "巧克力"
+        }
+      ]
+    },
+    {
+      "id": "american",
+      "name": "美国短毛猫",
+      "speciesId": "cat",
+      "species": "猫",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "银虎斑"
+        },
+        {
+          "id": "coat02",
+          "name": "棕虎斑"
+        },
+        {
+          "id": "coat03",
+          "name": "橘虎斑"
+        },
+        {
+          "id": "coat04",
+          "name": "黑白双色"
+        },
+        {
+          "id": "coat05",
+          "name": "纯白"
+        },
+        {
+          "id": "coat06",
+          "name": "纯黑"
+        }
+      ]
+    },
+    {
+      "id": "maine",
+      "name": "缅因猫",
+      "speciesId": "cat",
+      "species": "猫",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "棕虎斑"
+        },
+        {
+          "id": "coat02",
+          "name": "银虎斑"
+        },
+        {
+          "id": "coat03",
+          "name": "橘白"
+        },
+        {
+          "id": "coat04",
+          "name": "黑烟"
+        },
+        {
+          "id": "coat05",
+          "name": "纯白"
+        },
+        {
+          "id": "coat06",
+          "name": "蓝灰白"
+        }
+      ]
+    },
+    {
+      "id": "shiba",
+      "name": "柴犬",
+      "speciesId": "dog",
+      "species": "狗",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "赤色"
+        },
+        {
+          "id": "coat02",
+          "name": "黑褐"
+        },
+        {
+          "id": "coat03",
+          "name": "奶油白"
+        },
+        {
+          "id": "coat04",
+          "name": "赤胡麻"
+        },
+        {
+          "id": "coat05",
+          "name": "黑胡麻"
+        },
+        {
+          "id": "coat06",
+          "name": "白底赤斑"
+        }
+      ]
+    },
+    {
+      "id": "corgi",
+      "name": "柯基犬",
+      "speciesId": "dog",
+      "species": "狗",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "黄白"
+        },
+        {
+          "id": "coat02",
+          "name": "赤白"
+        },
+        {
+          "id": "coat03",
+          "name": "貂色"
+        },
+        {
+          "id": "coat04",
+          "name": "黑头三色"
+        },
+        {
+          "id": "coat05",
+          "name": "虎斑白"
+        },
+        {
+          "id": "coat06",
+          "name": "蓝陨石"
+        }
+      ]
+    },
+    {
+      "id": "poodle",
+      "name": "贵宾犬",
+      "speciesId": "dog",
+      "species": "狗",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "黑色"
+        },
+        {
+          "id": "coat02",
+          "name": "白色"
+        },
+        {
+          "id": "coat03",
+          "name": "杏色"
+        },
+        {
+          "id": "coat04",
+          "name": "巧克力"
+        },
+        {
+          "id": "coat05",
+          "name": "银灰"
+        },
+        {
+          "id": "coat06",
+          "name": "黑白花"
+        }
+      ]
+    },
+    {
+      "id": "dachshund",
+      "name": "腊肠犬",
+      "speciesId": "dog",
+      "species": "狗",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "赤棕"
+        },
+        {
+          "id": "coat02",
+          "name": "黑褐"
+        },
+        {
+          "id": "coat03",
+          "name": "巧克力褐"
+        },
+        {
+          "id": "coat04",
+          "name": "银灰陨石"
+        },
+        {
+          "id": "coat05",
+          "name": "虎斑"
+        },
+        {
+          "id": "coat06",
+          "name": "红白花"
+        }
+      ]
+    },
+    {
+      "id": "angora",
+      "name": "安哥拉兔",
+      "speciesId": "rabbit",
+      "species": "兔",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "雪白"
+        },
+        {
+          "id": "coat02",
+          "name": "奶油"
+        },
+        {
+          "id": "coat03",
+          "name": "蓝灰"
+        },
+        {
+          "id": "coat04",
+          "name": "巧克力"
+        },
+        {
+          "id": "coat05",
+          "name": "橘黄"
+        },
+        {
+          "id": "coat06",
+          "name": "黑白花斑"
+        }
+      ]
+    },
+    {
+      "id": "domestic",
+      "name": "原色兔",
+      "speciesId": "rabbit",
+      "species": "兔",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "栗野"
+        },
+        {
+          "id": "coat02",
+          "name": "灰野"
+        },
+        {
+          "id": "coat03",
+          "name": "黑白花斑"
+        },
+        {
+          "id": "coat04",
+          "name": "橘白花斑"
+        },
+        {
+          "id": "coat05",
+          "name": "纯黑"
+        },
+        {
+          "id": "coat06",
+          "name": "雪白"
+        }
+      ]
+    },
+    {
+      "id": "lop",
+      "name": "垂耳兔",
+      "speciesId": "rabbit",
+      "species": "兔",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "奶油"
+        },
+        {
+          "id": "coat02",
+          "name": "蓝灰"
+        },
+        {
+          "id": "coat03",
+          "name": "巧克力"
+        },
+        {
+          "id": "coat04",
+          "name": "纯白"
+        },
+        {
+          "id": "coat05",
+          "name": "黑白花斑"
+        },
+        {
+          "id": "coat06",
+          "name": "焦糖白花斑"
+        }
+      ]
+    },
+    {
+      "id": "lionhead",
+      "name": "狮子兔",
+      "speciesId": "rabbit",
+      "species": "兔",
+      "coats": [
+        {
+          "id": "coat01",
+          "name": "金黄"
+        },
+        {
+          "id": "coat02",
+          "name": "黑色"
+        },
+        {
+          "id": "coat03",
+          "name": "灰白"
+        },
+        {
+          "id": "coat04",
+          "name": "巧克力"
+        },
+        {
+          "id": "coat05",
+          "name": "奶油"
+        },
+        {
+          "id": "coat06",
+          "name": "黑白花斑"
+        }
+      ]
+    }
+  ],
+  "animals": [
+    {
+      "id": "persian_coat01_male",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat01",
+      "coat": "纯白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/persian/coat01_male.png"
+    },
+    {
+      "id": "persian_coat01_female",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat01",
+      "coat": "纯白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/persian/coat01_female.png"
+    },
+    {
+      "id": "persian_coat02_male",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat02",
+      "coat": "炭黑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/persian/coat02_male.png"
+    },
+    {
+      "id": "persian_coat02_female",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat02",
+      "coat": "炭黑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/persian/coat02_female.png"
+    },
+    {
+      "id": "persian_coat03_male",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat03",
+      "coat": "奶油",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/persian/coat03_male.png"
+    },
+    {
+      "id": "persian_coat03_female",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat03",
+      "coat": "奶油",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/persian/coat03_female.png"
+    },
+    {
+      "id": "persian_coat04_male",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat04",
+      "coat": "蓝灰",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/persian/coat04_male.png"
+    },
+    {
+      "id": "persian_coat04_female",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat04",
+      "coat": "蓝灰",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/persian/coat04_female.png"
+    },
+    {
+      "id": "persian_coat05_male",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat05",
+      "coat": "橘虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/persian/coat05_male.png"
+    },
+    {
+      "id": "persian_coat05_female",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat05",
+      "coat": "橘虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/persian/coat05_female.png"
+    },
+    {
+      "id": "persian_coat06_male",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat06",
+      "coat": "海豹重点",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/persian/coat06_male.png"
+    },
+    {
+      "id": "persian_coat06_female",
+      "speciesId": "cat",
+      "breedId": "persian",
+      "coatId": "coat06",
+      "coat": "海豹重点",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/persian/coat06_female.png"
+    },
+    {
+      "id": "british_coat01_male",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat01",
+      "coat": "蓝灰",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/british/coat01_male.png"
+    },
+    {
+      "id": "british_coat01_female",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat01",
+      "coat": "蓝灰",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/british/coat01_female.png"
+    },
+    {
+      "id": "british_coat02_male",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat02",
+      "coat": "乳白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/british/coat02_male.png"
+    },
+    {
+      "id": "british_coat02_female",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat02",
+      "coat": "乳白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/british/coat02_female.png"
+    },
+    {
+      "id": "british_coat03_male",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat03",
+      "coat": "黑白双色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/british/coat03_male.png"
+    },
+    {
+      "id": "british_coat03_female",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat03",
+      "coat": "黑白双色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/british/coat03_female.png"
+    },
+    {
+      "id": "british_coat04_male",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat04",
+      "coat": "金渐层",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/british/coat04_male.png"
+    },
+    {
+      "id": "british_coat04_female",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat04",
+      "coat": "金渐层",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/british/coat04_female.png"
+    },
+    {
+      "id": "british_coat05_male",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat05",
+      "coat": "银虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/british/coat05_male.png"
+    },
+    {
+      "id": "british_coat05_female",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat05",
+      "coat": "银虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/british/coat05_female.png"
+    },
+    {
+      "id": "british_coat06_male",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat06",
+      "coat": "巧克力",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/british/coat06_male.png"
+    },
+    {
+      "id": "british_coat06_female",
+      "speciesId": "cat",
+      "breedId": "british",
+      "coatId": "coat06",
+      "coat": "巧克力",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/british/coat06_female.png"
+    },
+    {
+      "id": "american_coat01_male",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat01",
+      "coat": "银虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/american/coat01_male.png"
+    },
+    {
+      "id": "american_coat01_female",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat01",
+      "coat": "银虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/american/coat01_female.png"
+    },
+    {
+      "id": "american_coat02_male",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat02",
+      "coat": "棕虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/american/coat02_male.png"
+    },
+    {
+      "id": "american_coat02_female",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat02",
+      "coat": "棕虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/american/coat02_female.png"
+    },
+    {
+      "id": "american_coat03_male",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat03",
+      "coat": "橘虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/american/coat03_male.png"
+    },
+    {
+      "id": "american_coat03_female",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat03",
+      "coat": "橘虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/american/coat03_female.png"
+    },
+    {
+      "id": "american_coat04_male",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat04",
+      "coat": "黑白双色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/american/coat04_male.png"
+    },
+    {
+      "id": "american_coat04_female",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat04",
+      "coat": "黑白双色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/american/coat04_female.png"
+    },
+    {
+      "id": "american_coat05_male",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat05",
+      "coat": "纯白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/american/coat05_male.png"
+    },
+    {
+      "id": "american_coat05_female",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat05",
+      "coat": "纯白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/american/coat05_female.png"
+    },
+    {
+      "id": "american_coat06_male",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat06",
+      "coat": "纯黑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/american/coat06_male.png"
+    },
+    {
+      "id": "american_coat06_female",
+      "speciesId": "cat",
+      "breedId": "american",
+      "coatId": "coat06",
+      "coat": "纯黑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/american/coat06_female.png"
+    },
+    {
+      "id": "maine_coat01_male",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat01",
+      "coat": "棕虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/maine/coat01_male.png"
+    },
+    {
+      "id": "maine_coat01_female",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat01",
+      "coat": "棕虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/maine/coat01_female.png"
+    },
+    {
+      "id": "maine_coat02_male",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat02",
+      "coat": "银虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/maine/coat02_male.png"
+    },
+    {
+      "id": "maine_coat02_female",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat02",
+      "coat": "银虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/maine/coat02_female.png"
+    },
+    {
+      "id": "maine_coat03_male",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat03",
+      "coat": "橘白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/maine/coat03_male.png"
+    },
+    {
+      "id": "maine_coat03_female",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat03",
+      "coat": "橘白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/maine/coat03_female.png"
+    },
+    {
+      "id": "maine_coat04_male",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat04",
+      "coat": "黑烟",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/maine/coat04_male.png"
+    },
+    {
+      "id": "maine_coat04_female",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat04",
+      "coat": "黑烟",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/maine/coat04_female.png"
+    },
+    {
+      "id": "maine_coat05_male",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat05",
+      "coat": "纯白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/maine/coat05_male.png"
+    },
+    {
+      "id": "maine_coat05_female",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat05",
+      "coat": "纯白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/maine/coat05_female.png"
+    },
+    {
+      "id": "maine_coat06_male",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat06",
+      "coat": "蓝灰白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/maine/coat06_male.png"
+    },
+    {
+      "id": "maine_coat06_female",
+      "speciesId": "cat",
+      "breedId": "maine",
+      "coatId": "coat06",
+      "coat": "蓝灰白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/maine/coat06_female.png"
+    },
+    {
+      "id": "shiba_coat01_male",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat01",
+      "coat": "赤色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/shiba/coat01_male.png"
+    },
+    {
+      "id": "shiba_coat01_female",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat01",
+      "coat": "赤色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/shiba/coat01_female.png"
+    },
+    {
+      "id": "shiba_coat02_male",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat02",
+      "coat": "黑褐",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/shiba/coat02_male.png"
+    },
+    {
+      "id": "shiba_coat02_female",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat02",
+      "coat": "黑褐",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/shiba/coat02_female.png"
+    },
+    {
+      "id": "shiba_coat03_male",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat03",
+      "coat": "奶油白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/shiba/coat03_male.png"
+    },
+    {
+      "id": "shiba_coat03_female",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat03",
+      "coat": "奶油白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/shiba/coat03_female.png"
+    },
+    {
+      "id": "shiba_coat04_male",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat04",
+      "coat": "赤胡麻",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/shiba/coat04_male.png"
+    },
+    {
+      "id": "shiba_coat04_female",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat04",
+      "coat": "赤胡麻",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/shiba/coat04_female.png"
+    },
+    {
+      "id": "shiba_coat05_male",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat05",
+      "coat": "黑胡麻",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/shiba/coat05_male.png"
+    },
+    {
+      "id": "shiba_coat05_female",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat05",
+      "coat": "黑胡麻",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/shiba/coat05_female.png"
+    },
+    {
+      "id": "shiba_coat06_male",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat06",
+      "coat": "白底赤斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/shiba/coat06_male.png"
+    },
+    {
+      "id": "shiba_coat06_female",
+      "speciesId": "dog",
+      "breedId": "shiba",
+      "coatId": "coat06",
+      "coat": "白底赤斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/shiba/coat06_female.png"
+    },
+    {
+      "id": "corgi_coat01_male",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat01",
+      "coat": "黄白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/corgi/coat01_male.png"
+    },
+    {
+      "id": "corgi_coat01_female",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat01",
+      "coat": "黄白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/corgi/coat01_female.png"
+    },
+    {
+      "id": "corgi_coat02_male",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat02",
+      "coat": "赤白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/corgi/coat02_male.png"
+    },
+    {
+      "id": "corgi_coat02_female",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat02",
+      "coat": "赤白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/corgi/coat02_female.png"
+    },
+    {
+      "id": "corgi_coat03_male",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat03",
+      "coat": "貂色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/corgi/coat03_male.png"
+    },
+    {
+      "id": "corgi_coat03_female",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat03",
+      "coat": "貂色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/corgi/coat03_female.png"
+    },
+    {
+      "id": "corgi_coat04_male",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat04",
+      "coat": "黑头三色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/corgi/coat04_male.png"
+    },
+    {
+      "id": "corgi_coat04_female",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat04",
+      "coat": "黑头三色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/corgi/coat04_female.png"
+    },
+    {
+      "id": "corgi_coat05_male",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat05",
+      "coat": "虎斑白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/corgi/coat05_male.png"
+    },
+    {
+      "id": "corgi_coat05_female",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat05",
+      "coat": "虎斑白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/corgi/coat05_female.png"
+    },
+    {
+      "id": "corgi_coat06_male",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat06",
+      "coat": "蓝陨石",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/corgi/coat06_male.png"
+    },
+    {
+      "id": "corgi_coat06_female",
+      "speciesId": "dog",
+      "breedId": "corgi",
+      "coatId": "coat06",
+      "coat": "蓝陨石",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/corgi/coat06_female.png"
+    },
+    {
+      "id": "poodle_coat01_male",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat01",
+      "coat": "黑色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/poodle/coat01_male.png"
+    },
+    {
+      "id": "poodle_coat01_female",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat01",
+      "coat": "黑色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/poodle/coat01_female.png"
+    },
+    {
+      "id": "poodle_coat02_male",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat02",
+      "coat": "白色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/poodle/coat02_male.png"
+    },
+    {
+      "id": "poodle_coat02_female",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat02",
+      "coat": "白色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/poodle/coat02_female.png"
+    },
+    {
+      "id": "poodle_coat03_male",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat03",
+      "coat": "杏色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/poodle/coat03_male.png"
+    },
+    {
+      "id": "poodle_coat03_female",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat03",
+      "coat": "杏色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/poodle/coat03_female.png"
+    },
+    {
+      "id": "poodle_coat04_male",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat04",
+      "coat": "巧克力",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/poodle/coat04_male.png"
+    },
+    {
+      "id": "poodle_coat04_female",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat04",
+      "coat": "巧克力",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/poodle/coat04_female.png"
+    },
+    {
+      "id": "poodle_coat05_male",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat05",
+      "coat": "银灰",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/poodle/coat05_male.png"
+    },
+    {
+      "id": "poodle_coat05_female",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat05",
+      "coat": "银灰",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/poodle/coat05_female.png"
+    },
+    {
+      "id": "poodle_coat06_male",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat06",
+      "coat": "黑白花",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/poodle/coat06_male.png"
+    },
+    {
+      "id": "poodle_coat06_female",
+      "speciesId": "dog",
+      "breedId": "poodle",
+      "coatId": "coat06",
+      "coat": "黑白花",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/poodle/coat06_female.png"
+    },
+    {
+      "id": "dachshund_coat01_male",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat01",
+      "coat": "赤棕",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/dachshund/coat01_male.png"
+    },
+    {
+      "id": "dachshund_coat01_female",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat01",
+      "coat": "赤棕",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/dachshund/coat01_female.png"
+    },
+    {
+      "id": "dachshund_coat02_male",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat02",
+      "coat": "黑褐",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/dachshund/coat02_male.png"
+    },
+    {
+      "id": "dachshund_coat02_female",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat02",
+      "coat": "黑褐",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/dachshund/coat02_female.png"
+    },
+    {
+      "id": "dachshund_coat03_male",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat03",
+      "coat": "巧克力褐",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/dachshund/coat03_male.png"
+    },
+    {
+      "id": "dachshund_coat03_female",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat03",
+      "coat": "巧克力褐",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/dachshund/coat03_female.png"
+    },
+    {
+      "id": "dachshund_coat04_male",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat04",
+      "coat": "银灰陨石",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/dachshund/coat04_male.png"
+    },
+    {
+      "id": "dachshund_coat04_female",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat04",
+      "coat": "银灰陨石",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/dachshund/coat04_female.png"
+    },
+    {
+      "id": "dachshund_coat05_male",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat05",
+      "coat": "虎斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/dachshund/coat05_male.png"
+    },
+    {
+      "id": "dachshund_coat05_female",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat05",
+      "coat": "虎斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/dachshund/coat05_female.png"
+    },
+    {
+      "id": "dachshund_coat06_male",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat06",
+      "coat": "红白花",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/dachshund/coat06_male.png"
+    },
+    {
+      "id": "dachshund_coat06_female",
+      "speciesId": "dog",
+      "breedId": "dachshund",
+      "coatId": "coat06",
+      "coat": "红白花",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/dachshund/coat06_female.png"
+    },
+    {
+      "id": "angora_coat01_male",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat01",
+      "coat": "雪白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/angora/coat01_male.png"
+    },
+    {
+      "id": "angora_coat01_female",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat01",
+      "coat": "雪白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/angora/coat01_female.png"
+    },
+    {
+      "id": "angora_coat02_male",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat02",
+      "coat": "奶油",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/angora/coat02_male.png"
+    },
+    {
+      "id": "angora_coat02_female",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat02",
+      "coat": "奶油",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/angora/coat02_female.png"
+    },
+    {
+      "id": "angora_coat03_male",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat03",
+      "coat": "蓝灰",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/angora/coat03_male.png"
+    },
+    {
+      "id": "angora_coat03_female",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat03",
+      "coat": "蓝灰",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/angora/coat03_female.png"
+    },
+    {
+      "id": "angora_coat04_male",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat04",
+      "coat": "巧克力",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/angora/coat04_male.png"
+    },
+    {
+      "id": "angora_coat04_female",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat04",
+      "coat": "巧克力",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/angora/coat04_female.png"
+    },
+    {
+      "id": "angora_coat05_male",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat05",
+      "coat": "橘黄",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/angora/coat05_male.png"
+    },
+    {
+      "id": "angora_coat05_female",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat05",
+      "coat": "橘黄",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/angora/coat05_female.png"
+    },
+    {
+      "id": "angora_coat06_male",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat06",
+      "coat": "黑白花斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/angora/coat06_male.png"
+    },
+    {
+      "id": "angora_coat06_female",
+      "speciesId": "rabbit",
+      "breedId": "angora",
+      "coatId": "coat06",
+      "coat": "黑白花斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/angora/coat06_female.png"
+    },
+    {
+      "id": "domestic_coat01_male",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat01",
+      "coat": "栗野",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/domestic/coat01_male.png"
+    },
+    {
+      "id": "domestic_coat01_female",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat01",
+      "coat": "栗野",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/domestic/coat01_female.png"
+    },
+    {
+      "id": "domestic_coat02_male",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat02",
+      "coat": "灰野",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/domestic/coat02_male.png"
+    },
+    {
+      "id": "domestic_coat02_female",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat02",
+      "coat": "灰野",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/domestic/coat02_female.png"
+    },
+    {
+      "id": "domestic_coat03_male",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat03",
+      "coat": "黑白花斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/domestic/coat03_male.png"
+    },
+    {
+      "id": "domestic_coat03_female",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat03",
+      "coat": "黑白花斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/domestic/coat03_female.png"
+    },
+    {
+      "id": "domestic_coat04_male",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat04",
+      "coat": "橘白花斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/domestic/coat04_male.png"
+    },
+    {
+      "id": "domestic_coat04_female",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat04",
+      "coat": "橘白花斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/domestic/coat04_female.png"
+    },
+    {
+      "id": "domestic_coat05_male",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat05",
+      "coat": "纯黑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/domestic/coat05_male.png"
+    },
+    {
+      "id": "domestic_coat05_female",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat05",
+      "coat": "纯黑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/domestic/coat05_female.png"
+    },
+    {
+      "id": "domestic_coat06_male",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat06",
+      "coat": "雪白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/domestic/coat06_male.png"
+    },
+    {
+      "id": "domestic_coat06_female",
+      "speciesId": "rabbit",
+      "breedId": "domestic",
+      "coatId": "coat06",
+      "coat": "雪白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/domestic/coat06_female.png"
+    },
+    {
+      "id": "lop_coat01_male",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat01",
+      "coat": "奶油",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lop/coat01_male.png"
+    },
+    {
+      "id": "lop_coat01_female",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat01",
+      "coat": "奶油",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lop/coat01_female.png"
+    },
+    {
+      "id": "lop_coat02_male",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat02",
+      "coat": "蓝灰",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lop/coat02_male.png"
+    },
+    {
+      "id": "lop_coat02_female",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat02",
+      "coat": "蓝灰",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lop/coat02_female.png"
+    },
+    {
+      "id": "lop_coat03_male",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat03",
+      "coat": "巧克力",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lop/coat03_male.png"
+    },
+    {
+      "id": "lop_coat03_female",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat03",
+      "coat": "巧克力",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lop/coat03_female.png"
+    },
+    {
+      "id": "lop_coat04_male",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat04",
+      "coat": "纯白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lop/coat04_male.png"
+    },
+    {
+      "id": "lop_coat04_female",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat04",
+      "coat": "纯白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lop/coat04_female.png"
+    },
+    {
+      "id": "lop_coat05_male",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat05",
+      "coat": "黑白花斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lop/coat05_male.png"
+    },
+    {
+      "id": "lop_coat05_female",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat05",
+      "coat": "黑白花斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lop/coat05_female.png"
+    },
+    {
+      "id": "lop_coat06_male",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat06",
+      "coat": "焦糖白花斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lop/coat06_male.png"
+    },
+    {
+      "id": "lop_coat06_female",
+      "speciesId": "rabbit",
+      "breedId": "lop",
+      "coatId": "coat06",
+      "coat": "焦糖白花斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lop/coat06_female.png"
+    },
+    {
+      "id": "lionhead_coat01_male",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat01",
+      "coat": "金黄",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lionhead/coat01_male.png"
+    },
+    {
+      "id": "lionhead_coat01_female",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat01",
+      "coat": "金黄",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lionhead/coat01_female.png"
+    },
+    {
+      "id": "lionhead_coat02_male",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat02",
+      "coat": "黑色",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lionhead/coat02_male.png"
+    },
+    {
+      "id": "lionhead_coat02_female",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat02",
+      "coat": "黑色",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lionhead/coat02_female.png"
+    },
+    {
+      "id": "lionhead_coat03_male",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat03",
+      "coat": "灰白",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lionhead/coat03_male.png"
+    },
+    {
+      "id": "lionhead_coat03_female",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat03",
+      "coat": "灰白",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lionhead/coat03_female.png"
+    },
+    {
+      "id": "lionhead_coat04_male",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat04",
+      "coat": "巧克力",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lionhead/coat04_male.png"
+    },
+    {
+      "id": "lionhead_coat04_female",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat04",
+      "coat": "巧克力",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lionhead/coat04_female.png"
+    },
+    {
+      "id": "lionhead_coat05_male",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat05",
+      "coat": "奶油",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lionhead/coat05_male.png"
+    },
+    {
+      "id": "lionhead_coat05_female",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat05",
+      "coat": "奶油",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lionhead/coat05_female.png"
+    },
+    {
+      "id": "lionhead_coat06_male",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat06",
+      "coat": "黑白花斑",
+      "sexId": "male",
+      "sex": "公",
+      "file": "图片/lionhead/coat06_male.png"
+    },
+    {
+      "id": "lionhead_coat06_female",
+      "speciesId": "rabbit",
+      "breedId": "lionhead",
+      "coatId": "coat06",
+      "coat": "黑白花斑",
+      "sexId": "female",
+      "sex": "母",
+      "file": "图片/lionhead/coat06_female.png"
+    }
+  ]
+}

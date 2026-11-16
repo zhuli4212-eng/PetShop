@@ -1,0 +1,48 @@
+[
+  {
+    "width": 320,
+    "height": 667,
+    "screens": 19,
+    "jsErrors": [],
+    "dialogAndBack": "passed"
+  },
+  {
+    "width": 360,
+    "height": 800,
+    "screens": 19,
+    "jsErrors": [],
+    "dialogAndBack": "passed"
+  },
+  {
+    "width": 375,
+    "height": 812,
+    "screens": 19,
+    "jsErrors": [],
+    "dialogAndBack": "passed"
+  },
+  {
+    "simulatedSafeArea": "top44-bottom34",
+    "status": "passed"
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "screens": 19,
+    "jsErrors": [],
+    "dialogAndBack": "passed"
+  },
+  {
+    "width": 414,
+    "height": 896,
+    "screens": 19,
+    "jsErrors": [],
+    "dialogAndBack": "passed"
+  },
+  {
+    "width": 430,
+    "height": 932,
+    "screens": 19,
+    "jsErrors": [],
+    "dialogAndBack": "passed"
+  }
+]

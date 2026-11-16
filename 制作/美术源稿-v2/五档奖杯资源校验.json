@@ -1,0 +1,353 @@
+[
+  {
+    "file": "trophy-memorial-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 573,
+    "sha256": "fb2009417bb252d40fc6780cdb5ed654130a656e4731573b46846d440b6feffe"
+  },
+  {
+    "file": "trophy-memorial-128-v2.png",
+    "size": [
+      128,
+      128
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 769,
+    "sha256": "6285a1c47b545ac6da0d577f8a88ddb2527c0e65364c80df4e190494416819b6"
+  },
+  {
+    "file": "trophy-memorial-192-v2.png",
+    "size": [
+      192,
+      192
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 956,
+    "sha256": "a5c5f85be365077fd0ec1347fc2c87e08780e9fc4840bd2bffdb0e392bd13cc0"
+  },
+  {
+    "file": "trophy-bronze-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2315,
+    "sha256": "20fefe8129a535d2fc72a7bcb82de95728ad5e0ee85d568fcadbde0e15da57f0"
+  },
+  {
+    "file": "trophy-bronze-128-v2.png",
+    "size": [
+      128,
+      128
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2524,
+    "sha256": "0dce85c83da1f165e1fd971db16e39854296402a3880d5062e9fb7a8561e8ccb"
+  },
+  {
+    "file": "trophy-bronze-192-v2.png",
+    "size": [
+      192,
+      192
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2965,
+    "sha256": "77c34b3adafaf2616f05783be57adf559c903459ac09d8d433946532b06eaf5c"
+  },
+  {
+    "file": "trophy-silver-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2500,
+    "sha256": "a7f0cbaf2cb911b96358ecb3a510563c9db16d6b1924a654cffad2fbfed25378"
+  },
+  {
+    "file": "trophy-silver-128-v2.png",
+    "size": [
+      128,
+      128
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2702,
+    "sha256": "86a621c2ee4e1aa419878e16b5380d548d1c1cd164d4cb4acead6991ca8c136d"
+  },
+  {
+    "file": "trophy-silver-192-v2.png",
+    "size": [
+      192,
+      192
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 3138,
+    "sha256": "acbe6596f89912dda148361265d5c71c1f15319e6c45b637940dc85763530507"
+  },
+  {
+    "file": "trophy-gold-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2529,
+    "sha256": "5e65bebb19b1401b06f888e104bc3f60f17e1f0ada1c168b6ffd66ef4eb732a4"
+  },
+  {
+    "file": "trophy-gold-128-v2.png",
+    "size": [
+      128,
+      128
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2813,
+    "sha256": "00cf5203332124265fd44fef3b7afa429f33137ce17c9a4e23d1133430747b5d"
+  },
+  {
+    "file": "trophy-gold-192-v2.png",
+    "size": [
+      192,
+      192
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 3273,
+    "sha256": "3e5bf7f075fe274203300045801a28872d59c78a74addf42106a0778e32e06ce"
+  },
+  {
+    "file": "trophy-laurel-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2301,
+    "sha256": "e2ef64dbe302d3274d669e9ed5a74c952138e06b7efbbf92ae4b2f82d70dbd5e"
+  },
+  {
+    "file": "trophy-laurel-128-v2.png",
+    "size": [
+      128,
+      128
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2601,
+    "sha256": "b8375cca470228b15b057c30d50df2f8fb3d23fca58dff829a9b5ba15ad34645"
+  },
+  {
+    "file": "trophy-laurel-192-v2.png",
+    "size": [
+      192,
+      192
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2971,
+    "sha256": "83848c4b9de99f5c344d32a1420240d95b26d133cab9e1cd9fb8d69e062fb82b"
+  },
+  {
+    "file": "ui-order-cancel-24-v2.png",
+    "size": [
+      24,
+      24
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 179,
+    "sha256": "03f270836e7b09deafefa437d9658e906cfe70c982e0e3d540a07c88ae1c325b"
+  },
+  {
+    "file": "ui-order-cancel-48-v2.png",
+    "size": [
+      48,
+      48
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 239,
+    "sha256": "d9da2fe2ce70ec224f4f5cd32236f2c11c338fda97acee01946087aeb02ab4d2"
+  },
+  {
+    "file": "ui-order-cancel-72-v2.png",
+    "size": [
+      72,
+      72
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 288,
+    "sha256": "db20bef9bad49811ce4eb2d1a9a921e36890f84183c6d905bc87f9663f90f338"
+  },
+  {
+    "file": "ui-order-clock-24-v2.png",
+    "size": [
+      24,
+      24
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 168,
+    "sha256": "75112f69e55d520e8692a6536a9d92154ff48cd197f3b5b15b4e5f8e7227c4d7"
+  },
+  {
+    "file": "ui-order-clock-48-v2.png",
+    "size": [
+      48,
+      48
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 222,
+    "sha256": "f4585b1f90476c23706a8002261519a0bc3bb90ea71c11bab7a8a13719ace66c"
+  },
+  {
+    "file": "ui-order-clock-72-v2.png",
+    "size": [
+      72,
+      72
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 272,
+    "sha256": "9f69713b87dc41745edbf4767b4983eb0c81271120cac987904a0ab7275e8a6f"
+  },
+  {
+    "file": "ui-node-lock-24-v2.png",
+    "size": [
+      24,
+      24
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 161,
+    "sha256": "16b22c9e70af7b18125a151cae5a6b67dec895b54a27790fad412fd892af9757"
+  },
+  {
+    "file": "ui-node-lock-48-v2.png",
+    "size": [
+      48,
+      48
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 213,
+    "sha256": "b412fd20bc7fc11c81d36f290f4feb1832a28b7eae5b9689ef57f9a33191a352"
+  },
+  {
+    "file": "ui-node-lock-72-v2.png",
+    "size": [
+      72,
+      72
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 262,
+    "sha256": "8dea542fd99ff6affd703a860bd9bf65f167ad013158eab4e6996f61dc78a645"
+  },
+  {
+    "file": "ui-node-complete-24-v2.png",
+    "size": [
+      24,
+      24
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 194,
+    "sha256": "e9f946ae0c1ecff2de23bcb133a9bec44932dabb0b33f30b3d72d2d58d52bdf5"
+  },
+  {
+    "file": "ui-node-complete-48-v2.png",
+    "size": [
+      48,
+      48
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 248,
+    "sha256": "71970d5f8f7218f51a7a9de19dba3c6f8549672cd83cdc2b66f7a375b349d5cd"
+  },
+  {
+    "file": "ui-node-complete-72-v2.png",
+    "size": [
+      72,
+      72
+    ],
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 303,
+    "sha256": "65b3c525a34ad3bd3f2fce953d8f63a593bd78797777ac5646d82e1420621945"
+  }
+]

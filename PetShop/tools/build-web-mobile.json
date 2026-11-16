@@ -1,0 +1,18 @@
+{
+  "platform": "web-mobile",
+  "name": "PetShop",
+  "buildPath": "project://build",
+  "outputName": "web-mobile",
+  "startScene": "0a0f5dce-8f2a-5c57-a7d9-28307eb476cd",
+  "scenes": [
+    {
+      "url": "db://assets/scenes/ShopMain.scene",
+      "uuid": "0a0f5dce-8f2a-5c57-a7d9-28307eb476cd"
+    }
+  ],
+  "packages": {
+    "web-mobile": {
+      "orientation": "portrait"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "file": "trophy-gold-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "colors": 18,
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2529,
+    "sha256": "5e65bebb19b1401b06f888e104bc3f60f17e1f0ada1c168b6ffd66ef4eb732a4"
+  },
+  {
+    "file": "collection-book-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "colors": 17,
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2471,
+    "sha256": "6cf179708773dc2c6ac6e33efbd12354cd70bb200239e1134b607b77a67b7007"
+  },
+  {
+    "file": "item-trait-review-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "colors": 18,
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2518,
+    "sha256": "e6ccd94513f4a4824d5eea3c4984ba9265cbb33037e12bd61d90a1a862e8d58d"
+  },
+  {
+    "file": "item-breeding-guidance-64-v2.png",
+    "size": [
+      64,
+      64
+    ],
+    "colors": 19,
+    "alpha": [
+      0,
+      255
+    ],
+    "bytes": 2305,
+    "sha256": "35bc7d56503dac7ef22ac3446ca3f8f755a3d537f7407fd68e9b6434944866c7"
+  }
+]

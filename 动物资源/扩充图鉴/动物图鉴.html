@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>动物图鉴 · 麦穗宠物店</title>
+<style>
+:root{
+  color-scheme:light;--paper:#f5efdd;--card:#fff9ea;--ink:#302c22;--note:#685b46;
+  --pine:#24483c;--green:#375e4b;--gold:#d2b47c;--rule:#c9b895;--stage:#ede3cd;
+  font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;color:var(--ink);background:var(--paper);
+}
+*{box-sizing:border-box}
+body{margin:0;line-height:1.45}
+header{background:var(--pine);color:var(--card);border-bottom:5px solid var(--gold)}
+.mast,.layout{width:min(1352px,100%);margin:auto}
+.mast{padding:24px clamp(16px,4vw,56px) 22px;display:flex;justify-content:space-between;align-items:end;gap:20px}
+.shop{color:#f1d393;font-size:14px;letter-spacing:.12em;font-weight:600}
+h1,h2,h3,p{margin:0}
+h1{font-family:SimSun,"Songti SC",serif;font-size:clamp(32px,4vw,48px);line-height:1.2;margin-top:4px;letter-spacing:.05em}
+.totals{color:#f9edcc;font-size:14px;white-space:nowrap}
+.layout{padding:clamp(20px,3vw,40px) clamp(16px,4vw,56px) 48px;display:grid;grid-template-columns:190px minmax(0,1fr);gap:clamp(22px,3vw,42px)}
+.caption{font-size:14px;color:var(--note);font-weight:650;letter-spacing:.08em}
+#species,#breeds{display:grid;gap:6px}
+#species{grid-template-columns:repeat(3,1fr);margin:8px 0 28px}
+#breeds{margin-top:9px}
+nav a{color:var(--ink);text-decoration:none;min-height:46px;display:flex;align-items:center;justify-content:center;border:1px solid var(--rule);font-size:15px;background:var(--card);font-weight:650;transition:background-color .12s}
+#breeds a{padding:5px 12px;justify-content:space-between}
+#breeds a::after{content:"›";color:var(--note)}
+nav a[aria-current="true"]{background:var(--pine);border-color:var(--pine);color:var(--card)}
+#breeds a[aria-current="true"]::after{color:var(--gold)}
+a:focus-visible{outline:3px solid #a05216;outline-offset:2px;z-index:1}
+@media (hover:hover){nav a:hover:not([aria-current="true"]){background:#ece0c6}.individual:hover{background:#e3d5b7}}
+nav a:active,.individual:active{filter:brightness(.93)}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:2px solid var(--green);padding-bottom:10px;margin-bottom:16px}
+h2{font:700 clamp(24px,3vw,34px)/1.3 SimSun,"Songti SC",serif;color:var(--pine)}
+.hint{font-size:13px;color:var(--note)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.card{min-width:0;border:1px solid var(--rule);background:var(--card);box-shadow:0 3px 0 #d8c8a9}
+.card h3{font-size:17px;padding:10px 12px;border-bottom:1px solid var(--rule);line-height:1.4}
+.pair{display:grid;grid-template-columns:1fr 1fr;background:var(--stage)}
+.individual{display:grid;grid-template-rows:1fr auto;justify-items:center;align-items:end;min-width:0;gap:4px;color:var(--note);text-decoration:none;padding:10px 3px 7px}
+.individual+.individual{border-left:1px dotted #c7b79a}
+.individual img{display:block;width:min(100%,122px);height:auto;aspect-ratio:1;object-fit:contain;object-position:center bottom;image-rendering:pixelated}
+.sex{font-size:14px;font-weight:650;line-height:1.35}
+@media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:164px minmax(0,1fr)}}
+@media(max-width:760px){
+  .layout{display:block}.controls{margin-bottom:20px}
+  #species{margin:6px 0 12px}
+  #breeds{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:6px}
+  #breeds a{justify-content:center;text-align:center;padding:6px 4px;font-size:14px}
+  #breeds a::after{content:none}.hint{font-size:12px}
+}
+@media(max-width:465px){
+  .mast{display:block;padding-top:17px;padding-bottom:15px}.totals{margin-top:8px;font-size:13px}
+  .grid{grid-template-columns:1fr;gap:12px}.section-head{gap:6px}.card h3{padding:8px 12px}
+  .individual{grid-template-rows:96px auto;padding:6px 3px;gap:0}
+  .individual img{width:96px}.card h3{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){nav a{transition:none}}
+</style>
+</head>
+<body>
+<header><div class="mast"><div><div class="shop">麦穗宠物店</div><h1>动物图鉴</h1></div><p class="totals" id="totals"></p></div></header>
+<main class="layout">
+<aside class="controls">
+<p class="caption" id="species-label">物种</p><nav id="species" aria-labelledby="species-label"></nav>
+<p class="caption" id="breed-label">品种</p><nav id="breeds" aria-labelledby="breed-label"></nav>
+</aside>
+<section aria-labelledby="active-breed"><div class="section-head"><h2 id="active-breed" aria-live="polite"></h2><p class="hint">点选个体查看原图</p></div><div class="grid" id="coats"></div></section>
+</main>
+<script id="library" type="application/json">[{"id":"persian","name":"波斯猫","speciesId":"cat","species":"猫","coats":[{"id":"coat01","name":"纯白"},{"id":"coat02","name":"炭黑"},{"id":"coat03","name":"奶油"},{"id":"coat04","name":"蓝灰"},{"id":"coat05","name":"橘虎斑"},{"id":"coat06","name":"海豹重点"}]},{"id":"british","name":"英国短毛猫","speciesId":"cat","species":"猫","coats":[{"id":"coat01","name":"蓝灰"},{"id":"coat02","name":"乳白"},{"id":"coat03","name":"黑白双色"},{"id":"coat04","name":"金渐层"},{"id":"coat05","name":"银虎斑"},{"id":"coat06","name":"巧克力"}]},{"id":"american","name":"美国短毛猫","speciesId":"cat","species":"猫","coats":[{"id":"coat01","name":"银虎斑"},{"id":"coat02","name":"棕虎斑"},{"id":"coat03","name":"橘虎斑"},{"id":"coat04","name":"黑白双色"},{"id":"coat05","name":"纯白"},{"id":"coat06","name":"纯黑"}]},{"id":"maine","name":"缅因猫","speciesId":"cat","species":"猫","coats":[{"id":"coat01","name":"棕虎斑"},{"id":"coat02","name":"银虎斑"},{"id":"coat03","name":"橘白"},{"id":"coat04","name":"黑烟"},{"id":"coat05","name":"纯白"},{"id":"coat06","name":"蓝灰白"}]},{"id":"shiba","name":"柴犬","speciesId":"dog","species":"狗","coats":[{"id":"coat01","name":"赤色"},{"id":"coat02","name":"黑褐"},{"id":"coat03","name":"奶油白"},{"id":"coat04","name":"赤胡麻"},{"id":"coat05","name":"黑胡麻"},{"id":"coat06","name":"白底赤斑"}]},{"id":"corgi","name":"柯基犬","speciesId":"dog","species":"狗","coats":[{"id":"coat01","name":"黄白"},{"id":"coat02","name":"赤白"},{"id":"coat03","name":"貂色"},{"id":"coat04","name":"黑头三色"},{"id":"coat05","name":"虎斑白"},{"id":"coat06","name":"蓝陨石"}]},{"id":"poodle","name":"贵宾犬","speciesId":"dog","species":"狗","coats":[{"id":"coat01","name":"黑色"},{"id":"coat02","name":"白色"},{"id":"coat03","name":"杏色"},{"id":"coat04","name":"巧克力"},{"id":"coat05","name":"银灰"},{"id":"coat06","name":"黑白花"}]},{"id":"dachshund","name":"腊肠犬","speciesId":"dog","species":"狗","coats":[{"id":"coat01","name":"赤棕"},{"id":"coat02","name":"黑褐"},{"id":"coat03","name":"巧克力褐"},{"id":"coat04","name":"银灰陨石"},{"id":"coat05","name":"虎斑"},{"id":"coat06","name":"红白花"}]},{"id":"angora","name":"安哥拉兔","speciesId":"rabbit","species":"兔","coats":[{"id":"coat01","name":"雪白"},{"id":"coat02","name":"奶油"},{"id":"coat03","name":"蓝灰"},{"id":"coat04","name":"巧克力"},{"id":"coat05","name":"橘黄"},{"id":"coat06","name":"黑白花斑"}]},{"id":"domestic","name":"原色兔","speciesId":"rabbit","species":"兔","coats":[{"id":"coat01","name":"栗野"},{"id":"coat02","name":"灰野"},{"id":"coat03","name":"黑白花斑"},{"id":"coat04","name":"橘白花斑"},{"id":"coat05","name":"纯黑"},{"id":"coat06","name":"雪白"}]},{"id":"lop","name":"垂耳兔","speciesId":"rabbit","species":"兔","coats":[{"id":"coat01","name":"奶油"},{"id":"coat02","name":"蓝灰"},{"id":"coat03","name":"巧克力"},{"id":"coat04","name":"纯白"},{"id":"coat05","name":"黑白花斑"},{"id":"coat06","name":"焦糖白花斑"}]},{"id":"lionhead","name":"狮子兔","speciesId":"rabbit","species":"兔","coats":[{"id":"coat01","name":"金黄"},{"id":"coat02","name":"黑色"},{"id":"coat03","name":"灰白"},{"id":"coat04","name":"巧克力"},{"id":"coat05","name":"奶油"},{"id":"coat06","name":"黑白花斑"}]}]</script>
+<script>
+'use strict';
+const library=JSON.parse(document.getElementById('library').textContent);
+const byBreed=new Map(library.map(breed=>[breed.id,breed]));
+const groups=new Map();
+for(const speciesId of ['cat','dog','rabbit']){
+  const group=library.filter(breed=>breed.speciesId===speciesId);
+  if(group.length)groups.set(speciesId,group);
+}
+const remembered=new Map();
+let displayedGroup;
+const speciesNav=document.getElementById('species');
+const breedsNav=document.getElementById('breeds');
+const coats=document.getElementById('coats');
+function linkFor(breed,label){
+  const link=document.createElement('a');
+  link.href='#'+breed.id;
+  link.textContent=label;
+  return link;
+}
+function individual(breed,coat,sex,label){
+  const link=document.createElement('a');
+  link.className='individual';
+  link.href='图片/'+breed.id+'/'+coat.id+'_'+sex+'.png';
+  link.setAttribute('aria-label','查看'+breed.name+' · '+coat.name+' · '+label+'的透明原图');
+  const image=document.createElement('img');
+  image.alt=breed.name+'，'+coat.name+'，'+label;
+  image.src=link.href;
+  const caption=document.createElement('span');
+  caption.className='sex';
+  caption.textContent=label;
+  link.append(image,caption);
+  return link;
+}
+function cardFor(breed,coat){
+  const card=document.createElement('article');
+  card.className='card';
+  const title=document.createElement('h3');
+  title.textContent=coat.name;
+  const pair=document.createElement('div');
+  pair.className='pair';
+  pair.append(individual(breed,coat,'male','公'),individual(breed,coat,'female','母'));
+  card.append(title,pair);
+  return card;
+}
+function reflect(links,current){
+  for(const link of links){
+    if(link.dataset.id===current)link.setAttribute('aria-current','true');
+    else link.removeAttribute('aria-current');
+  }
+}
+function render(){
+  const breed=byBreed.get(location.hash.slice(1)) || byBreed.get('persian') || library[0];
+  remembered.set(breed.speciesId,breed);
+  if(displayedGroup!==breed.speciesId){
+    breedsNav.replaceChildren(...groups.get(breed.speciesId).map(option=>{
+      const link=linkFor(option,option.name);
+      link.dataset.id=option.id;
+      return link;
+    }));
+    displayedGroup=breed.speciesId;
+  }
+  for(const link of speciesNav.children)link.href='#'+remembered.get(link.dataset.id).id;
+  reflect(speciesNav.children,breed.speciesId);
+  reflect(breedsNav.children,breed.id);
+  document.getElementById('active-breed').textContent=breed.name;
+  coats.replaceChildren(...breed.coats.map(coat=>cardFor(breed,coat)));
+}
+for(const [id,group] of groups){
+  const defaultBreed=(id==='cat'&&byBreed.get('persian'))||group[0];
+  remembered.set(id,defaultBreed);
+  const link=linkFor(defaultBreed,defaultBreed.species);
+  link.dataset.id=id;
+  speciesNav.append(link);
+}
+const coatCount=library.reduce((count,b)=>count+b.coats.length,0);
+document.getElementById('totals').textContent=library.length+' 个品种 · '+coatCount+' 组花色 · '+(2*coatCount)+' 张原图';
+addEventListener('hashchange',render);
+render();
+</script>
+</body>
+</html>

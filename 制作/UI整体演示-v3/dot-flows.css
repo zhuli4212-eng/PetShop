@@ -1,0 +1,46 @@
+/* Matching the wooden shop and brass-edged order slips in the core interface. */
+#dot-flow-dialog {
+  box-sizing:border-box;position:fixed;inset:0;margin:auto;width:min(354px,calc(100vw - 28px));
+  max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 30px);
+  overflow:auto;background:#fff0ce;color:#50391f;padding:0;border:2px solid #735838;
+  box-shadow:0 3px 0 #473723;overscroll-behavior:contain;
+}
+#dot-flow-dialog::backdrop {background:#142e24bb}
+#dot-flow-dialog .df-caption {position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#285448;color:#ffebbb;padding:4px 10px;border-bottom:3px double #b89c70;z-index:1}
+#dot-flow-dialog .df-caption h3 {margin:0;font:700 18px/1.4 "Songti SC",SimSun,serif}
+#dot-flow-dialog .df-caption button {min-width:46px;min-height:46px;color:#ffebbb;border:0;background:transparent;box-shadow:none}
+#dot-flow-dialog .df-body,#dot-flow-dialog .df-foot {display:grid;gap:9px;padding:12px}
+#dot-flow-dialog .df-foot {position:sticky;bottom:0;background:#f4e5bf;border-top:1px solid #c8ac79}
+.df-line {display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-bottom:1px solid #ddc7a0;padding:6px 0;font-size:14px}
+.df-line span {color:#705b3c} .df-line b{text-align:right}
+.df-actions,.df-tabs {display:flex;gap:7px;flex-wrap:wrap}
+.df-actions>.btn,.df-tabs>.btn {flex:1;min-width:fit-content}
+.df-chips {display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.df-pack,.df-wait,.df-book,.df-rank {display:flex;align-items:center;gap:10px}
+.df-icon {width:46px;height:46px;object-fit:contain;flex:0 0 auto;image-rendering:pixelated}
+.df-pack small,.df-wait small,.df-book small {display:block;color:#706448}
+.df-book {padding:8px;background:#eaddbb;border-bottom:3px double #a8824d}
+.df-bigicon {width:64px;height:64px;object-fit:contain;image-rendering:pixelated}
+.df-room {display:block;width:100%;height:auto;max-height:145px;object-fit:cover;object-position:center;border:1px solid #a77d50;image-rendering:pixelated}
+.df-message {margin:4px 0;padding:8px 10px;border-left:3px solid #738159;background:#e9e5c7;color:#3d513a;font-size:14px}
+.df-traits {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.df-traits>div {display:grid;grid-template-columns:1fr auto;gap:2px 5px;border:1px solid #c6a571;padding:5px 7px}
+.df-traits small {grid-column:1/-1;color:#746344}
+.df-traits strong {color:#3d664e}
+.df-tiers {display:grid;grid-template-columns:repeat(var(--tiers),minmax(0,1fr));gap:4px}
+.df-tier {box-sizing:border-box;display:grid;justify-items:center;align-items:center;min-height:53px;padding:2px;background:#f4dfb1;color:#634a2a;border:1px solid #b89463;font-family:inherit;font-size:13px;font-weight:600;line-height:1.4;cursor:pointer}
+.df-tier img {width:34px;height:34px}.df-tier[aria-pressed=true] {background:#e1e7ca;color:#294d3d;border:2px solid #40634e}
+.df-demo {border:1px solid #ccae7b;background:#ecdbb9;padding:0 8px}
+.df-demo summary {cursor:pointer;min-height:44px;line-height:44px;font-size:13px;color:#67553a}
+.df-demo[open] {padding-bottom:8px}
+.df-headpiece {background:#294d3e;color:#fff0ce;display:grid;position:relative;height:112px;isolation:isolate;overflow:hidden}
+.df-headpiece .df-stage {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 44%;z-index:-1;image-rendering:pixelated}
+.df-headpiece>div {align-self:end;background:#234b40ee;border-top:1px solid #af955c;padding:5px 10px}
+.df-headpiece h3 {color:#fff0ce;margin:2px 0}
+.df-rank {padding:3px 1px;border-bottom:1px solid #d4be94;min-height:44px}
+.df-rank .df-icon {width:40px;height:38px}.df-rank small {margin-left:auto;color:#59644a}
+.df-rank:last-child {border:0}
+@media (max-width:350px) {
+  #dot-flow-dialog .df-body,#dot-flow-dialog .df-foot {padding:9px}
+  .df-tiers {gap:2px}.df-tier img {width:30px;height:30px}
+}

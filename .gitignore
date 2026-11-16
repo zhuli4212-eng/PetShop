@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+.git-credentials
+Thumbs.db
+.DS_Store
