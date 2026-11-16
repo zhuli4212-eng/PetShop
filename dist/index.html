@@ -90,6 +90,12 @@
 .pc .pc-side {display:grid;justify-items:end;align-content:center;gap:4px}
 .pc .pc-listbtn {padding:4px 8px;min-height:32px;background:#f0dbb0;border:1px solid #ae9167;color:#58472e;white-space:nowrap;font-size:12px;font-weight:600;cursor:pointer}
 .pc .pc-listbtn.on {background:#406b56;border-color:#355743;color:#fff2ce}
+.pc .pc-picked {background:#e9e6c8}
+.pc .pc-selectable {cursor:pointer}
+.pc .pc-batch {position:sticky;bottom:0;z-index:1;display:grid;gap:6px;padding:8px;background:#f7e9cc;border:1px solid var(--pc-edge)}
+.pc .pc-summary {display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.pc .pc-select-tools {display:flex;gap:5px}
+.pc .pc-stock-warning {color:#81532d;font-size:12px}
 .pc .pc-cta {width:100%;font-size:15px}
 .pc .pc-disabled {opacity:.62;cursor:default}
 .pc .pc-empty {padding:12px;background:#ebe0c2;border:1px dashed #b8a47f;font-size:13px;color:#685c45}
@@ -114,7 +120,7 @@
 .pc .pc-supply .pc-tags div {display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:2px 0;border-bottom:1px solid #ddcaa5}
 .pc .pc-supply .pc-tags dt {color:#7b6a51}
 .pc .pc-supply .pc-tags dd {color:#4f4b36}
-@media(pointer:coarse){.pc .pc-listbtn,.pc .pc-tab{min-height:40px}}
+@media(pointer:coarse){.pc .pc-listbtn,.pc .pc-tab,.pc .pc-batch button{min-height:44px}.pc .pc-listbtn{min-width:44px}}
 
 </style></head><body><div class="workspace">
 <aside class="review"><h1>麦穗宠物店</h1><p class="review-desc">模块界面确认稿 · 第一版</p><div class="review-list" id="index"></div><p class="review-foot">金额、等级与等待时长为示例。<br>操作仅在本次预览有效。</p><button class="reset" data-a="reset">还原预览数据</button></aside>
@@ -125,8 +131,8 @@
 
 
 const commerceExamples = {
-  lantern: {name:'梧桐街邻居', title:'想接一只温顺幼兔回家', tags:['安哥拉兔','幼年期','温顺'], reward:280},
-  persian: {name:'花房店主', title:'为花房找只成年波斯猫', tags:['波斯猫','成年期'],reward:360}
+  lantern: {name:'梧桐街邻居', title:'想接温顺的幼兔回家', tags:['安哥拉兔','幼年期','温顺'], reward:280},
+  persian: {name:'花房店主', title:'为花房寻找成年波斯猫', tags:['波斯猫','成年期'],reward:360}
 };
 const commerceGoods = {
   pear:{name:'梨花',species:'兔',breed:'安哥拉兔',image:'angora',base:95,cost:240},
@@ -144,7 +150,7 @@ function commerceStock(key,level,generation) {
   const cat=key==='mist';
   const names=cat?[g.name,'米糕','团团','豆豆']:[g.name,'糖豆','小桃','米粒'];
   return {key,lotId:generation,name:names[generation%names.length],breed:g.breed,species:g.species,stage:'幼年期',image:g.image,base:g.base,cost:g.cost,
-    traits:[commerceTrait('性格',cat?'好奇':'温顺'),commerceTrait('品相',cat?'圆眼':'立耳','B'),
+    traits:[commerceTrait('性格',cat?'好奇':'温顺',!cat&&generation===0?'A':'B'),commerceTrait('品相',cat?'圆眼':'立耳','B'),
       commerceTrait('毛发',rare?'银尖':cat?'灰白':'长绒',rare?'A':'B',rare?'稀有':'普通'),
       commerceTrait('体态','匀称','B'),commerceTrait('体型','小巧','C'),commerceTrait('缺陷','未见明显缺陷','—','—')]};
 }
@@ -176,47 +182,82 @@ function commerceDisabled(label) {return '<button type="button" class="btn prima
 function commerceTitle(name,extra='') {
   return '<div class="pc-head"><strong>'+name+'</strong><small>'+extra+'</small></div>';
 }
-function commercePetRow(p,ctx,side='',stage=p.stage) {
-  return '<div class="pc-petrow"><div class="pc-thumb">'+ctx.petArt(p,'pc-pet-img')+'</div><div><strong>'+commerceText(p.name)+'</strong>'+
+function commercePetRow(p,ctx,side='',stage=p.stage,picked) {
+  const classes=picked===undefined?'':picked?' pc-selectable pc-picked':' pc-selectable';
+  return '<div class="pc-petrow'+classes+'"><div class="pc-thumb">'+ctx.petArt(p,'pc-pet-img')+'</div><div><strong>'+commerceText(p.name)+'</strong>'+
     '<span class="pc-secondary">'+commerceText(p.breed)+' · '+commerceText(stage)+'</span></div><div class="pc-side">'+side+'</div></div>';
 }
-function commerceCurrent(list,c,key) {return list.find(p=>p.id===c.selected[key])||list[0];}
-function commerceCandidates(key,c,ctx) {
-  const list=ctx.s.animals.filter(p=>commerceFits(p,key,ctx));
-  const current=commerceCurrent(list,c,key);
-  const rows=list.map(p=>commercePetRow(p,ctx,list.length===1?'<span class="pc-label teal">符合条件</span>':
-    ctx.act('pc-choose',key+'|'+p.id,current===p?'已选':'选这只','pc-listbtn'+(current===p?' on':'')))).join('');
-  return {current,html:commerceTitle('可交付个体',list.length+' 只')+(rows?'<div class="pc-list">'+rows+'</div>':
-    commerceEmpty(key==='guest'?'当前没有同时符合全部条件的宠物。':'当前没有符合条件的宠物，订单会继续保留。'))};
+const saleActions={market:'pc-market',recycle:'pc-recycle',guest:'pc-guest-sell',lantern:'pc-deliver',persian:'pc-deliver'};
+function commerceSalePage(key,ctx) {
+  if(Object.hasOwn(commerceExamples,key))return ctx.page==='orders'&&ctx.s.commerce.orderKey===key;
+  if(key==='recycle')return ctx.page==='lab'&&ctx.s.labTab==='recycle';
+  return key===ctx.page;
+}
+function commerceEligible(key,c,ctx) {
+  const pets=ctx.s.animals;
+  if(key==='market')return pets.filter(p=>commerceLive(p,ctx));
+  if(key==='recycle')return pets.filter(p=>commerceUnlocked(p,ctx)).sort((a,b)=>Number(commerceAlive(a))-Number(commerceAlive(b)));
+  if(key==='guest'?c.guest!=='waiting':!Object.hasOwn(commerceExamples,key)||c.done[key])return [];
+  return pets.filter(p=>commerceFits(p,key,ctx));
+}
+function commerceUnit(key,p) {
+  if(key==='market'||key==='recycle')return commercePrice(p,key==='recycle');
+  return key==='guest'?commerceGuestReward:commerceExamples[key].reward;
+}
+function commerceStockWarning(pets,ids) {
+  const remaining=new Set(),affected=new Set();
+  for(const pet of pets){
+    if(commerceAlive(pet))(ids.has(pet.id)?affected:remaining).add(pet.species);
+  }
+  const rooms=[...affected].filter(k=>!remaining.has(k)).map(k=>commerceText(k)+'房');
+  return rooms.length?'<p class="pc-stock-warning">成交后，'+rooms.join('、')+'将没有在养动物。</p>':'';
+}
+function commerceBatch(key,c,ctx,heading,empty,label) {
+  const list=commerceEligible(key,c,ctx);
+  const chosen=new Set(c.selected[key]||[]);
+  const selected=list.filter(p=>chosen.has(p.id));
+  const ids=selected.map(p=>p.id);
+  c.selected[key]=ids;
+  const total=selected.reduce((sum,p)=>sum+commerceUnit(key,p),0);
+  const all=list.length>0&&selected.length===list.length;
+  const toolbar='<div class="pc-head"><strong>'+heading+' · '+list.length+' 只</strong><div class="pc-select-tools">'+
+    (selected.length&&!all?ctx.act('pc-clear',key,'清空选择','pc-listbtn'):'')+
+    (list.length?ctx.act('pc-choose-all',key,all?'清空选择':'全选','pc-listbtn'):'')+'</div></div>';
+  const rows=list.map(p=>{
+    const on=chosen.has(p.id);
+    const toggle='<button type="button" class="pc-listbtn'+(on?' on':'')+'" data-a="pc-choose" data-v="'+commerceText(key+'|'+p.id)+
+      '" aria-label="'+commerceText('选择'+p.name)+'" aria-pressed="'+on+'">'+(on?'✓ 已选':'选择')+'</button>';
+    return commercePetRow(p,ctx,'<b class="pc-price">'+commerceUnit(key,p)+' 金币</b>'+toggle,p.stage,on);
+  }).join('');
+  const value=(Object.hasOwn(commerceExamples,key)?key+'|':'')+ids.join(',');
+  const prices=selected.map(p=>commerceUnit(key,p)).join(',');
+  const submit=ids.length?'<button type="button" class="btn primary pc-cta" data-a="'+saleActions[key]+'" data-v="'+commerceText(value)+
+    '" data-quote="'+prices+'">'+label+' '+ids.length+' 只</button>':commerceDisabled(label);
+  const buttons=key==='guest'?'<div class="pc-guest-actions">'+ctx.act('pc-guest-cancel','','取消','btn')+submit+'</div>':submit;
+  return toolbar+(rows?'<div class="pc-list">'+rows+'</div>':commerceEmpty(empty))+
+    '<div class="pc-batch"><div class="pc-summary" aria-live="polite"><span>已选 '+ids.length+' 只</span><b class="pc-price">合计 '+total+' 金币</b></div>'+
+    commerceStockWarning(ctx.s.animals,new Set(ids))+buttons+'</div>';
 }
 function commerceOrder(s,c,ctx) {
   const key=c.orderKey, o=commerceExamples[key], done=c.done[key];
   const tabs='<div class="pc-tabs">'+Object.entries(commerceExamples).map(([id,d])=>ctx.act('pc-order',id,d.name+(c.done[id]?' ✓':''),'pc-tab'+(id===key?' active':''))).join('')+'</div>';
   let html=ctx.banner('orders','订单柜台')+tabs+
     '<div class="pc-ticket"><div class="pc-head"><span class="pc-label teal">'+(done?'已交付':'普通订单')+'</span><small>一直有效</small></div>'+
-    '<h3>'+o.title+'</h3><div class="pc-condition">'+o.tags.map(commerceTag).join('')+'</div><div class="pc-reward"><span class="pc-secondary">订单报酬</span><b class="pc-price">'+o.reward+' 金币</b></div></div>';
+    '<h3>'+o.title+'</h3><div class="pc-condition">'+o.tags.map(commerceTag).join('')+'</div><div class="pc-reward"><span class="pc-secondary">每只报酬</span><b class="pc-price">'+o.reward+' 金币</b></div></div>';
   if(done)return html+commerceEmpty('已交付'+commerceText(done)+'，报酬已入账。');
-  const {current,html:items}=commerceCandidates(key,c,ctx);
-  return html+items+(current?ctx.act('pc-deliver',key+'|'+current.id,'交付'+commerceText(current.name),'btn primary pc-cta'):commerceDisabled('暂无可交付宠物'));
+  return html+commerceBatch(key,c,ctx,'可交付个体','当前没有符合条件的宠物，订单会继续保留。','交付');
 }
 function commerceMarket(s,c,ctx) {
-  const list=s.animals.filter(p=>commerceLive(p,ctx)), current=commerceCurrent(list,c,'market');
-  const rows=list.map(p=>commercePetRow(p,ctx,'<b class="pc-price">'+commercePrice(p)+' 金币</b>'+
-    ctx.act('pc-choose','market|'+p.id,current===p?'已选':'选择','pc-listbtn'+(current===p?' on':'')))).join('');
-  return ctx.banner('market','自由市场')+commerceTitle('商人收购',list.length+' 只活体可售')+
-    (rows?'<div class="pc-list">'+rows+'</div>':commerceEmpty('暂无可出售的活体。'))+
-    (current?ctx.act('pc-market',current.id,'出售'+commerceText(current.name)+' · '+commercePrice(current)+' 金币','btn primary pc-cta'):commerceDisabled('暂无可出售宠物'));
+  return ctx.banner('market','自由市场')+commerceBatch('market',c,ctx,'可出售活体','暂无可出售的活体。','出售');
 }
 function commerceGuest(s,c,ctx) {
   if(c.guest!=='waiting')return ctx.banner('shop','来客接待处')+commerceEmpty(c.guest==='cancelled'?'访客已离开。':'访客带走了'+commerceText(c.guestPet)+'，报酬已入账。');
-  const {current,html}=commerceCandidates('guest',c,ctx);
   return '<div class="pc-pair"><div class="pc-guest-pic">'+ctx.art('guest','')+'</div><div><span class="pc-label teal">特殊来客</span>'+
-    '<h3 style="font-size:19px;margin-top:4px">收藏家 · 林女士</h3><p class="pc-guest-copy">“我想带一只性格特别温顺的小安哥拉兔回家。”</p></div></div>'+
+    '<h3 style="font-size:19px;margin-top:4px">收藏家 · 林女士</h3><p class="pc-guest-copy">“我想带些性格特别温顺的小安哥拉兔回家。”</p></div></div>'+
     '<div class="pc-ticket"><div class="pc-head"><strong>来客需求</strong></div><div class="pc-condition" style="margin-top:6px">'+
     ['安哥拉兔','幼年期','温顺','性格评分 A 及以上'].map(commerceTag).join('')+'</div>'+
-    '<div class="pc-reward"><span class="pc-secondary">来客出价</span><b class="pc-price">'+commerceGuestReward+' 金币</b></div></div>'+
-    html+'<div class="pc-guest-actions">'+ctx.act('pc-guest-cancel','','取消','btn')+
-    (current?ctx.act('pc-guest-sell',current.id,'出售'+commerceText(current.name),'btn primary'):commerceDisabled('出售'))+'</div>';
+    '<div class="pc-reward"><span class="pc-secondary">每只出价</span><b class="pc-price">'+commerceGuestReward+' 金币</b></div></div>'+
+    commerceBatch('guest',c,ctx,'可交付个体','当前没有同时符合全部条件的宠物。','出售');
 }
 function commerceGrades(traits) {
   return '<dl class="pc-tags">'+traits.map(t=>'<div><dt>'+commerceText(t.type)+'</dt><dd>'+commerceText(t.label)+' '+commerceText(t.grade)+'</dd></div>').join('')+'</dl>';
@@ -235,13 +276,8 @@ function commercePurchasePane(s,c,ctx) {
   }).join('');
 }
 function commerceRecycle(s,c,ctx) {
-  const list=s.animals.filter(p=>commerceUnlocked(p,ctx)).sort((a,b)=>Number(commerceAlive(a))-Number(commerceAlive(b)));
-  const current=commerceCurrent(list,c,'recycle');
-  const rows=list.map(p=>commercePetRow(p,ctx,'<b class="pc-price">'+commercePrice(p,true)+' 金币</b>'+
-    ctx.act('pc-choose','recycle|'+p.id,current===p?'已选':'选择','pc-listbtn'+(current===p?' on':'')))).join('');
-  return commerceTitle('研究所回收','活体及尸体')+'<p class="pc-hint">活体收购价低于自由市场，尸体另按折价回收。</p>'+
-    (rows?'<div class="pc-list">'+rows+'</div>':commerceEmpty('暂无可回收的个体。'))+
-    (current?ctx.act('pc-recycle',current.id,'回收'+commerceText(current.name)+' · '+commercePrice(current,true)+' 金币','btn primary pc-cta'):commerceDisabled('暂无可回收个体'));
+  return '<p class="pc-hint">研究所可回收活体和已故个体，已故个体按折价回收。</p>'+
+    commerceBatch('recycle',c,ctx,'研究所回收','暂无可回收的个体。','回收');
 }
 function commerceLab(s,c,ctx) {
   const tabs={buy:'幼体购买',recycle:'回收',upgrade:'研究升级'}, tab=tabs[s.labTab]?s.labTab:'buy', level=s.labLevel||1;
@@ -260,15 +296,47 @@ function renderCommerce(id,ctx) {
   if(!Object.hasOwn(views,id))return '';
   return '<section class="pc">'+views[id](ctx.s,commerceState(ctx.s),ctx)+'</section>';
 }
-function actCommerce(action,value,ctx) {
+function commerceSettle(key,batch,c,ctx,quote) {
+  if(!commerceSalePage(key,ctx))return;
+  const eligible=commerceEligible(key,c,ctx);
+  const selected=c.selected[key]||[];
+  const pets=eligible.filter(p=>selected.includes(p.id));
+  const ids=pets.map(p=>p.id);
+  const prices=pets.map(p=>commerceUnit(key,p));
+  if(!ids.length||ids.length!==selected.length||ids.join(',')!==batch||prices.join(',')!==quote){
+    ctx.notice('动物状态或所选个体已变，请核对清单后再提交。');
+    return;
+  }
+  const names=pets.map(p=>p.name).join('、');
+  if(Object.hasOwn(commerceExamples,key))c.done[key]=names;
+  if(key==='guest'){c.guest='sold';c.guestPet=names;}
+  const sold=new Set(ids);
+  const total=prices.reduce((sum,price)=>sum+price,0);
+  ctx.s.animals=ctx.s.animals.filter(p=>!sold.has(p.id));
+  ctx.s.cash+=total;
+  for(const channel of Object.keys(c.selected))c.selected[channel]=c.selected[channel].filter(id=>!sold.has(id));
+  ctx.notice((key==='recycle'?'已回收':key==='market'?'已出售':'已交付')+ids.length+' 只，收入 '+total+' 金币。');
+}
+function actCommerce(action,value,ctx,quote) {
   if(!action.startsWith('pc-'))return false;
   const s=ctx.s,c=commerceState(s);
   const txt=msg=>ctx.notice(msg);
   const [key,subject]=String(value||'').split('|');
   if(action==='pc-order'){
     if(Object.hasOwn(commerceExamples,key))c.orderKey=key;
-  }else if(action==='pc-choose'){
-    if(s.animals.some(p=>p.id===subject))c.selected[key]=subject;
+  }else if(action==='pc-choose'||action==='pc-choose-all'||action==='pc-clear'){
+    if(!Object.hasOwn(saleActions,key))return true;
+    const list=commerceEligible(key,c,ctx);
+    const selected=new Set(c.selected[key]||[]);
+    if(action==='pc-clear'){
+      c.selected[key]=[];
+    }else if(action==='pc-choose-all'){
+      c.selected[key]=list.every(p=>selected.has(p.id))?[]:list.map(p=>p.id);
+    }else if(list.some(p=>p.id===subject)){
+      if(selected.has(subject))selected.delete(subject);
+      else selected.add(subject);
+      c.selected[key]=[...selected];
+    }
   }else if(action==='pc-lab'){
     if(['buy','recycle','upgrade'].includes(key))s.labTab=key;
   }else if(action==='pc-stock-detail'){
@@ -288,19 +356,11 @@ function actCommerce(action,value,ctx) {
     s.labLevel=level+1;s.cash-=cost;
     txt('研究等级提升，下次补入的幼体按新概率出现稀有标签。');
   }else{
-    const id=action==='pc-deliver'?subject:key, p=s.animals.find(a=>a.id===id);
-    if(!p){txt('这只宠物已经离开店铺。');return true;}
-    let amount;
-    if(action==='pc-market'&&commerceLive(p,ctx))amount=commercePrice(p);
-    if(action==='pc-recycle'&&commerceUnlocked(p,ctx))amount=commercePrice(p,true);
-    if(action==='pc-deliver'&&Object.hasOwn(commerceExamples,key)&&!c.done[key]&&commerceFits(p,key,ctx)){
-      amount=commerceExamples[key].reward;c.done[key]=p.name;
+    if(action==='pc-deliver'&&Object.hasOwn(commerceExamples,key))commerceSettle(key,subject,c,ctx,quote);
+    else {
+      const channel={ 'pc-market':'market','pc-recycle':'recycle','pc-guest-sell':'guest' }[action];
+      if(channel)commerceSettle(channel,key,c,ctx,quote);
     }
-    if(action==='pc-guest-sell'&&c.guest==='waiting'&&commerceFits(p,'guest',ctx)){
-      amount=commerceGuestReward;c.guest='sold';c.guestPet=p.name;
-    }
-    if(amount===undefined){txt('当前状态不符合交付条件。');return true;}
-    s.animals.splice(s.animals.indexOf(p),1);s.cash+=amount;txt('已交付'+p.name+'，收入 '+amount+' 金币。');
   }
   return true;
 }
@@ -583,7 +643,7 @@ function renderLogin(){
  return '<div style="position:relative">'+art('opening','opening')+'<span class="scenename">麦穗宠物店</span></div><div class="card stack">'+title('账号和登录')+'<p class="note">登录方式待定，当前仅预留入口位置。</p></div>';
 }
 const routes={home:renderHome,rooms:renderRooms,breed:renderBreed,profile:renderProfile,decor:renderDecor,show:renderShow,login:renderLogin};
-function context(){return {s,art,petArt,act,go,banner,notice,makeTraits,locked};}
+function context(){return {s,page,art,petArt,act,go,banner,notice,makeTraits,locked};}
 function display(resetScroll=false){
  finishJobs();
  const prev=$('.scroll').scrollTop;
@@ -629,7 +689,9 @@ function previewPage(key){
  trail.length=0;
  openView(key);
 }
-function click(a,v){
+function click(a,v,quote){
+ // A timer may have elapsed between the displayed quote and the tap.
+ finishJobs();
  if(a==='back'){back();return;}
  if(a==='go'&&v==='profile'&&page==='home'){
    const first=animal(s.selected)||s.animals.find(alive)||s.animals[0];
@@ -639,11 +701,15 @@ function click(a,v){
    const pet=animal(s.selected);
    if(pet){navigate('rooms',{species:pet.species,roomFilter:alive(pet)?'在养':'已故'});return;}
  }
+ if(a==='go'&&v==='market'&&page==='profile'){
+   const p=animal(s.selected);
+   commerceState(s).selected.market=p&&commerceLive(p,context())?[p.id]:[];
+ }
  if(a==='go'){navigate(v);return;}
  if(a==='reset'){s=initial();sceneMotion.reset();previewPage('home');notice('预览已还原');return;}
  if(a==='profile'){const p=animal(v);if(p)navigate('profile',{selected:p.id,species:p.species});return;}
  if(a==='recycle-page'){
-   if(animal(v))commerceState(s).selected.recycle=v;
+   commerceState(s).selected.recycle=animal(v)&&!locked(v)?[v]:[];
    navigate('lab',{labTab:'recycle'});return;
  }
  if(a==='species'&&Object.hasOwn(roomTypes,v)){
@@ -667,13 +733,20 @@ function click(a,v){
    const d=decorItems.find(k=>k.key===v);if(!d)return;
    if(!s.ownedDecor.includes(v)){if(s.cash<d.price){notice('金币不足');return;}s.cash-=d.price;s.ownedDecor.push(v);}
    if(s.placed.includes(v))s.placed=s.placed.filter(k=>k!==v);else s.placed.push(v);
- }else if(!actCommerce(a,v,context()))return;
+ }else if(!actCommerce(a,v,context(),quote))return;
  display();
 }
 document.addEventListener('click',e=>{
- const b=e.target.closest('[data-a]');if(!b||b.disabled)return;
+ const b=e.target.closest('[data-a]')||e.target.closest('.pc-selectable')?.querySelector('[data-a="pc-choose"]');if(!b||b.disabled)return;
  if(b.closest('#index'))previewPage(b.dataset.v);
- else click(b.dataset.a,b.dataset.v||'');
+ else {
+   const {a,v,quote}=b.dataset;
+   click(a,v||'',quote);
+   if(a==='pc-choose'||a==='pc-choose-all'||a==='pc-clear'){
+     const focusAction=a==='pc-clear'?'pc-choose-all':a;
+     screen.querySelector('[data-a="'+focusAction+'"][data-v="'+CSS.escape(v)+'"]')?.focus({preventScroll:true});
+   }
+ }
 });
 $('#jump').addEventListener('change',e=>previewPage(e.target.value));
 $('#index').innerHTML=Object.entries(pages).map(([k,v])=>'<button data-a="go" data-v="'+k+'">'+art('ui-'+k)+v+'</button>').join('');
