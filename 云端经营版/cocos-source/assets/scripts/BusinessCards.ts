@@ -1,4 +1,4 @@
-import { Label, Mask, Node } from 'cc';
+import { Label, Mask, Node, Sprite } from 'cc';
 import type { Choice, LedgerRow } from './ShopConnection';
 import { box, caption, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 
@@ -53,7 +53,7 @@ export function thumbTabs(c:PageCanvas,items:Choice[]):void {
 }
 const ratios:Record<string,number>={orders:512/220,lab:512/288,market:512/288,stage:384/256};
 /** Same cover crop and image focus as .banner/.dr-scene in the approved portrait preview. */
-export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'research'|'services'|'stage'|'rank'='normal',animal?:string):void {
+export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'research'|'services'|'stage'|'rank'='normal',animal?:string,animalStage?:string):void {
     const full=variant==='normal'||variant==='research'||variant==='services',w=full?c.width:c.inner;
     const h=variant==='services'?Math.min(90,w*.19):variant==='research'?Math.min(116,Math.max(84,w*.24)):
         variant==='stage'?Math.min(162,w*(c.width<=350?.31:.39)):variant==='rank'?Math.min(112,w*.27):w/2.85;
@@ -62,7 +62,7 @@ export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'re
     const r=ratios[art]||1,imageWidth=Math.max(w,h*r),imageHeight=imageWidth/r;
     const offset=(imageHeight-h)*((variant==='research'?.16:variant==='stage'?.5:.44)-.5);
     picture(crop,'Picture','shop-modules/'+art,0,offset,imageWidth,imageHeight);
-    if(animal)picture(crop,'Contestant',animal,0,-.115*h,h*.45,h*.39);
+    if(animal)picture(crop,'Contestant',animal,0,-.115*h,h*.45,h*.39,animalStage);
     if(title&&variant==='rank'){
         const stripe=box(crop,'CaptionStrip',0,-h/2+19,w,38,'#294F41');
         heading(stripe,'Title',title,0,0,w-18,32,17,'#FFF0CE');
@@ -72,11 +72,14 @@ export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'re
         heading(sign,'Caption',title,0,0,pw-4,25,15,'#FFE8AE',true);
     }
 }
-export function info(c:PageCanvas,r:LedgerRow,i:number):void {
+export function info(c:PageCanvas,r:LedgerRow,i:number,mutedArt=false):void {
     const hasPic=!!r.art,pad=10,left=hasPic?62:pad,right=r.link||r.action?23:pad;
     const avail=c.inner-left-right,h=Math.max(hasPic?64:48,blocks(r.title,avail,15)*20+(r.text?blocks(r.text,avail,13)*18+4:0)+18);
     const n=card(c,'Row'+i,h),x=-c.inner/2+left+avail/2;
-    if(hasPic)picture(n,'Icon',r.art!,-c.inner/2+31,0,46,46,r.stage);
+    if(hasPic){
+        const icon=picture(n,'Icon',r.art!,-c.inner/2+31,0,46,46,r.stage);
+        if(mutedArt)icon.getComponent(Sprite)!.grayscale=true;
+    }
     const th=blocks(r.title,avail,15)*20;
     text(n,'Title',r.title,x,r.text?h/2-9-th/2:0,avail,th,15,ink,'left',true);
     if(r.text){const dh=h-th-15;text(n,'Detail',r.text,x,h/2-9-th-dh/2,avail,dh,13,brown);}

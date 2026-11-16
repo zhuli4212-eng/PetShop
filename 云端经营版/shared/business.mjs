@@ -123,9 +123,9 @@ function orderStockRows(s, order, now) {
       (matching.length ? '符合条件的在店动物均可交付。' : '当前没有符合全部条件的在册动物。') });
   const offers = (s.rooms[order.species]?.shelf?.offers || []).filter(p => p && matchesOrder(p, order));
   if (offers.length) {
-    for (const offer of offers) rows.push(linkRow('可采购 · ' + offer.name + '（' + offer.sex + '）',
+    for (const offer of offers) rows.push({ ...linkRow('可采购 · ' + offer.name + '（' + offer.sex + '）',
       '尚未持有 · 购价 ' + purchasePrice(s, youngPurchaseBase(offer)) + ' 金币 · 立即交付预计收入 ' +
-      offerIncome(s, offer, order, now) + ' 金币，成交前重新核价。', 'offer', { species: order.species, id: offer.id }, petArt(offer)));
+      offerIncome(s, offer, order, now) + ' 金币，成交前重新核价。', 'offer', { species: order.species, id: offer.id }, petArt(offer)), stage:'幼年' });
   } else rows.push({ title: '本批货架', text: '目前没有符合这张订单的在售幼体。下一批随机供货。' });
   return rows;
 }

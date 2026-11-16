@@ -34,9 +34,10 @@ export class RoomAnimalWalk extends Component {
     private next = 0;
     private leg: Leg | null = null;
 
-    setup(figure: Node, art: string, species: string, slot: number, width: number, height: number): void {
+    setup(figure: Node, art: string, stage: string, species: string, slot: number, width: number, height: number): void {
         this.sprite = figure.getComponent(Sprite)!;
-        this.path = 'pet-walk/' + art.substring(art.lastIndexOf('/') + 1) + '/texture';
+        const directory = stage === '幼年' ? 'pet-young-walk/' : 'pet-walk/';
+        this.path = directory + art.substring(art.lastIndexOf('/') + 1) + '/texture';
         this.patrol = patrols[species];
         this.hopping = species === '兔';
         this.floorWidth = width;

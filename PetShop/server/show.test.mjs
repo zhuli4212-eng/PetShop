@@ -60,6 +60,9 @@ test('私人报名按快照扣款，繁育占用及变价拒绝，离店仍给�
   assert.deepEqual(recovered,s);
   const title=showPage(s,'collection.theme',{theme:'P01'},epoch+2*D);
   assert.equal(title.rows[0].link.args.event,'private-0');assert.ok(title.rows[1].title.includes('未收集'));
+  assert.deepEqual(title.rows.map(r=>[r.art,!!r.visual?.uncollected,!!r.link]),[
+    ['awards/gold',false,true],['awards/silver',true,false],['awards/bronze',true,false],
+  ]);
   assert.deepEqual(title.actions[0].args,{mode:'private'});
   // 同主题下轮才可赢得相同档位，首获动物永久保留。
   const day=epoch+28*D;
@@ -128,6 +131,39 @@ test('公开对手按种子独立冻结，报名不改变对手；同分抽签�
   assert.equal(resumed.show.entries[first.id].cashPaid,33);
   tickShow(resumed,epoch+6*D+1);assert.equal(resumed.coins,733);
   assert.equal(Object.keys(resumed.show.cups).length,1);
+});
+test('获奖名单沿用本店报名头像；各物种模拟头像与详情一致，查看不改名次或存档',()=>{
+  const s=fresh(), event='public-0', now=epoch+5*D;
+  s.pets[0].coatIndex=4;
+  s.pets[0].bornAt=epoch-3*D-H;
+  const registration={event,mode:'public',theme:'O01',pet:s.pets[0].id};
+  assert.equal(showPage(s,'show',{},epoch).visual.petStage,'老年');
+  assert.equal(showPage(s,'show.round',registration,epoch).rows.find(r=>r.link?.page==='show.review').stage,'老年');
+  assert.equal(showPage(s,'show.review',registration,epoch).stage,'老年');
+  enter(s,'public','O01');
+  const entry=s.show.entries[event];
+  s.pets=[];
+  tickShow(s,now);
+  const saved=structuredClone(s);
+  assert.equal(showPage(s,'show.result',{event},now).rows.find(r=>r.title.startsWith('报名快照')).stage,'老年');
+  function winners(species,tier) {return showPage(s,'show.tier',{event,species,tier},now).rows;}
+  const mine=winners('rabbit',entry.outcome.tier).find(r=>r.link.page==='show.result');
+  assert.equal(mine.art,'pets/angora-coat04_female');
+  assert.equal(mine.stage,entry.pet.stage);
+  assert.deepEqual(mine.link.args,{event});
+  for(const [species,art] of Object.entries({rabbit:'pets/angora-coat01_female',cat:'pets/british-coat01_female',dog:'pets/shiba-coat01_male'})) {
+    const rows=winners(species,'gold').filter(r=>r.link.page==='show.bot');
+    assert.ok(rows.length);
+    for(const row of rows) {assert.equal(row.art,art);assert.equal(row.stage,undefined);}
+    const {page,args}=rows[0].link;
+    const bot=showPage(s,page,args,now);
+    assert.equal(bot.rows[0].art,art);assert.match(bot.rows[0].text,/物种示意/);
+    assert.equal(bot.rows[1].title,'六维快照');
+  }
+  assert.deepEqual(s,saved);
+  const emptyTheme=showPage(s,'collection.theme',{theme:'O02'},now);
+  assert.deepEqual(emptyTheme.rows.map(r=>r.art),['awards/laurel','awards/gold','awards/silver','awards/bronze','awards/memorial']);
+  assert.ok(emptyTheme.rows.every(r=>r.visual?.uncollected&&!r.link&&r.title.includes('未收集')));
 });
 test('周末离线跨过两次结算，最低分依然有纪念杯且没有现金',()=>{
   const s=fresh();for(const t of s.pets[0].traits)t.grade='E';

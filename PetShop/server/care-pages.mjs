@@ -228,7 +228,7 @@ function offerPage(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],p=room?.shelf.offers.find(x=>x?.id===a.id);
   if(!p)return {title:'种源货位',rows:[{title:'该幼体已经售出或换批。'}],actions:[go('查看本批货架','shelf',{species})]};
   const base=youngPurchaseBase(p),price=purchasePrice(s,base);
-  return {title:p.name+' · '+p.sex,subtitle:breedName(p)+' · '+coatName(p)+' · 幼年',art:petArt(p),
+  return {title:p.name+' · '+p.sex,subtitle:breedName(p)+' · '+coatName(p)+' · 幼年',art:petArt(p),stage:'幼年',
     rows:[{title:'采购报价',text:'基准 '+base+' · 实付 '+price+' 金币'},...offerOrderRows(s,p,now),
       {title:'估价有效条件',text:'按当前店铺评分、订单和幼体状态估算。成长、获奖或订单变化后，交付时会重新核价。'},
       ...p.traits.map(t=>({title:t.type+' · '+t.grade,text:t.label+' · '+t.rarity}))],
@@ -256,7 +256,7 @@ function review(s,a,now) {
   const p=animals.find(p=>p.id===a.id);
   if(!p) return {title:'选择复评动物',subtitle:SPECIES[species].name+'用复评单 '+room.items.review+' 张',
     rows:animals.map(p=>petRow(s,p,now,'review',{species,id:p.id})),empty:'没有符合条件的动物。',actions:[go('购入服务单','services',{species})]};
-  return {title:p.name+' · 特征复评',art:petArt(p),subtitle:'剩余次数 '+(3-p.reviews)+' · 持有 '+room.items.review+' 张',
+  return {title:p.name+' · 特征复评',art:petArt(p),stage:stageOf(p,now),subtitle:'剩余次数 '+(3-p.reviews)+' · 持有 '+room.items.review+' 张',
     rows:[{title:'想换哪项特征？',text:'普通、少见、稀有的机会分别是 70%、20%、10%。新标签直接替换原标签，评分不变。即使同词或稀有度降低，也消耗一张单和一次额度，无法选回。'},
       ...p.traits.slice(0,5).map((t,i)=>({title:t.type+' · '+t.label,text:t.rarity+' · '+t.grade,
         ...(room.items.review?{action:{type:'care.review',args:{species,id:p.id,field:i},confirm:'给「'+p.name+'」重抽'+t.type+'标签「'+t.label+'」？同词或降档也消耗 1 张单和 1 次额度，无法选回。评分仍是 '+t.grade+'。',go:'pet',goArgs:{id:p.id}}}:{})}))],

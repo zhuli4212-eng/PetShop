@@ -9,11 +9,11 @@ interface ResearchBenefit {
 }
 interface RowVisual {
     condition?:string; difficulty?:string; available?:boolean; rate?:number; choices?:Choice[];
-    name?:string; price?:number; summary?:string; mode?:string; benefit?:ResearchBenefit; status?:string;
+    name?:string; price?:number; summary?:string; mode?:string; benefit?:ResearchBenefit; status?:string; uncollected?:boolean;
 }
 interface PageVisual {
     shelf?:LedgerPage; remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
-    schedule?:Record<string,{close:string;result:string;payout:string}>; pet?:string; tierOptions?:LedgerRow[];
+    schedule?:Record<string,{close:string;result:string;payout:string}>; pet?:string; petStage?:string; tierOptions?:LedgerRow[];
     shopDay?:number; raceAccess?:Record<string,{opensDay:number;unlocked:boolean;opensAt:number}>; benefit?:ResearchBenefit;
 }
 type DisplayRow=LedgerRow & {visual?:RowVisual};
@@ -40,7 +40,13 @@ function orders(c:PageCanvas):void {
         const bw=(w-7)/2,delivery=v.available?v.choices[0]:r.link!;
         press(n,'Deliver',v.available?'选择交付':'查看备货',-(bw+7)/2,-43,bw,()=>c.ui.choose(delivery),true,false,48);
         const cancel=v.choices[1];
-        if(cancel)press(n,'Cancel',cancel.page?'取消次数':'取消订单',(bw+7)/2,-43,bw,()=>c.ui.choose(cancel),false,false,48);
+        if(cancel){
+            const label=cancel.page?'取消次数':'取消订单';
+            const button=press(n,'Cancel',label,(bw+7)/2,-43,bw,()=>c.ui.choose(cancel),false,false,48);
+            const copy=button.getChildByName('Caption')!,tw=Math.min(bw-30,label.length*14+4);
+            copy.setPosition(11,0);copy.getComponent(UITransform)!.setContentSize(tw,44);
+            picture(button,'CancelIcon','shop-modules/order-cancel',-tw/2-2,0,20,20);
+        }
         if(r.link)tap(n,()=>c.ui.choose(r.link!));
     });
     dock(c,c.p.actions||[],-1);
@@ -151,7 +157,10 @@ function research(c:PageCanvas):void {
         text(n,'Effect',r.visual?.benefit?.overview||parts[0],left+contentW/2,0,contentW,22,13,ink);
         const bar=Math.min(contentW-79,136),bw=(bar-18)/10;
         for(let j=0;j<10;j++)box(n,'Level'+j,left+j*(bw+2)+bw/2,-22,bw,5,j<lev[i]?'#60805D':'#DBCAA6');
-        text(n,'Status',(r.visual?.status||parts[1]||'')+' ›',w/2-50,-21,80,22,12,green,'right');
+        const status=r.visual?.status||parts[1]||'';
+        const statusArt=status==='已满级'?'node-complete':['房间未开放','前置不足'].includes(status)?'node-lock':'';
+        if(statusArt)picture(n,'StatusIcon','shop-modules/'+statusArt,-w/2+39,-14,18,18);
+        text(n,'Status',status+' ›',w/2-50,-21,80,22,12,green,'right');
         if(r.link)tap(n,()=>c.ui.choose(r.link!));
     });
 }
@@ -179,7 +188,9 @@ function researchDetail(c:PageCanvas):void {
     pair.forEach((r,i)=>{
         const panel=frame(c.body,'Effect'+i,pair.length===1?0:(i?1:-1)*(bw+20)/2,y,bw,47,i?'#E2E6C5':'#EBDAB6',i?'#A6B18A':'#C5AD80');
         const grade=r.title.replace(' · ',' ')+(benefit?' · '+benefit.bonusLabel:'');
-        text(panel,'Grade',grade,0,10,bw-10,18,11,brown);
+        const complete=i===0&&v.status==='已满级';
+        if(complete)picture(panel,'Complete','shop-modules/node-complete',-bw/2+13,10,16,16);
+        text(panel,'Grade',grade,complete?10:0,10,bw-(complete?30:10),18,11,brown);
         text(panel,'Percent',(i?benefit?.nextBonus:benefit?.currentBonus)||r.text||'',0,-9,bw-10,23,18,green,'left',true);
     });
     if(pair.length===2)text(c.body,'Arrow','→',0,y,23,24,15,ink,'center');
@@ -203,7 +214,9 @@ function researchDetail(c:PageCanvas):void {
             linked.forEach((r,i)=>{
                 const panel=frame(c.body,'Prerequisite'+i,-w/2+size/2+i*(size+gap),top,size,45,'#F6E5BC','#C5AA79');
                 text(panel,'RequiredBranch',r.title.replace(/\s*·\s*前置$/,'')+' ›',0,9,size-8,20,13,green,'center',true);
-                text(panel,'Condition',r.text||'',0,-10,size-8,18,12,brown,'center');
+                const met=(r.text||'').endsWith('已满足');
+                picture(panel,'StatusIcon','shop-modules/'+(met?'node-complete':'node-lock'),-size/2+12,-10,15,15);
+                text(panel,'Condition',r.text||'',9,-10,size-25,18,12,brown,'center');
                 tap(panel,()=>c.ui.choose(r.link!));
             });
         }
@@ -262,7 +275,7 @@ function shows(c:PageCanvas):void {
     const v=pageVisual(c);
     const mode=c.args.mode==='private'||c.args.mode==='public'?c.args.mode:
         v.raceAccess?.public.unlocked===false?'private':'public';
-    banner(c,'stage','','stage',v.pet);
+    banner(c,'stage','','stage',v.pet,v.petStage);
     c.startList();
     c.strip(['public','private'].map(id=>({...act(modeName[id],'show',{mode:id}),active:id===mode})),'ContestTab');
     const gate=v.raceAccess?.[mode];
@@ -317,7 +330,7 @@ function awards(c:PageCanvas):void {
         c.strip((c.p.actions||[]).map(a=>({...a,active:a.args?.mode===(c.args.mode||'private')})),'BookTab');
     }
     c.startList();
-    rows(c).forEach((r,i)=>info(c,r,i));if(!rows(c).length)c.empty();
+    rows(c).forEach((r,i)=>info(c,r,i,r.visual?.uncollected));if(!rows(c).length)c.empty();
     if(c.key==='collection.theme')dock(c,c.p.actions||[],-1);
 }
 function secondary(c:PageCanvas):void {
@@ -344,7 +357,7 @@ function secondary(c:PageCanvas):void {
             if(price)text(n,'Price',price.replace(/（原价 (\d+) 金币）/,'（原$1）'),w/2-9-priceWidth/2,h/2-15,priceWidth,22,12,brown,'right');
             text(n,'Detail',detail,0,-13,w-18,dh+2,12,brown);
         });
-    }else rows(c).forEach((r,i)=>info(c,r,i));
+    }else rows(c).forEach((r,i)=>info(c,key==='credits'&&r.title==='已购余额'?{...r,art:'shop-modules/order-cancel'}:r,i));
     if(!rows(c).length)c.empty();
     dock(c,c.p.actions||[]);
 }

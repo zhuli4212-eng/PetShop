@@ -1,0 +1,42 @@
+{
+  "ver": "1.0.27",
+  "importer": "image",
+  "imported": true,
+  "uuid": "112dda69-984d-53f6-b3ec-2d2e5d3e0fc2",
+  "files": [
+    ".json",
+    ".png"
+  ],
+  "subMetas": {
+    "6c48a": {
+      "importer": "texture",
+      "uuid": "112dda69-984d-53f6-b3ec-2d2e5d3e0fc2@6c48a",
+      "displayName": "dachshund-coat05_male",
+      "id": "6c48a",
+      "name": "texture",
+      "userData": {
+        "wrapModeS": "clamp-to-edge",
+        "wrapModeT": "clamp-to-edge",
+        "imageUuidOrDatabaseUri": "112dda69-984d-53f6-b3ec-2d2e5d3e0fc2",
+        "minfilter": "nearest",
+        "magfilter": "nearest",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "visible": false
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "type": "texture",
+    "hasAlpha": true,
+    "redirect": "112dda69-984d-53f6-b3ec-2d2e5d3e0fc2@6c48a",
+    "fixAlphaTransparencyArtifacts": false
+  }
+}

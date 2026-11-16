@@ -151,20 +151,43 @@ export function filterMenu(parent:Node,fields:FilterField[],index:number,close:(
     return overlay;
 }
 
+// Coat-wide poses serve both sexes. A sex-specific pose takes precedence.
+const restingPoses = new Set([
+    'angora-coat01', 'angora-coat02', 'angora-coat06', 'domestic-coat01',
+    'persian-coat03', 'persian-coat04', 'british-coat01_female', 'shiba-coat01_male',
+    'corgi-coat02_female', 'dachshund-coat02_female',
+]);
+
+function stageArt(art: string, stage: string): string {
+    if (!art.startsWith('pets/')) return art;
+    const id = art.slice(5);
+    if (stage === '幼年') return 'pet-young/' + id;
+    if (stage === '已故') {
+        const coat = id.split('_')[0];
+        const pose = restingPoses.has(id) ? id : coat;
+        if (restingPoses.has(pose)) return 'pets/' + pose + '-rest';
+    }
+    return art;
+}
+
 export function picture(parent: Node, name: string, art: string, x: number, y: number, w: number, h: number,
                         stage = ''): Node {
-    const n = box(parent, name, x, y, 1, 1);
+    const resolved = stageArt(art, stage);
+    const fallback = stage === '已故' && art.startsWith('pets/') && resolved === art;
+    const size = fallback ? .72 : stage === '成长' ? .85 : stage === '老年' ? .94 : 1;
+    const n = box(parent, name, x, y - (1-size)*h*.36, 1, 1);
+    if (fallback) n.angle = 67;
     const sp = n.addComponent(Sprite);
     sp.sizeMode = Sprite.SizeMode.CUSTOM;
     const apply = (image: SpriteFrame) => {
         if (!isValid(n, true)) return;
         sp.spriteFrame = image;
         const {width, height} = image.originalSize;
-        const scale = Math.min(w/width, h/height);
+        const scale = Math.min(w/width, h/height) * size;
         n.getComponent(UITransform)!.setContentSize(width*scale, height*scale);
-        if (stage === '已故') { sp.grayscale = true; sp.color = new Color(190,184,175,220); }
+        if (fallback) { sp.grayscale = true; sp.color = new Color(190,184,175,220); }
     };
-    const path=art+'/spriteFrame';
+    const path=resolved+'/spriteFrame';
     const cached=resources.get(path,SpriteFrame);
     if(cached) apply(cached);
     else resources.load(path,SpriteFrame,(err,image)=>{if(!err&&image)apply(image);});
@@ -180,7 +203,7 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
     };
     const counter=counters[key==='sale'?String(args.channel):key] || (key==='sale'&&args.channel==='order'?'orders':'');
     const paths=new Set<string>();
-    if(page.art)paths.add(page.art);
+    if(page.art)paths.add(stageArt(page.art, page.stage || ''));
     if(counter)paths.add('shop-modules/'+counter);
     await Promise.all(Array.from(paths,art=>{
         const path=art+'/spriteFrame';

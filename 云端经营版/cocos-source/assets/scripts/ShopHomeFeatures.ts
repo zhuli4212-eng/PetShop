@@ -1,6 +1,6 @@
 import { Label, Node, UITransform } from 'cc';
 import type { Args, ShopSnapshot } from './ShopConnection';
-import { caption, frame, tap } from './LedgerCanvas';
+import { caption, frame, picture, tap } from './LedgerCanvas';
 
 interface Entrance {
     key:string;
@@ -39,8 +39,9 @@ export class ShopHomeFeatures {
             const rule=shop.featureAccess?.[entry.key];
             entry.target.active=!!rule||entry.key==='collection'||shop.entrances.includes(entry.key);
             if(rule&&!rule.unlocked&&!entry.label) {
-                const tag=frame(entry.sign,'LevelLock',0,-16,49,16,'#66513A','#BBA17A',false);
-                entry.label=caption(tag,'Requirement','',0,0,47,16,11,'#FFF0CF',true);
+                const tag=frame(entry.sign,'LevelLock',0,-16,64,17,'#66513A','#BBA17A',false);
+                picture(tag,'LockIcon','shop-modules/node-lock',-23,0,13,13);
+                entry.label=caption(tag,'Requirement','',7,0,47,16,11,'#FFF0CF',true);
             }
             if(entry.label) {
                 entry.label.node.parent!.active=!!rule&&!rule.unlocked;

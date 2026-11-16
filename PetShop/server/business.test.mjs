@@ -29,8 +29,10 @@ test('订单区分缺项、占用及未持有的货架幼体，采购预计收�
   const missing=view(s,'orderDesk',{id:'first'},t0);
   assert.match(missing.rows.find(r=>r.title==='本店可交付 0 只').text,/已故 1 只.*繁育中 1 只/);
   assert.match(missing.rows.find(r=>r.link?.args?.id===offer.id).text,/尚未持有.*购价.*预计收入/);
+  assert.equal(missing.rows.find(r=>r.link?.args?.id===offer.id).stage,'幼年');
   const details=()=>carePage(s,'offer',{species:'rabbit',id:offer.id},t0);
   const preview=details(), orders=preview.rows.filter(r=>r.title.startsWith('可交第'));
+  assert.equal(preview.stage,'幼年');
   assert.deepEqual(orders.map(r=>r.title),['可交第 1 单','可交第 2 单']);
   const purchase=preview.actions[0], price=purchase.args.price, before=s.coins;
   careAction(s,purchase.type,purchase.args,t0);
@@ -59,6 +61,8 @@ test('指导及复评前展示风险，服务单、装饰确认显示折前及�
   assert.match(pair.rows.find(r=>r.title.startsWith('选育指导单')).text,/80%.*20%.*目标较低/);
   assert.match(pair.actions.find(a=>a.type==='care.breed').confirm,/目标偏低/);
   const review=carePage(s,'review',{species:'rabbit',id:mother.id},t0);
+  assert.equal(review.stage,'成年');
+  assert.equal(carePage(s,'review',{species:'rabbit',id:mother.id},t0+3*24*60*min).stage,'老年');
   assert.match(review.rows[0].text,/70%、20%、10%.*同词或稀有度降低.*无法选回/);
   assert.match(review.rows[1].action.confirm,/降档也消耗.*无法选回/);
   s.coins=5000;

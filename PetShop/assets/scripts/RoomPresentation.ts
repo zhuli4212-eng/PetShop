@@ -15,19 +15,8 @@ interface RoomPage {
 }
 type AnimalRow=LedgerRow & {animal?:Animal};
 const ink='#493A27', green='#29483E', muted='#725C42';
-const restArt:Record<string,string>={
-    'angora-coat01':'angora-coat01-rest','angora-coat06':'angora-coat06-rest','domestic-coat01':'domestic-coat01-rest',
-    'british-coat01_female':'british-coat01_female-rest','shiba-coat01_male':'shiba-coat01_male-rest',
-    'corgi-coat02_female':'corgi-coat02_female-rest','dachshund-coat02_female':'dachshund-coat02_female-rest',
-};
 function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:number,h:number):Node {
-    const dead=a.stage==='已故';
-    const breed=a.art.split('/').pop()!;
-    const rest=dead&&(restArt[breed]||restArt[breed.split('_')[0]]);
-    const size=a.stage==='幼年'?0.70:a.stage==='成长'?0.85:a.stage==='老年'?0.94:dead&&!rest?0.72:1;
-    const n=picture(parent,'Portrait',rest?'pets/'+rest:a.art,x,y-(1-size)*h*.36,w*size,h*size,dead&&!rest?'已故':'');
-    if(dead&&!rest)n.angle=67;
-    return n;
+    return picture(parent,'Portrait',a.art,x,y,w,h,a.stage);
 }
 // Align the sex/coat sprite on its 96px canvas to the room illustration's floor.
 const trimmedOverview:Record<string, {width:number;height:number;female:number;male:number}>={
@@ -90,10 +79,7 @@ function tabs(c:PageCanvas,flush=false):void {
         if(!a.locked)return;
         tab.getChildByName('Caption')!.setPosition(0,9);
         const color=a.active?'#F3DFAD':'#745A35';
-        const lock=box(tab,'Lock',-20,-11,12,14).addComponent(Graphics);
-        rect(lock,-3,5,6,2,color);
-        rect(lock,-4,0,2,6,color);rect(lock,2,0,2,6,color);
-        rect(lock,-5,-5,10,7,color);
+        picture(tab,'Lock','shop-modules/node-lock',-20,-11,15,15);
         caption(tab,'LockState','未开放',6,-11,40,19,11,color,true);
     });
 }
@@ -118,7 +104,7 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
             const badge=box(resident,'AtRest',0,-sh*.37,33,15,'#544E44');
             caption(badge,'Caption','已故',0,0,32,14,10,'#FFF2D3',true);
         } else if(a.status!=='繁育中') {
-            resident.addComponent(RoomAnimalWalk).setup(figure,a.art,name,i,c.width,h);
+            resident.addComponent(RoomAnimalWalk).setup(figure,a.art,a.stage,name,i,c.width,h);
         }
         tap(resident,()=>c.ui.choose({page:'pet',args:{id:a.id}}));
     });
@@ -172,7 +158,7 @@ function locked(c:PageCanvas,m:RoomPage):void {
     c.startList();
     section(c,'开放'+m.species+'房','房间与种源一并获得');
     const card=book(c,'RoomOffer',104);
-    picture(card,'Young',m.youngArt!,-c.inner/2+47,0,72,70);
+    picture(card,'Young',m.youngArt!,-c.inner/2+47,0,72,70,'幼年');
     const x=39,w=c.inner-100;
     heading(card,'Breed',m.breed+' · 幼体',x,25,w,28,17,green);
     caption(card,'Pair','一公一母 · 六维 B',x,0,w,23,14,ink);
