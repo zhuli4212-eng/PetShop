@@ -50,10 +50,19 @@ function roster(s,a,now) {
   const all=s.pets.filter(p=>p.species===species);
   const filter=rosterFilter(a.filter);
   const stage=rosterStage(a.stage,a.filter);
-  const shown=all.filter(p=>(stage==='全部'||stageOf(p,now)===stage)&&rosterFilters[filter](s,p,now)).map(p=>petRow(s,p,now));
+  const shown=[];
+  let nextStageAt=null;
+  for(const p of all){
+    const end=stageEnd(p,now);
+    if(end!==null&&(nextStageAt===null||end<nextStageAt))nextStageAt=end;
+    if((stage!=='全部'&&stageOf(p,now)!==stage)||!rosterFilters[filter](s,p,now))continue;
+    const row=petRow(s,p,now);
+    row.animal.stageEndsAt=end;
+    shown.push(row);
+  }
   const residents=shown.slice(0,10).map(row=>row.animal);
   return {title:'动物房间',art:cfg.art,animals:residents.map(p=>p.art),animalStages:residents.map(p=>p.stage),
-    presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents},
+    presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents,nextStageAt},
     subtitle:'名册 '+shown.length+' 只 · '+filter+' · '+stage,
     rows:[link(room.job?'查看正在繁育的一窝':'进入繁育台',room.job?'预计 '+describeRemaining(room.job.endsAt-now)+' 后出生':'挑选亲本并比较六维标签','breed',{species}),
       ...(room.lastLitter?[link('最近出生的一窝',room.lastLitter.ids.length+' 只','litter',{species})]:[]),

@@ -6,7 +6,7 @@ import { litterPositions } from './RoomFloor';
 
 interface Animal {
     id:string; number:string; name:string; breed:string; coat:string; sex:string; stage:string; status:string; art:string;
-    retained?:boolean;
+    retained?:boolean; stageEndsAt?:number|null;
 }
 interface RoomPage {
     kind:string; species?:string; count?:number; matchedCount?:number; residents?:Animal[]; wait?:number; remaining?:number;
@@ -17,6 +17,7 @@ interface RoomPage {
 }
 type AnimalRow=LedgerRow & {animal?:Animal;litterMember?:boolean};
 const ink='#493A27', green='#29483E', muted='#725C42';
+const nextStage:Record<string,string>={幼年:'成长',成长:'成年',成年:'老年',老年:'寿终'};
 function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:number,h:number):Node {
     return picture(parent,'Portrait',a.art,x,y,w,h,a.stage);
 }
@@ -99,14 +100,23 @@ function petLine(c:PageCanvas,a:Animal,i:number,choose:(()=>void)|undefined,tail
     box(thumb,'Ledge',0,-24,picWidth,2,'#D1B783');
     animalArt(thumb,a,0,0,picWidth,50);
     const textLeft=left+picWidth+19,bodyW=c.inner-picWidth-72;
-    const tx=textLeft+bodyW/2;
+    const target=(c.key==='rooms'||c.key==='roomRoster')&&Number.isFinite(a.stageEndsAt)?nextStage[a.stage]:'';
+    const timerW=Math.min(92,Math.max(77,c.inner*.24)),right=c.inner/2-9;
+    const detailW=target?Math.min(bodyW,right-timerW-7-textLeft):bodyW,tx=textLeft+detailW/2;
     const nameWidth=Math.min(bodyW-55-(a.retained?41:0),Math.max(34,a.name.length*17));
     heading(card,'Name',a.name,textLeft+nameWidth/2,22,nameWidth,23,16,ink);
     if(a.retained)stockBadge(card,textLeft+nameWidth+22,22);
     caption(card,'Number','#'+a.number,textLeft+nameWidth+30+(a.retained?41:0),21,54,16,10,'#856E4D');
-    caption(card,'Identity',a.breed+' · '+a.coat,tx,0,bodyW,19,12,muted);
-    caption(card,'Stage',a.sex+' · '+a.stage+' · '+a.status,tx,-19,bodyW,19,12,muted);
-    caption(card,'Tail',tail,c.inner/2-22,0,39,h-4,13,'#47604A',true).isBold=true;
+    caption(card,'Identity',a.breed+' · '+a.coat,tx,0,detailW,19,12,muted);
+    caption(card,'Stage',a.sex+' · '+a.stage+' · '+a.status,tx,-19,detailW,19,12,muted);
+    caption(card,'Tail',tail,c.inner/2-22,target?22:0,39,target?21:h-4,13,'#47604A',true).isBold=true;
+    if(target){
+        const x=right-timerW/2;
+        caption(card,'StageTarget','距'+target,x,0,timerW,19,12,muted).horizontalAlign=2;
+        const clock=caption(card,'StageCountdown','',x,-19,timerW,20,13,green);
+        clock.horizontalAlign=2;clock.isBold=true;
+        c.ui.bindStageCountdown(clock,a.stageEndsAt!);
+    }
     if(choose)tap(card,choose);
 }
 function book(c:PageCanvas,name:string,h:number):Node {

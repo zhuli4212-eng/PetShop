@@ -9,6 +9,7 @@ import { drawBreedingBonus } from './RoomPresentation';
 interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
 interface ResponseReceipt { message:string; requestId:string; }
+interface StageClock {label:Label;endsAt:number;shown:number;}
 interface Host {
     layer:Node; origin:string; height:()=>number; wallet:()=>ShopSnapshot;
     update:(shop:ShopSnapshot)=>void; activate:(open:boolean)=>void; notice:(message:string)=>void;
@@ -16,6 +17,13 @@ interface Host {
 }
 const storagePrefix='petshop.command.';
 const clockMs=()=>globalThis.performance?.now?.()??Date.now();
+const visitNow=(visit:Visit)=>clockMs()+visit.serverClockOffset!;
+function stageTime(seconds:number):string {
+    const pad=(n:number)=>String(n).padStart(2,'0');
+    const days=Math.floor(seconds/86400),hours=Math.floor(seconds/3600)%24,minutes=Math.floor(seconds/60)%60;
+    if(days)return days+'天 '+pad(hours)+':'+pad(minutes)+':'+pad(seconds%60);
+    return (hours?hours+':'+pad(minutes):String(minutes))+':'+pad(seconds%60);
+}
 function renderState(page?:LedgerPage):LedgerPage|undefined {
     if(page?.presentation?.kind!=='breeding')return page;
     // The breeding card draws from the deadline and parents. The API's snapshot
@@ -185,22 +193,45 @@ export class ShopSession {
     async refresh(force=false):Promise<void>{
         if(this.current&&this.current.key!=='visitBook'&&!this.busy&&!this.reading&&!this.confirm&&!this.dropdown&&(force||Date.now()-this.lastRead>=4500))await this.read(true);
     }
+    private canRefreshDeadline(visit:Visit):boolean {
+        return this.current===visit&&this.online&&!this.closed&&!this.reading&&!this.busy&&!this.confirm&&!this.dropdown;
+    }
     private bindBirthCountdown(visit:Visit,label:Label,endsAt:number):void {
         let shown=-1,refreshRequested=false;
         const tick=()=>{
-            const seconds=Math.max(0,Math.ceil((endsAt-(clockMs()+visit.serverClockOffset!))/1000));
+            const seconds=Math.max(0,Math.ceil((endsAt-visitNow(visit))/1000));
             if(seconds!==shown){
                 label.string=Math.floor(seconds/60)+' 分 '+String(seconds%60).padStart(2,'0')+' 秒';
                 shown=seconds;
             }
             if(seconds>0){refreshRequested=false;return;}
-            if(!refreshRequested&&this.current===visit&&this.online&&!this.closed&&!this.reading&&!this.busy&&!this.confirm&&!this.dropdown){
+            if(!refreshRequested&&this.canRefreshDeadline(visit)){
                 refreshRequested=true;
                 void this.read(true);
             }
         };
         tick();
         label.schedule(tick,.1);
+    }
+    private bindRoomClocks(visit:Visit,scroll:ScrollView,clocks:StageClock[]):void {
+        const roomEnd=visit.data?.presentation?.nextStageAt;
+        let next=Number.isFinite(roomEnd)?roomEnd!:Infinity;
+        for(const clock of clocks)next=Math.min(next,clock.endsAt);
+        if(!Number.isFinite(next)||visit.serverClockOffset===undefined)return;
+        let requested=false;
+        const tick=()=>{
+            const now=visitNow(visit);
+            for(const clock of clocks){
+                const seconds=Math.max(0,Math.ceil((clock.endsAt-now)/1000));
+                if(seconds!==clock.shown){clock.label.string=stageTime(seconds);clock.shown=seconds;}
+            }
+            if(now>=next&&!requested&&this.scroll===scroll&&this.canRefreshDeadline(visit)){
+                requested=true;
+                void this.read(true);
+            }
+        };
+        tick();
+        scroll.schedule(tick,.25);
     }
     private async read(quiet=false):Promise<void>{
         const visit=this.current;if(!visit||this.closed)return;
@@ -282,6 +313,7 @@ export class ShopSession {
         for(const view of views){
             if(!view.data)continue;
             const backdrop=!!this.confirm||view!==v;
+            const stageClocks:StageClock[]=[];
             const scroll=drawLedger(this.host.layer,view.data,this.host.height(),this.host.wallet().coins,{
                 back:()=>this.back(),choose:a=>this.choose(a),openFilter:(fields,index)=>this.showFilter(fields,index),
                 openBreedingBonus:()=>{
@@ -289,6 +321,7 @@ export class ShopSession {
                     this.bonusVisit=view;this.render();
                 },
                 bindBirthCountdown:(label,endsAt)=>this.bindBirthCountdown(view,label,endsAt),
+                bindStageCountdown:(label,endsAt)=>stageClocks.push({label,endsAt,shown:-1}),
                 selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,
                 detailPage:view.detailPage||0,turnPage:index=>{
                     if(view!==this.current||this.confirm)return;
@@ -304,7 +337,10 @@ export class ShopSession {
                 ready:view.version!==undefined||view.key==='payment',
                 pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
             });
-            if(!backdrop){this.scroll=scroll;this.renderedVisit=view;}
+            if(!backdrop){
+                this.scroll=scroll;this.renderedVisit=view;
+                if(view.key==='rooms')this.bindRoomClocks(view,scroll,stageClocks);
+            }
         }
         const confirm=this.confirm;
         if(confirm)confirmBox(this.host.layer,confirm.text,()=>{

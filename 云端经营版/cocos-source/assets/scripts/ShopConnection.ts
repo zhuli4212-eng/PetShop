@@ -16,7 +16,7 @@ export interface MutationPreview {
 export interface LedgerPage {
     readNoteIds?:string[];
     title:string; subtitle?:string; art?:string; stage?:string; animals?:string[]; animalStages?:string[];
-    presentation?:{kind:string; bornAt?:number; endsAt?:number; remaining?:number; mutationPreview?:MutationPreview};
+    presentation?:{kind:string; bornAt?:number; endsAt?:number; nextStageAt?:number|null; remaining?:number; mutationPreview?:MutationPreview};
     tabs?:Choice[]; filters?:Choice[][]; selectionLabel?:string;
     rows?:LedgerRow[]; actions?:Choice[]; empty?:string; initialSelection?:string[];
 }

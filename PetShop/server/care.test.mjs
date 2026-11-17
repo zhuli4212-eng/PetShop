@@ -171,6 +171,49 @@ test('五只兔的出生记录按序保留至最后一只，交易后仍展示�
   assert.match(children(restored)[4].title,new RegExp('同窝幼体.*'+fifth.number));
 });
 
+test('兔猫狗房间名册逐只给出生长阶段的截止毫秒，临界时刻切换，寿终后为 null',()=>{
+  const s=fresh();s.coins=50_000;
+  careAction(s,'care.checkin',{},T);
+  for(const species of ['cat','dog'])careAction(s,'care.unlock',{species,price:SPECIES[species].roomCost},T);
+  const phases=['幼年','成长','成年','老年','已故'];
+  const deadlines={rabbit:[12*M,30*M,30*M+3*D,30*M+4*D],cat:[30*M,90*M,90*M+4*D,90*M+6*D],dog:[40*M,120*M,120*M+5*D,120*M+7*D]};
+  for(const [species,offsets] of Object.entries(deadlines)){
+    const p=s.pets.find(p=>p.species===species&&p.bornAt===T),ends=offsets.map(offset=>T+offset);
+    const check=(now,phase,end)=>{
+      const page=carePage(s,'rooms',{species,stage:phase},now);
+      const animal=page.rows.find(row=>row.animal?.id===p.id)?.animal;
+      assert.deepEqual([animal?.stage,animal?.stageEndsAt],[phase,end],species+' '+now);
+    };
+    check(T,phases[0],ends[0]);
+    ends.forEach((end,i)=>{
+      check(end-1,phases[i],end);
+      check(end,phases[i+1],ends[i+1]??null);
+    });
+  }
+  const base=s.pets[0];
+  for(let i=1;i<=11;i++)s.pets.push({...base,id:'extra-rabbit-'+i,bornAt:T-i});
+  const roster=carePage(s,'roomRoster',{species:'rabbit'},T);
+  assert.equal(roster.presentation.residents.length,10);
+  assert.equal(roster.rows.at(-1).animal.stageEndsAt,T-11+12*M);
+});
+
+test('空筛选仍提供本房最早阶段截止，在到龄时将匹配动物纳入名册',()=>{
+  const s=fresh(),[mother,father]=s.pets;
+  father.bornAt=T-7*D;
+  mother.bornAt=T-30*M+1;
+  const args={species:'rabbit',filter:'未繁育',stage:'成年'};
+  const read=now=>carePage(s,'rooms',args,now).presentation;
+  const before=read(T);
+  assert.equal(before.matchedCount,0);
+  assert.equal(before.nextStageAt,T+1);
+  const at=read(before.nextStageAt);
+  assert.deepEqual(at.residents.map(p=>p.id),[mother.id]);
+  assert.equal(at.nextStageAt,T+1+3*D);
+  assert.equal(read(T+1+4*D).nextStageAt,null);
+  s.pets=[];
+  assert.equal(read(T).nextStageAt,null);
+});
+
 test('房间共用名册和筛选，选择两只亲本后才显示核对入口',()=>{
   const s=fresh(),[mother,father]=s.pets;
   mother.bornAt=T-3*D-30*M;

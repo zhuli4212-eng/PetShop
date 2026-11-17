@@ -1,6 +1,7 @@
 """Touch the built Web Mobile rooms in Edge using a disposable, deliberately unordered roster."""
 import argparse
 import json
+import re
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -19,7 +20,11 @@ BREEDS = {"rabbit": ["domestic", "lop", "angora", "lionhead"],
 SERVER = """
 import { GameStore } from './server/game-store.mjs';
 import { createPetShopServer } from './server/main.mjs';
-const now = Date.now(), store = new GameStore(process.argv[1], {wall:()=>now,monotonic:()=>0});
+import { lifeDates } from './server/care.mjs';
+import { createInterface } from 'node:readline';
+const now=Date.now(), ticking=process.argv[3]==='countdowns';
+let jump=0;
+const store=new GameStore(process.argv[1],ticking?{wall:()=>Date.now()+jump}:{wall:()=>now,monotonic:()=>0});
 store.ensure();
 const s=store.state, template=s.pets[0], samples=JSON.parse(process.argv[2]);
 s.rooms.cat=structuredClone(s.rooms.rabbit); s.rooms.dog=structuredClone(s.rooms.rabbit);
@@ -32,8 +37,13 @@ for (const [species,room] of Object.entries(s.rooms)){
   room.job={motherId:mother.id,fatherId:father.id,mother,father,endsAt:now+86400000,offspring:[]};
 }
 store.save(s);
-const server=createPetShopServer(undefined,{store});
+const server=createPetShopServer(process.argv[4],{store});
 server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
+if(ticking)createInterface({input:process.stdin}).on('line',id=>{
+  const target=s.pets.find(p=>p.id===id);
+  jump=lifeDates(target).growthAt-Date.now()-9000;
+  console.log('boundary armed');
+});
 """
 
 
@@ -62,6 +72,15 @@ def matches(p, status, stage):
         "全部": True, "种源": p["retained"],
         "未繁育": p["stage"] != "已故" and not p["busy"] and not p["bred"],
     }[status]
+
+
+def countdown_fixture():
+    pets=fixture(False)
+    rabbits=[p for p in pets if p['species']=='rabbit']
+    rabbits[0].update(name='无花果·12',retained=True)
+    for i in (6,7,9,10,11,13,14,15):
+        rabbits[i].update(stage='幼年',minutes=8 if i==6 else 1)
+    return pets
 
 
 def visible_rect(image):
@@ -120,7 +139,23 @@ BROWSER = r"""() => {
   };
   const positions=()=>residents().map(n=>[n.position.x/ui(art()).width,n.position.y/ui(art()).height]
     .map(value=>Number(value.toFixed(6))));
-  window.roomQA={find,label,point,visit,residents,rect,art,ui,positions};
+  const bounds=n=>{
+    const t=ui(n);
+    const pos=(x,y)=>point(t.convertToWorldSpaceAR(new cc.Vec3(x,y,0)));
+    const [left,bottom]=pos(-t.anchorX*t.width,-t.anchorY*t.height);
+    const [right,top]=pos((1-t.anchorX)*t.width,(1-t.anchorY)*t.height);
+    return {left,right,top,bottom};
+  };
+  const row=id=>{
+    const animals=visit().data.rows.filter(r=>r.animal);
+    return find('Animal'+animals.findIndex(r=>r.animal.id===id),find('DeskPage'));
+  };
+  const viewport=n=>{
+    for(let p=n.parent;p;p=p.parent)if(p.getComponent(cc.Mask))return bounds(p);
+    throw Error('Missing room roster scroll mask');
+  };
+  window.roomQA={find,label,point,visit,residents,rect,art,ui,positions,bounds,row,viewport,
+    scroll:()=>main.session.scroll};
 }"""
 
 
@@ -149,7 +184,138 @@ def varied(samples):
     return True
 
 
-def verify(browser, url, pets, width, growth_screenshot=None):
+NEXT_STAGE={'幼年':'距成长','成长':'距成年','成年':'距老年','老年':'距寿终'}
+TIMER=re.compile(r'(?:(\d+)\s*天\s*)?(?:(\d+):)?(\d+):(\d{2})')
+
+
+def seconds(text):
+    match=TIMER.fullmatch(text.strip())
+    assert match,text
+    days,hours,minutes,seconds=(int(i or 0) for i in match.groups())
+    assert minutes<60 and seconds<60,text
+    return ((days*24+hours)*60+minutes)*60+seconds
+
+
+def row_controls(page,id):
+    return page.evaluate("""id=>{
+      const q=roomQA,r=q.row(id);
+      const fields=Object.fromEntries(['Name','Number','Stage','Identity','StockBadge','StageTarget','StageCountdown']
+        .map(k=>[k,r.getChildByName(k)]).filter(([,n])=>n).map(([k,n])=>[k,{
+          text:(n.getComponent(cc.Label)||n.getChildByName('Caption').getComponent(cc.Label)).string,
+          ...q.bounds(n)}]));
+      const v=q.visit(),animal=v.data.rows.find(r=>r.animal?.id===id).animal;
+      fields.remaining=animal.stageEndsAt==null?null:Math.ceil((animal.stageEndsAt-v.serverClockOffset-performance.now())/1000);
+      return fields;
+    }""",id)
+
+
+def verify_countdowns(page,server,rabbits,select,wait_room,screenshot):
+    wait_room('rabbit')
+    # Inspect actual text and rendered bounds. Top name, badge and ID share a
+    # line. Each of the two identity/status lines shares a row with the timer.
+    for p in rabbits:
+        fields=row_controls(page,p['id'])
+        assert fields['Name']['text']==p['name'] and fields['Number']['text']=='#'+p['id'][:5].upper(),fields
+        assert p['stage'] in fields['Stage']['text'],fields
+        header=['Name','StockBadge','Number'] if p['retained'] else ['Name','Number']
+        assert ('StockBadge' in fields)==p['retained'],fields
+        if p['retained']:
+            assert fields['StockBadge']['text']=='种源',fields
+        for left,right in zip(header,header[1:]):
+            assert fields[left]['right']<=fields[right]['left']+1,fields
+        if p['stage']=='已故':
+            assert 'StageTarget' not in fields and 'StageCountdown' not in fields,fields
+            continue
+        remaining=seconds(fields['StageCountdown']['text'])
+        assert fields['StageTarget']['text']==NEXT_STAGE[p['stage']] and remaining>0,fields
+        assert abs(remaining-fields['remaining'])<=1,fields
+        for left in ('Identity','Stage'):
+            for right in ('StageTarget','StageCountdown'):
+                l,r=fields[left],fields[right]
+                if min(l['bottom'],r['bottom'])>max(l['top'],r['top'])+2:
+                    assert l['right']<=r['left']+1,fields
+        assert fields['StageCountdown']['right']<=page.viewport_size['width'],fields
+    long=rabbits[0]['id']
+    samples=page.evaluate("""async id=>{
+      const q=roomQA,n=q.row(id).getChildByName('StageCountdown'),out=[];
+      const until=performance.now()+4500;
+      while(performance.now()<until&&out.length<3){
+        const s=n.getComponent(cc.Label).string;
+        if(s!==out[out.length-1])out.push(s);
+        await new Promise(r=>setTimeout(r,70));
+      }return out;
+    }""",long)
+    readings=[seconds(value) for value in samples]
+    assert len(readings)==3 and readings==list(range(readings[0],readings[0]-3,-1)),samples
+    if screenshot and page.viewport_size['width']==390:
+        page.wait_for_function("""id=>{const q=roomQA,n=q.row(id),b=q.bounds(n),v=q.viewport(n);
+          return b.top>=v.top-1&&b.bottom<=v.bottom+1&&q.residents().every(n=>n.getComponentsInChildren(cc.Sprite)
+            .some(s=>s.node.activeInHierarchy&&s.spriteFrame));}""",arg=long)
+        screenshot.parent.mkdir(parents=True,exist_ok=True)
+        page.screenshot(path=str(screenshot))
+
+    for tab,species in ((1,'cat'),(2,'dog')):
+        tap(page,'Tab'+str(tab))
+        wait_room(species)
+        sample=page.evaluate("roomQA.visit().data.rows.find(r=>r.animal?.stage==='成长').animal.id")
+        assert row_controls(page,sample)['StageTarget']['text']=='距成年'
+    tap(page,'Tab0')
+    wait_room('rabbit')
+    select(1,'幼年')
+    wait_room('rabbit',stage='幼年')
+    young=[p['id'] for p in rabbits if p['stage']=='幼年']
+    moving,anchor=young[0],young[-2]
+    rows=lambda:page.evaluate("roomQA.visit().data.rows.filter(r=>r.animal).map(r=>r.animal.id)")
+    assert rows()==young
+    cdp=page.context.new_cdp_session(page)
+    def locate(id):
+        return page.evaluate("""id=>{const q=roomQA,n=q.row(id),b=q.bounds(n),v=q.viewport(n);
+          return {y:(b.top+b.bottom)/2,x:(b.left+b.right)/2,top:v.top,bottom:v.bottom};}""",id)
+    # Use real vertical touch drags. Leave an animal visible well down the
+    # nursery roster so the removal of an earlier row exercises scroll anchoring.
+    for _ in range(10):
+        v=locate(anchor)
+        if v['top']+7<v['y']<v['bottom']-7:break
+        x=v['x']; bottom=v['bottom']-14; top=v['top']+14
+        assert top<bottom and v['y']>=bottom-7,v
+        for i in range(9):
+            cdp.send('Input.dispatchTouchEvent',{'type':'touchStart' if not i else 'touchMove',
+                     'touchPoints':[{'x':x,'y':bottom+(top-bottom)*i/8}]})
+            page.wait_for_timeout(35)
+        page.wait_for_timeout(120)
+        cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
+        page.wait_for_function("!roomQA.scroll().isAutoScrolling()")
+    else:raise AssertionError(('Could not reach young animal by touch',anchor,v))
+    assert page.evaluate("roomQA.scroll().getScrollOffset().y")>30
+    before=locate(anchor)
+    # Move only this disposable server's logical clock close to the next natural
+    # stage boundary, then let the ordinary time and room refresh advance it.
+    server.stdin.write(moving+'\n');server.stdin.flush()
+    assert server.stdout.readline().strip()=='boundary armed'
+    page.wait_for_function("""id=>{const v=roomQA.visit();return v?.key==='rooms'&&
+      !v.data.rows.some(r=>r.animal?.id===id);}""",arg=moving,timeout=25000)
+    assert rows()==young[1:],rows()
+    after=locate(anchor)
+    assert abs(after['y']-before['y'])<3,(before,after)
+    clock=row_controls(page,anchor)['StageCountdown']
+    clock_y=(clock['bottom']+clock['top'])/2
+    assert after['top']<=clock_y<=after['bottom'],(clock,after)
+    page.touchscreen.tap((clock['left']+clock['right'])/2,clock_y)
+    page.wait_for_function("id=>roomQA.visit()?.data?.presentation?.animal?.id===id",arg=anchor)
+    tap(page,'Back')
+    wait_room('rabbit',stage='幼年')
+    assert abs(locate(anchor)['y']-after['y'])<3
+    select(1,'成长')
+    wait_room('rabbit',stage='成长')
+    assert moving in rows() and row_controls(page,moving)['StageTarget']['text']=='距成年'
+    select(1,'已故')
+    wait_room('rabbit',stage='已故')
+    for id in rows():
+        assert 'StageCountdown' not in row_controls(page,id)
+    print(f"{page.viewport_size['width']}px: four stage timers, one-second ticks, filtered transition, scroll anchor, dossier return and deceased rows passed",flush=True)
+
+
+def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=None,countdown_screenshot=None):
     page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
                             is_mobile=True, has_touch=True, reduced_motion="reduce", device_scale_factor=1)
     page.set_default_timeout(25000)
@@ -293,6 +459,14 @@ def verify(browser, url, pets, width, growth_screenshot=None):
         print(width,species,len(shown),"residents, floor and motions",motion,flush=True)
         page.emulate_media(reduced_motion="reduce")
 
+    if countdown_server:
+        try:
+            verify_countdowns(page,countdown_server,[p for p in pets if p['species']=='rabbit'],
+                              select,wait_room,countdown_screenshot)
+            assert not errors,errors
+        finally:
+            page.close()
+        return None
     screenshot = None
     for species_index, species in enumerate(BREEDS):
         if species_index:
@@ -343,25 +517,31 @@ def verify(browser, url, pets, width, growth_screenshot=None):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--web-root",type=Path,default=GAME/"build"/"web-mobile",help="Web Mobile build to serve")
     parser.add_argument("--screenshot",type=Path,help="optional output path for the 390px ten-resident room")
     parser.add_argument("--growth-screenshot",type=Path,help="optional output path for the open growth filter at 390px")
+    parser.add_argument("--countdown-screenshot",type=Path,help="optional output path for 390px room timers")
+    parser.add_argument("--countdowns-only",action="store_true",help="run just the live stage-transition fixtures")
     args=parser.parse_args()
     shot=None
     with sync_playwright() as pw:
         browser=pw.chromium.launch(channel="msedge",args=["--use-angle=swiftshader"])
         for width in (320,390):
-            pets=fixture(reverse=width==320)
-            with TemporaryDirectory(prefix="petshop-room-filter-") as temp:
-                process=subprocess.Popen(["node","--input-type=module","-e",SERVER,temp,json.dumps(pets,ensure_ascii=False)],
-                    cwd=GAME,stdout=subprocess.PIPE,text=True,creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
-                try:
-                    port=int(process.stdout.readline())
-                    shot=verify(browser,f"http://127.0.0.1:{port}",pets,width,args.growth_screenshot) or shot
-                finally:
-                    process.terminate()
-                    process.wait(timeout=10)
+            for ticking in ([True] if args.countdowns_only else [False,True]):
+                pets=countdown_fixture() if ticking else fixture(reverse=width==320)
+                with TemporaryDirectory(prefix="petshop-room-filter-") as temp:
+                    process=subprocess.Popen(["node","--input-type=module","-e",SERVER,temp,json.dumps(pets,ensure_ascii=False),
+                        "countdowns" if ticking else "fixed",str(args.web_root.resolve())],cwd=GAME,stdin=subprocess.PIPE,stdout=subprocess.PIPE,
+                        text=True,creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
+                    try:
+                        port=int(process.stdout.readline())
+                        shot=verify(browser,f"http://127.0.0.1:{port}",pets,width,args.growth_screenshot,
+                                    process if ticking else None,args.countdown_screenshot) or shot
+                    finally:
+                        process.terminate()
+                        process.wait(timeout=10)
         browser.close()
-    if args.screenshot:
+    if args.screenshot and shot:
         args.screenshot.write_bytes(shot)
 
 

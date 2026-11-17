@@ -12,6 +12,7 @@ export interface LedgerUI {
     back: () => void;
     choose: (choice: Choice) => void;
     bindBirthCountdown: (label: Label, endsAt: number) => void;
+    bindStageCountdown: (label: Label, endsAt: number) => void;
     openFilter: (fields: FilterField[], index: number) => void;
     openBreedingBonus: () => void;
     toggle: (id: string) => void;
