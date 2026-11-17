@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>兔子跳跃图鉴 · 麦穗宠物店</title>
+<style>
+  * { box-sizing: border-box }
+  body { margin: 0; color: #3e3425; background: #f7ecd4; font: 16px/1.5 "Microsoft YaHei",sans-serif }
+  main { max-width: 740px; margin: 0 auto; padding: 0 18px 20px }
+  header { padding: 16px 22px; background: #294e41; color: #fff1cd }
+  h1 { max-width: 700px; margin: auto; font: bold 26px/1.4 SimSun,serif }
+  fieldset { display: flex; gap: 12px; flex-wrap: wrap; border: 0; margin: 0; padding: 18px 0 }
+  label { display: grid; gap: 4px; font-size: 14px; color: #5c513d }
+  select,button { color: #3e3425; background: #fff5dd; border: 1px solid #ad9163; border-radius: 3px; min-height: 42px; font: inherit; padding: 4px 9px }
+  select:focus-visible,button:focus-visible { outline: 3px solid #618f73; outline-offset: 2px }
+  section { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #c6b18a; background: #fff5dd }
+  figure { margin: 0; padding: 12px 4px; text-align: center; min-width: 0 }
+  figure+figure { border-left: 1px solid #ddcaa5 }
+  .sprite { position: relative; width: min(100%,192px); aspect-ratio: 1; margin: 0 auto; background-size: 400% 100%; background-repeat: no-repeat; image-rendering: pixelated }
+  .sprite:after { content: ''; position: absolute; top: 93.75%; left: 1%; width: 98%; height: 1px; background: #cdb995 }
+  figcaption { margin-top: 3px; font-size: 18px; color: #30533f }
+  footer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 15px 0 }
+  button { cursor: pointer }
+  button[aria-pressed="true"],#play { background: #365f4b; color: #fff2d4; border-color: #365f4b }
+  @media(max-width:420px) {main{padding-inline:10px} fieldset{gap:6px} label{flex:1} select{min-width:0;width:100%} footer button{font-size:14px}}
+</style>
+<header><h1>兔子跳跃图鉴</h1></header>
+<main>
+  <fieldset aria-label="选择外观">
+    <label>品种<select id="breed"></select></label><label>花色<select id="coat"></select></label>
+    <label>性别<select id="sex"><option value="male">公</option><option value="female">母</option></select></label>
+  </fieldset>
+  <section aria-label="成年与幼年同一帧的外形">
+    <figure><div class="sprite" id="adult" role="img"></div><figcaption>成年</figcaption></figure>
+    <figure><div class="sprite" id="young" role="img"></div><figcaption>幼年</figcaption></figure>
+  </section>
+  <footer><button id="play" type="button"></button><span id="steps"></span></footer>
+  <p id="height-note" hidden>这只成年兔的原稿四帧都贴着地线。游戏播放时会把兔身抬起。</p>
+</main>
+<script>
+const types = {
+  domestic: ["原色兔","栗野","灰野","黑白花斑","橘白花斑","纯黑","雪白"],
+  lop: ["垂耳兔","奶油","蓝灰","巧克力","纯白","黑白花斑","焦糖白花斑"],
+  angora: ["安哥拉兔","雪白","奶油","蓝灰","巧克力","橘黄","黑白花斑"],
+  lionhead: ["狮子兔","金黄","黑色","灰白","巧克力","奶油","黑白花斑"]
+};
+const breed = document.querySelector("#breed"), coat = document.querySelector("#coat"), sex = document.querySelector("#sex");
+const adult = document.querySelector("#adult"), young = document.querySelector("#young"), play = document.querySelector("#play");
+const phases = ["蓄力","蹬地","腾空","落地"];
+let frame=0, timer=0;
+const steps=phases.map((p,i)=>{
+  const b=document.createElement("button"); b.textContent=p; b.type="button"; b.setAttribute("aria-label","查看第"+(i+1)+"帧："+p);
+  b.onclick=()=>{ setPlaying(false); draw(i); };document.querySelector("#steps").append(b);return b;
+});
+function draw(i) {
+  frame=i; const pos=(frame*100/3)+"% 0";
+  adult.style.backgroundPosition=pos;young.style.backgroundPosition=pos;
+  steps.forEach((b,j)=>b.setAttribute("aria-pressed",String(j===i)));
+  const name=types[breed.value][Number(coat.value)] + types[breed.value][0];
+  adult.setAttribute("aria-label","成年"+name+"，"+phases[i]);young.setAttribute("aria-label","幼年"+name+"，"+phases[i]);
+}
+function setPlaying(on) {
+  clearInterval(timer);timer=on?setInterval(()=>draw((frame+1)%4),180):0;
+  play.textContent=on?"暂停":"播放";play.setAttribute("aria-label",play.textContent+"循环");
+}
+function changeAnimal() {
+  const id=breed.value+"-coat"+coat.value.padStart(2,"0")+"_"+sex.value;
+  document.querySelector("#height-note").hidden = !["domestic-coat01_male","angora-coat01_female"].includes(id);
+  adult.style.backgroundImage="url('../../PetShop/assets/resources/pet-walk/"+id+".png')";
+  young.style.backgroundImage="url('../../PetShop/assets/resources/pet-young-walk/"+id+".png')";
+  draw(0);
+}
+function changeBreed() {
+  coat.replaceChildren(...types[breed.value].slice(1).map((v,i)=>new Option(v,String(i+1))));changeAnimal();
+}
+Object.entries(types).forEach(([k,v])=>breed.add(new Option(v[0],k)));
+breed.onchange=changeBreed;coat.onchange=changeAnimal;sex.onchange=changeAnimal;play.onclick=()=>setPlaying(!timer);
+changeBreed();setPlaying(!matchMedia("(prefers-reduced-motion: reduce)").matches);
+</script>
+</html>

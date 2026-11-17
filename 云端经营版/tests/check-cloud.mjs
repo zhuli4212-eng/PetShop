@@ -73,6 +73,14 @@ try {
   const duplicates=await Promise.all(Array.from({length:6},()=>accepted(url,tester,'action',cmd)));
   for(const result of duplicates)assert.deepEqual(result,duplicates[0]);
   assert.equal(await players(tester),4);
+  const room = async args => (await accepted(url,tester,'page',{page:'rooms',args:{species:'rabbit',...args}})).page;
+  const roster = await room({});
+  assert.deepEqual(roster.filters[0].map(option=>option.label), ['全部','种源','未繁育','已故']);
+  const females = await room({filter:'未繁育',sex:'母'});
+  const expected = roster.rows.flatMap(row=>row.animal?.sex==='母' && row.animal.status==='未繁育' ? [row.animal.id] : []);
+  assert.equal(expected.length,2);
+  assert.deepEqual(females.presentation.residents.map(p=>p.id),expected);
+  assert.deepEqual((await room({filter:'已故'})).presentation.residents,[]);
   assert.equal((await accepted(url,tester,'shop')).coins,680);
   assert.equal(await players(owner),2);
   assert.deepEqual(await accepted(url,tester,'receipts/'+cmd.requestId),duplicates[0]);

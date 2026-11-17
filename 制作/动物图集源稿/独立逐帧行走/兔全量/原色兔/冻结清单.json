@@ -1,0 +1,347 @@
+[
+  {
+    "id": "domestic-coat01_female",
+    "stage": "adult",
+    "source": "母稿/adult-A.png",
+    "row": 1,
+    "file": "adult/domestic-coat01_female.png",
+    "sha256": "ed66af62ddbc34a6316bb89560e76253a37ed83c806c882960cf3e27d3b6b453",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 1.007
+  },
+  {
+    "id": "domestic-coat03_male",
+    "stage": "adult",
+    "source": "母稿/adult-A.png",
+    "row": 2,
+    "file": "adult/domestic-coat03_male.png",
+    "sha256": "c7bcd7788f99493ee588882c64bf7b8e1a9c8a0658e3ba660fc971943e0a196b",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 0.997
+  },
+  {
+    "id": "domestic-coat05_female",
+    "stage": "adult",
+    "source": "母稿/adult-A.png",
+    "row": 3,
+    "file": "adult/domestic-coat05_female.png",
+    "sha256": "8d58f907bf81fa7e9d6696895c800d9b134b7e86a148b4e92366ff7b5c9ac23d",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 1.001
+  },
+  {
+    "id": "domestic-coat02_male",
+    "stage": "adult",
+    "source": "母稿/adult-B.png",
+    "row": 1,
+    "file": "adult/domestic-coat02_male.png",
+    "sha256": "32008760d86eefd7ec170c1f1fd86fb9fb3717807bdbbb6af996dae1d501269c",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 0.994
+  },
+  {
+    "id": "domestic-coat04_female",
+    "stage": "adult",
+    "source": "母稿/adult-B.png",
+    "row": 2,
+    "file": "adult/domestic-coat04_female.png",
+    "sha256": "0aa5cb43ce321f02cc8f2e6e4bcfc7b0b4e9ce5078ffe359b971c38eb619a46a",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 0.977
+  },
+  {
+    "id": "domestic-coat06_male",
+    "stage": "adult",
+    "source": "母稿/adult-B.png",
+    "row": 3,
+    "file": "adult/domestic-coat06_male.png",
+    "sha256": "6022796e37cf170057b52ad1d2ff1a9dcb433421315231e004896da3ec30bdad",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 1.004
+  },
+  {
+    "id": "domestic-coat02_female",
+    "stage": "adult",
+    "source": "母稿/adult-C.png",
+    "row": 1,
+    "file": "adult/domestic-coat02_female.png",
+    "sha256": "81174a530f3456aa686adeec15d803da3e23467f19fe23224c07d38da2f63f7b",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 1.006
+  },
+  {
+    "id": "domestic-coat03_female",
+    "stage": "adult",
+    "source": "母稿/adult-C.png",
+    "row": 2,
+    "file": "adult/domestic-coat03_female.png",
+    "sha256": "4776fd14a5be8edf9ce169a40380fd10acfe5daf07d6f33033dac8180b0500fd",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 0.992
+  },
+  {
+    "id": "domestic-coat05_male",
+    "stage": "adult",
+    "source": "母稿/adult-C.png",
+    "row": 3,
+    "file": "adult/domestic-coat05_male.png",
+    "sha256": "bf13d5cd450fb017adba352c7e008565c628ddba87267c58691ff10de390ee0e",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 0.993
+  },
+  {
+    "id": "domestic-coat04_male",
+    "stage": "adult",
+    "source": "母稿/adult-D.png",
+    "row": 1,
+    "file": "adult/domestic-coat04_male.png",
+    "sha256": "a482b30223c090d16ae461798ccf66e88a1a73386d53cf8a0d8486149db30ed6",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 0.998
+  },
+  {
+    "id": "domestic-coat06_female",
+    "stage": "adult",
+    "source": "母稿/adult-D.png",
+    "row": 2,
+    "file": "adult/domestic-coat06_female.png",
+    "sha256": "99978070386acf9119595e73334641c5e9b4fdf7aa127722372e60fb03341f67",
+    "floor_y": [
+      89,
+      89,
+      81,
+      89
+    ],
+    "gather_vs_portrait_area": 0.992
+  },
+  {
+    "id": "domestic-coat01_female",
+    "stage": "young",
+    "source": "母稿/young-A.png",
+    "row": 1,
+    "file": "young/domestic-coat01_female.png",
+    "sha256": "9428052c7045d0d91a71f7aee879c1394d9a0abef5974cc98725a477831a1e95",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 1.003
+  },
+  {
+    "id": "domestic-coat03_male",
+    "stage": "young",
+    "source": "母稿/young-A.png",
+    "row": 2,
+    "file": "young/domestic-coat03_male.png",
+    "sha256": "6bb57afe829047ab79a12ba7b48ae9176b8450e83186e5f1dc1e97066793f05b",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 1.002
+  },
+  {
+    "id": "domestic-coat05_female",
+    "stage": "young",
+    "source": "母稿/young-A.png",
+    "row": 3,
+    "file": "young/domestic-coat05_female.png",
+    "sha256": "52a1aac6af2249bb6205e728c5b7ca740f79d12eaccc63c00e4b393f94d04090",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 1.002
+  },
+  {
+    "id": "domestic-coat02_male",
+    "stage": "young",
+    "source": "母稿/young-B.png",
+    "row": 1,
+    "file": "young/domestic-coat02_male.png",
+    "sha256": "09730065a89267a5494adc5261366d78d7b6d0cd0aeb7c3eed0afea9a158a2c5",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 1.001
+  },
+  {
+    "id": "domestic-coat04_female",
+    "stage": "young",
+    "source": "母稿/young-B.png",
+    "row": 2,
+    "file": "young/domestic-coat04_female.png",
+    "sha256": "2ad6a7c2b94a924f7816b4a0b5a3171322b073e11c4634e3d9e7de34d48a3114",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 0.999
+  },
+  {
+    "id": "domestic-coat06_male",
+    "stage": "young",
+    "source": "母稿/young-B.png",
+    "row": 3,
+    "file": "young/domestic-coat06_male.png",
+    "sha256": "c31a4c638175334dba99b02cbce42d915a6940370378bc94d4d5578561c12b74",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 0.996
+  },
+  {
+    "id": "domestic-coat02_female",
+    "stage": "young",
+    "source": "母稿/young-C.png",
+    "row": 1,
+    "file": "young/domestic-coat02_female.png",
+    "sha256": "37840b163e239ce7b6dabc8f8d197ce053ff0b0468569d11c69da3521fa3016b",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 1.012
+  },
+  {
+    "id": "domestic-coat03_female",
+    "stage": "young",
+    "source": "母稿/young-C.png",
+    "row": 2,
+    "file": "young/domestic-coat03_female.png",
+    "sha256": "c8a842fcb7448e1ee75df3eb007ce98b782239801206c7e331a5866dccf7932e",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 0.997
+  },
+  {
+    "id": "domestic-coat05_male",
+    "stage": "young",
+    "source": "母稿/young-C.png",
+    "row": 3,
+    "file": "young/domestic-coat05_male.png",
+    "sha256": "cb1fd88c5869d02aa573a0f2849f18502db55efd927cd2fa371168b168a07983",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 0.999
+  },
+  {
+    "id": "domestic-coat01_male",
+    "stage": "young",
+    "source": "母稿/young-D.png",
+    "row": 1,
+    "file": "young/domestic-coat01_male.png",
+    "sha256": "bdc1c2ead136bd31820f41f437e86a9851df0b6507f7c855825b4db778e93fe4",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 0.992
+  },
+  {
+    "id": "domestic-coat04_male",
+    "stage": "young",
+    "source": "母稿/young-D.png",
+    "row": 2,
+    "file": "young/domestic-coat04_male.png",
+    "sha256": "be696e34c2cc28673f828aea74e5ba286e9822b61df050c674b464a712de8e98",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 0.983
+  },
+  {
+    "id": "domestic-coat06_female",
+    "stage": "young",
+    "source": "母稿/young-D.png",
+    "row": 3,
+    "file": "young/domestic-coat06_female.png",
+    "sha256": "69fc93800d7da816363df1afcc5da6596f7f378206d1d1c0405a1f2b2760a05f",
+    "floor_y": [
+      89,
+      89,
+      84,
+      89
+    ],
+    "gather_vs_portrait_area": 1.009
+  }
+]

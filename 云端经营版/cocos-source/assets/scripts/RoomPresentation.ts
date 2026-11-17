@@ -18,21 +18,29 @@ const ink='#493A27', green='#29483E', muted='#725C42';
 function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:number,h:number):Node {
     return picture(parent,'Portrait',a.art,x,y,w,h,a.stage);
 }
-// Align the sex/coat sprite on its 96px canvas to the room illustration's floor.
-const trimmedOverview:Record<string, {width:number;height:number;female:number;male:number}>={
-    angora:{width:69,height:74,female:70,male:72},
-    domestic:{width:54,height:66,female:63,male:65},
-    persian:{width:73,height:70,female:64,male:68},
-};
-function floorArt(parent:Node,a:Animal,w:number,h:number):Node {
-    const source=trimmedOverview[a.art.split('/').pop()!.split('-')[0]];
-    if(!source||a.stage==='已故')return animalArt(parent,a,0,0,w,h);
-    const previewScale=w/source.width;
-    const visibleHeight=previewScale*(source.height-4);
-    const canvasSize=visibleHeight*96/(a.sex==='母'?source.female:source.male);
-    const feet=-h/2+2*previewScale;
-    const centerY=feet+canvasSize*(90/96-.5);
-    return animalArt(parent,a,0,centerY,canvasSize,canvasSize);
+function rosterSpot(width:number,height:number,count:number,index:number) {
+    const backCount=count>2?Math.floor(count/2):0;
+    const front=index>=backCount;
+    const columns=front?count-backCount:backCount;
+    const column=front?index-backCount:index;
+    const cellWidth=width*.90/columns;
+    const stagger=backCount ? (front ? .013 : -.013)*width : 0;
+    const x=(column+.5-columns/2)*cellWidth+stagger;
+    const rowDepth=(front ? .907 : .621)+(column%2 ? .006 : -.006);
+    const singleRowDepth=count===1 ? .78 : (column===0 ? .74 : .83);
+    const depth=backCount ? rowDepth : singleRowDepth;
+    const size=width*.128;
+    const hit=Math.max(size,Math.min(44,width*.14));
+    const feet=-hit/2+width*.006;
+    const y=(.5-depth)*height-feet;
+    // Neighbours keep separate touch areas even at the far ends of their patrols.
+    const patrol={x:Math.max(0,(cellWidth-hit)/2-width*.009),y:height*(backCount ? .009 : .035)};
+    return {x,y,size,hit,feet,patrol};
+}
+function floorArt(parent:Node,a:Animal,size:number,feet:number):Node {
+    // All live canvases are 96×96; the resting canvases are 96×64.
+    const centerToFeet=a.stage==='已故'?(58-32)/96:(90-48)/96;
+    return animalArt(parent,a,0,feet+size*centerToFeet,size,size);
 }
 function stockBadge(parent:Node,x:number,y:number):void {
     const badge=frame(parent,'StockBadge',x,y,36,20,'#DCE6C7','#95A77E',false);
@@ -94,17 +102,20 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
         box(scene,'FloorEdge',0,-h/2+2,c.width,4,'#795632');
     }
     const inRoster=c.key==='rooms'||c.key==='roomRoster';
-    animals.slice(0,3).forEach((a,i)=>{
-        const w=inRoster?c.width*64/390:c.width*.22,sh=inRoster?w:h*.36;
-        const x=c.width*([.26,.67,.47][i]-.5);
-        const y=h*(.5-[.79,.84,.94][i])+sh/2;
+    const visible=animals.slice(0,inRoster?10:3);
+    visible.forEach((a,i)=>{
+        const spot=inRoster?rosterSpot(c.width,h,visible.length,i):undefined;
+        const w=spot?.hit??c.width*.22,sh=spot?.hit??h*.36;
+        const x=spot?.x??c.width*([.26,.67,.47][i]-.5);
+        const y=spot?.y??h*(.5-[.79,.84,.94][i])+sh/2;
         const resident=box(scene,'Resident'+i,x,y,w,sh);
-        const figure=inRoster?floorArt(resident,a,w,sh):animalArt(resident,a,0,0,w,sh);
+        const figure=spot?floorArt(resident,a,spot.size,spot.feet):animalArt(resident,a,0,0,w,sh);
         if(a.stage==='已故') {
-            const badge=box(resident,'AtRest',0,-sh*.37,33,15,'#544E44');
+            const badgeY=spot?spot.feet+spot.size*.52+4:-sh*.37;
+            const badge=box(resident,'AtRest',0,badgeY,33,15,'#544E44');
             caption(badge,'Caption','已故',0,0,32,14,10,'#FFF2D3',true);
         } else if(a.status!=='繁育中') {
-            resident.addComponent(RoomAnimalWalk).setup(figure,a.art,a.stage,name,i,c.width,h);
+            resident.addComponent(RoomAnimalWalk).setup(figure,a.art,a.stage,name,i,c.width,h,spot?.patrol);
         }
         tap(resident,()=>c.ui.choose({page:'pet',args:{id:a.id}}));
     });
@@ -139,7 +150,8 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const extras=rows.filter(r=>r.link&&!r.animal);
     const breed=extras.find(r=>r.link?.page==='breed')?.link||{page:'breed',args:{species:room}};
     tabs(c,true);
-    roomScene(c,c.p.art!,m.residents||all,name,true);
+    // Older servers returned three unfiltered residents alongside a complete filtered roster.
+    roomScene(c,c.p.art!,c.p.rows?all:m.residents||[],name,true);
     c.startList();
     const count=m.count??all.length,matched=m.matchedCount??all.length;
     const countText=count===matched?count+' 只登记':'符合 '+matched+' / 共 '+count+' 只';

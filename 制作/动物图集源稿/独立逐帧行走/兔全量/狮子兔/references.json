@@ -1,0 +1,138 @@
+{
+  "adult-male-01-03": [
+    {
+      "id": "lionhead-coat01_male",
+      "coat": "golden",
+      "still": "PetShop/assets/resources/pets/lionhead-coat01_male.png"
+    },
+    {
+      "id": "lionhead-coat02_male",
+      "coat": "black",
+      "still": "PetShop/assets/resources/pets/lionhead-coat02_male.png"
+    },
+    {
+      "id": "lionhead-coat03_male",
+      "coat": "gray and white",
+      "still": "PetShop/assets/resources/pets/lionhead-coat03_male.png"
+    }
+  ],
+  "adult-male-04-06": [
+    {
+      "id": "lionhead-coat04_male",
+      "coat": "chocolate",
+      "still": "PetShop/assets/resources/pets/lionhead-coat04_male.png"
+    },
+    {
+      "id": "lionhead-coat05_male",
+      "coat": "cream",
+      "still": "PetShop/assets/resources/pets/lionhead-coat05_male.png"
+    },
+    {
+      "id": "lionhead-coat06_male",
+      "coat": "black-and-white spotted",
+      "still": "PetShop/assets/resources/pets/lionhead-coat06_male.png"
+    }
+  ],
+  "adult-female-01-03": [
+    {
+      "id": "lionhead-coat01_female",
+      "coat": "golden",
+      "still": "PetShop/assets/resources/pets/lionhead-coat01_female.png"
+    },
+    {
+      "id": "lionhead-coat02_female",
+      "coat": "black",
+      "still": "PetShop/assets/resources/pets/lionhead-coat02_female.png"
+    },
+    {
+      "id": "lionhead-coat03_female",
+      "coat": "gray and white",
+      "still": "PetShop/assets/resources/pets/lionhead-coat03_female.png"
+    }
+  ],
+  "adult-female-04-06": [
+    {
+      "id": "lionhead-coat04_female",
+      "coat": "chocolate",
+      "still": "PetShop/assets/resources/pets/lionhead-coat04_female.png"
+    },
+    {
+      "id": "lionhead-coat05_female",
+      "coat": "cream",
+      "still": "PetShop/assets/resources/pets/lionhead-coat05_female.png"
+    },
+    {
+      "id": "lionhead-coat06_female",
+      "coat": "black-and-white spotted",
+      "still": "PetShop/assets/resources/pets/lionhead-coat06_female.png"
+    }
+  ],
+  "young-male-01-03": [
+    {
+      "id": "lionhead-coat01_male",
+      "coat": "golden",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat01_male.png"
+    },
+    {
+      "id": "lionhead-coat02_male",
+      "coat": "black",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat02_male.png"
+    },
+    {
+      "id": "lionhead-coat03_male",
+      "coat": "gray and white",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat03_male.png"
+    }
+  ],
+  "young-male-04-06": [
+    {
+      "id": "lionhead-coat04_male",
+      "coat": "chocolate",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat04_male.png"
+    },
+    {
+      "id": "lionhead-coat05_male",
+      "coat": "cream",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat05_male.png"
+    },
+    {
+      "id": "lionhead-coat06_male",
+      "coat": "black-and-white spotted",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat06_male.png"
+    }
+  ],
+  "young-female-01-03": [
+    {
+      "id": "lionhead-coat01_female",
+      "coat": "golden",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat01_female.png"
+    },
+    {
+      "id": "lionhead-coat02_female",
+      "coat": "black",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat02_female.png"
+    },
+    {
+      "id": "lionhead-coat03_female",
+      "coat": "gray and white",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat03_female.png"
+    }
+  ],
+  "young-female-04-06": [
+    {
+      "id": "lionhead-coat04_female",
+      "coat": "chocolate",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat04_female.png"
+    },
+    {
+      "id": "lionhead-coat05_female",
+      "coat": "cream",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat05_female.png"
+    },
+    {
+      "id": "lionhead-coat06_female",
+      "coat": "black-and-white spotted",
+      "still": "PetShop/assets/resources/pet-young/lionhead-coat06_female.png"
+    }
+  ]
+}

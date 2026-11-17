@@ -2,6 +2,7 @@ import { _decorator, Component, game, Game, isValid, Node, Rect, resources, Size
 
 const { ccclass } = _decorator;
 type Patrol = { waypoints: number[][]; speed: number; cyclesPerSecond: number; rest: number };
+type PatrolBounds = { x:number; y:number };
 
 // Offsets from each animal's own starting point, in percent of the illustrated floor.
 const patrols: Record<string, Patrol> = {
@@ -9,10 +10,11 @@ const patrols: Record<string, Patrol> = {
     '猫': { waypoints: [[0,0],[13,-2],[5,2],[-10,0],[-5,-3]], speed: 6.3, cyclesPerSecond: 2.3, rest: 1.2 },
     '狗': { waypoints: [[0,0],[-13,-2],[-5,2],[12,0],[6,-4]], speed: 9.2, cyclesPerSecond: 2.3, rest: .55 },
 };
-// These rabbit strips include the height of the airborne phase in the four drawings.
-const hopsWithDrawnHeight = new Set([
-    'pet-walk/lop-coat06_female/texture',
-    'pet-young-walk/lop-coat06_female/texture',
+// The two original preview strips register all four drawings on the ground.
+// All other rabbit strips already include their airborne height.
+const hopsOnGroundLine = new Set([
+    'pet-walk/angora-coat01_female/texture',
+    'pet-walk/domestic-coat01_male/texture',
 ]);
 type Leg = { x: number; y: number; dx: number; dy: number; duration: number; cycles: number; elapsed: number };
 
@@ -39,14 +41,15 @@ export class RoomAnimalWalk extends Component {
     private next = 0;
     private leg: Leg | null = null;
 
-    setup(figure: Node, art: string, stage: string, species: string, slot: number, width: number, height: number): void {
+    setup(figure: Node, art: string, stage: string, species: string, slot: number, width: number, height: number, bounds?: PatrolBounds): void {
         this.sprite = figure.getComponent(Sprite)!;
         const directory = stage === '幼年' ? 'pet-young-walk/' : 'pet-walk/';
         this.path = directory + art.substring(art.lastIndexOf('/') + 1) + '/texture';
         this.patrol = patrols[species];
         this.hopping = species === '兔';
-        this.floorWidth = width;
-        this.floorHeight = height;
+        // The largest patrol offsets above are 13% horizontally and 4% vertically.
+        this.floorWidth = bounds ? Math.min(width,bounds.x/.13) : width;
+        this.floorHeight = bounds ? Math.min(height,bounds.y/.04) : height;
         this.originX = this.node.position.x;
         this.originY = this.node.position.y;
         this.poseY = figure.position.y;
@@ -116,7 +119,7 @@ export class RoomAnimalWalk extends Component {
         if (!this.frames.length || !this.sprite.spriteFrame) return;
         if (!this.idle) {
             this.idle = this.sprite.spriteFrame;
-            this.hopHeight = hopsWithDrawnHeight.has(this.path) ? 0 : this.sprite.node.getComponent(UITransform)!.height * .08;
+            this.hopHeight = hopsOnGroundLine.has(this.path) ? this.sprite.node.getComponent(UITransform)!.height * .08 : 0;
         }
         const delta = Math.min(dt, .1);
         if (!this.leg) {

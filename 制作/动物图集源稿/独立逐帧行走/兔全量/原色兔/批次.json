@@ -1,0 +1,41 @@
+{
+  "adult-A": [
+    "domestic-coat01_female",
+    "domestic-coat03_male",
+    "domestic-coat05_female"
+  ],
+  "adult-B": [
+    "domestic-coat02_male",
+    "domestic-coat04_female",
+    "domestic-coat06_male"
+  ],
+  "adult-C": [
+    "domestic-coat02_female",
+    "domestic-coat03_female",
+    "domestic-coat05_male"
+  ],
+  "adult-D": [
+    "domestic-coat04_male",
+    "domestic-coat06_female"
+  ],
+  "young-A": [
+    "domestic-coat01_female",
+    "domestic-coat03_male",
+    "domestic-coat05_female"
+  ],
+  "young-B": [
+    "domestic-coat02_male",
+    "domestic-coat04_female",
+    "domestic-coat06_male"
+  ],
+  "young-C": [
+    "domestic-coat02_female",
+    "domestic-coat03_female",
+    "domestic-coat05_male"
+  ],
+  "young-D": [
+    "domestic-coat01_male",
+    "domestic-coat04_male",
+    "domestic-coat06_female"
+  ]
+}
