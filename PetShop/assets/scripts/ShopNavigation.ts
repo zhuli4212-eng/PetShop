@@ -9,9 +9,8 @@ const sections: Record<string,string> = {
     collection:'collection', 'collection.theme':'collection',
 };
 
-export function featureFor(key:string,args:Args,owner?:string):string|undefined {
+export function featureFor(key:string,args:Args):string|undefined {
     if(key==='breed'&&args.mother&&args.father&&!args.picking)return undefined;
-    if(key==='litter'&&owner==='breed')return 'breed';
     return sections[key];
 }
 

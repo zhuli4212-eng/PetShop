@@ -9,10 +9,14 @@ export interface LedgerRow {
     title:string; text?:string; art?:string; select?:string; stage?:string;
     link?:Choice; action?:Choice;
 }
+export interface MutationPreview {
+    enabled:boolean; level:number;
+    fields:{name:string;mother:string;father:string;off:number;on:number}[];
+}
 export interface LedgerPage {
     readNoteIds?:string[];
     title:string; subtitle?:string; art?:string; stage?:string; animals?:string[]; animalStages?:string[];
-    presentation?:{kind:string; endsAt?:number; remaining?:number};
+    presentation?:{kind:string; bornAt?:number; endsAt?:number; remaining?:number; mutationPreview?:MutationPreview};
     tabs?:Choice[]; filters?:Choice[][]; selectionLabel?:string;
     rows?:LedgerRow[]; actions?:Choice[]; empty?:string; initialSelection?:string[];
 }

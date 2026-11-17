@@ -4,8 +4,9 @@ import { drawLedger, confirmBox, ledgerModal } from './ShopEntranceView';
 import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
 import { accessFeature, featureFor, GameBrowserBack } from './ShopNavigation';
 import { RoomFloor } from './RoomFloor';
+import { drawBreedingBonus } from './RoomPresentation';
 
-interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; }
+interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
 interface ResponseReceipt { message:string; requestId:string; }
 interface Host {
@@ -51,13 +52,14 @@ function payment(stage:string):LedgerPage {
 export class ShopSession {
     private feature?:Visit;
     private panel?:Visit;
-    private owner?:string;
     private editDraft?:Visit;
     private navigation=0;
     private browser:GameBrowserBack;
     private scroll:ScrollView|null=null;
     private renderedVisit?:Visit;
     private confirm?:{text:string;submit:()=>void};
+    private bonusVisit?:Visit;
+    private bonusPending?:boolean;
     private dropdown:Node|null=null;
     private serial=0;
     private busy=false;
@@ -73,7 +75,7 @@ export class ShopSession {
     showLetter(letter:ShopLetter,dismiss:()=>void):void {
         if(this.active||this.closed)return;
         this.feature={key:'visitBook',args:{},selected:new Set(),offset:0,data:letter.page,version:this.host.wallet().version};
-        this.owner='login';this.dismissLetter=dismiss;
+        this.dismissLetter=dismiss;
         this.host.activate(true);this.browser.sync();this.render(false);
     }
     private get current():Visit|undefined{return this.panel||this.feature;}
@@ -105,9 +107,10 @@ export class ShopSession {
     }
     private navigate(key:string,args:Args):void{
         this.remember();this.closeFilter();this.navigation++;
+        this.bonusVisit=undefined;
         if(key==='roomRoster')key='rooms';
         if(key==='sale'&&args.preselectId&&['market','recycle'].includes(args.channel))key=args.channel;
-        const dest=featureFor(key,args,this.owner);
+        const dest=featureFor(key,args);
         const visit:Visit={key,args,selected:new Set(),offset:0};
         if(dest){
             // A button that points back at the same section restores its selection
@@ -125,9 +128,22 @@ export class ShopSession {
                 this.feature.roomFloor=existing?.key==='rooms' && (existing.args.species||'rabbit')===species
                     ? existing.roomFloor : new RoomFloor(species==='rabbit');
             }
-            this.owner=dest;this.panel=undefined;this.editDraft=undefined;
+            this.panel=undefined;this.editDraft=undefined;
         }else{
             if(!this.feature)throw new Error('请先进入相应的店铺功能。');
+            const prior=this.panel;
+            if(key==='litter'){
+                const source=prior?.key==='litterKeep'?prior.returnPanel:prior;
+                visit.returnPanel=source?.key==='litter'?source.returnPanel:source;
+            }
+            if((key==='pet'||key==='litterKeep')&&prior?.key==='litter'){
+                visit.returnPanel=prior;
+                prior.litterBirth=prior.data?.presentation?.bornAt;
+            }
+            if(key==='breed'&&prior?.data?.presentation?.kind==='pairConfirm'
+                &&args.mother===prior.args.mother&&args.father===prior.args.father){
+                visit.detailPage=prior.detailPage;visit.offset=prior.offset;
+            }
             if(key==='saleQuote'||key==='litterSale') {
                 const previous=this.current;
                 if(previous&&['sale','market','recycle','litterKeep'].includes(previous.key))this.editDraft=previous;
@@ -142,12 +158,18 @@ export class ShopSession {
     }
     back():void{
         if(this.dropdown){this.closeFilter();return;}
+        if(this.bonusVisit){this.bonusVisit=undefined;this.render();return;}
+        if(this.confirm&&this.panel?.data?.presentation?.kind==='pairConfirm'){
+            this.confirm=undefined;this.render(false);return;
+        }
         if(!this.feature)return;
         this.remember();this.navigation++;this.serial++;this.reading=false;
-        if(this.confirm||this.panel)this.closePanel();
+        if(!this.confirm&&this.panel?.returnPanel){
+            this.panel=this.panel.returnPanel;this.editDraft=undefined;
+        }else if(this.confirm||this.panel)this.closePanel();
         else{
             const dismiss=this.dismissLetter;
-            this.feature=undefined;this.owner=undefined;this.dismissLetter=undefined;
+            this.feature=undefined;this.dismissLetter=undefined;
             dismiss?.();
         }
         this.browser.sync();
@@ -188,6 +210,14 @@ export class ShopSession {
             if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
             const result=await api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
             if(this.closed||serial!==this.serial)return;
+            // The server holds only the latest litter. A dossier opened from an older
+            // one returns to that litter's cached birth record until the player leaves.
+            if(visit.litterBirth!==undefined&&visit.data?.presentation?.bornAt===visit.litterBirth
+                &&result.page.presentation?.bornAt!==visit.litterBirth){
+                result.page={...visit.data,subtitle:'本房已有新出生的一窝，当前显示此前查看的出生记录。',
+                    actions:[{page:'litter',args:{...visit.args},label:'查看最新一窝'},
+                        ...(visit.data.actions||[]).filter(a=>a.page==='rooms')]};
+            }
             // A delayed response gives an older lower bound for the server clock.
             const offset=result.shop.now-clockMs();
             visit.serverClockOffset=Math.max(visit.serverClockOffset??offset,offset);
@@ -248,12 +278,16 @@ export class ShopSession {
         this.renderedVisit=undefined;this.scroll=null;
         clearLayer(this.host.layer);
         const modal=!!this.panel&&ledgerModal(v.key);
-        const views=this.confirm?[this.feature!]:modal?this.stack:[v];
+        const views=this.confirm?[v.data.presentation?.kind==='pairConfirm'?v:this.feature!]:modal?this.stack:[v];
         for(const view of views){
             if(!view.data)continue;
             const backdrop=!!this.confirm||view!==v;
             const scroll=drawLedger(this.host.layer,view.data,this.host.height(),this.host.wallet().coins,{
                 back:()=>this.back(),choose:a=>this.choose(a),openFilter:(fields,index)=>this.showFilter(fields,index),
+                openBreedingBonus:()=>{
+                    if(view!==this.current||this.confirm||this.busy)return;
+                    this.bonusVisit=view;this.render();
+                },
                 bindBirthCountdown:(label,endsAt)=>this.bindBirthCountdown(view,label,endsAt),
                 selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,
                 detailPage:view.detailPage||0,turnPage:index=>{
@@ -277,6 +311,24 @@ export class ShopSession {
             if(this.confirm!==confirm||this.busy)return;
             this.confirm=undefined;this.render(false);confirm.submit();
         },()=>this.back());
+        if(this.bonusVisit===v){
+            const toggle=v.data.actions?.find(a=>a.type==='care.toggle');
+            if(v.data.presentation?.kind!=='pairConfirm'||!toggle){this.bonusVisit=undefined;return;}
+            const preview=v.data.presentation.mutationPreview;
+            const enabled=this.bonusPending??preview?.enabled??!toggle.args?.enabled;
+            drawBreedingBonus(this.host.layer,preview,enabled,this.bonusPending!==undefined,value=>{
+                if(this.busy||v.version===undefined||this.bonusVisit!==v)return;
+                if(!this.online){this.host.notice('服务器未连接。请重新连接后操作。');return;}
+                this.bonusPending=value;
+                const version=v.version;
+                this.render(false);
+                // The settings window stays over this visit while the regular action and receipt are processed.
+                void this.commit({...toggle,go:undefined},{...toggle.args,enabled:value},version).finally(()=>{
+                    this.bonusPending=undefined;
+                    if(!this.closed&&this.bonusVisit===v)this.render(false);
+                });
+            },()=>this.back());
+        }
     }
     private choose(a:Choice):void {
         const v=this.current;if(!v||this.confirm)return;

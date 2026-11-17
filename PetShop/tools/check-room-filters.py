@@ -11,8 +11,8 @@ from playwright.sync_api import sync_playwright
 
 GAME = Path(__file__).resolve().parents[1]
 RESOURCES = GAME / "assets/resources"
-STATUSES = ["全部", "种源", "未繁育", "已故"]
-SEXES = ["全部", "公", "母"]
+STATUSES = ["全部", "种源", "未繁育"]
+STAGES = ["全部", "幼年", "成长", "成年", "老年", "已故"]
 BREEDS = {"rabbit": ["domestic", "lop", "angora", "lionhead"],
           "cat": ["british", "american", "persian", "maine"],
           "dog": ["shiba", "corgi", "poodle", "dachshund"]}
@@ -52,14 +52,14 @@ def fixture(reverse):
                              name=("青禾 山桃 小葵 奶酥 胡桃 桔梗 小麦 云团 棉花 银杏 "
                                    "豆沙 小满 枫糖 柚子 梨花 南星").split()[i],
                              species=species, sex=sex, breedKey=breed, coatIndex=coat,
-                             retained=i in (1, 3, 8) or (n == 1 and i == 10), bred=i in (4, 13),
+                             retained=i in (1, 3, 8) or (n == 1 and i in (5, 10)), bred=i in (4, 13),
                              busy=i in (1, 12), stage=stage, minutes=minutes))
     return pets[::-1] if reverse else pets
 
 
-def matches(p, status, sex):
-    return (sex == "全部" or p["sex"] == sex) and {
-        "全部": True, "种源": p["retained"], "已故": p["stage"] == "已故",
+def matches(p, status, stage):
+    return (stage == "全部" or p["stage"] == stage) and {
+        "全部": True, "种源": p["retained"],
         "未繁育": p["stage"] != "已故" and not p["busy"] and not p["bred"],
     }[status]
 
@@ -149,7 +149,7 @@ def varied(samples):
     return True
 
 
-def verify(browser, url, pets, width):
+def verify(browser, url, pets, width, growth_screenshot=None):
     page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
                             is_mobile=True, has_touch=True, reduced_motion="reduce", device_scale_factor=1)
     page.set_default_timeout(25000)
@@ -161,28 +161,32 @@ def verify(browser, url, pets, width):
     page.evaluate(BROWSER)
     tap(page, "RoomLink")
 
-    def wait_room(species, status="全部", sex="全部"):
-        page.wait_for_function("""([species,status,sex])=>{
+    def wait_room(species, status="全部", stage="全部"):
+        page.wait_for_function("""([species,status,stage])=>{
           const v=roomQA.visit(),p=v?.data;
           return v?.key==='rooms' && (v.args.species||'rabbit')===species &&
             p?.filters?.[0].find(o=>o.active)?.label===status &&
-            p.filters[1].find(o=>o.active)?.label===sex && roomQA.find('StatusFilter');
-        }""", arg=[species,status,sex])
+            p.filters[1].find(o=>o.active)?.label===stage && roomQA.find('StatusFilter');
+        }""", arg=[species,status,stage])
 
     def select(index, label):
-        tap(page, ("StatusFilter", "SexFilter")[index])
+        tap(page, ("StatusFilter", "GrowthStageFilter")[index])
         page.wait_for_function("()=>!!roomQA.find('FilterMenu')")
         opts = page.evaluate("""()=>roomQA.find('Options',roomQA.find('FilterMenu')).children
             .map(n=>[roomQA.label(n,'Caption'),n.name])""")
-        assert [k for k, _ in opts] == (STATUSES, SEXES)[index], opts
+        assert [k for k, _ in opts] == (STATUSES, STAGES)[index], opts
+        if growth_screenshot and width == 390 and index == 1 and label == "幼年" and page.evaluate(
+            "()=>roomQA.visit().data.filters[0].find(o=>o.active).label==='种源'"
+        ):
+            page.screenshot(path=str(growth_screenshot))
         tap(page, dict(opts)[label])
         page.wait_for_function("""([i,label])=>!roomQA.find('FilterMenu') &&
-            !!roomQA.find('SexFilter') && roomQA.visit()?.data?.filters?.[i].find(o=>o.active)?.label===label""",
+            !!roomQA.find('GrowthStageFilter') && roomQA.visit()?.data?.filters?.[i].find(o=>o.active)?.label===label""",
             arg=[index,label])
 
-    def check(species, status, sex):
-        wait_room(species, status, sex)
-        want = [p for p in pets if p["species"] == species and matches(p,status,sex)]
+    def check(species, status, stage):
+        wait_room(species, status, stage)
+        want = [p for p in pets if p["species"] == species and matches(p,status,stage)]
         ids = [p["id"] for p in want]
         snapshot = page.evaluate(r"""()=>{
           const q=roomQA,p=q.visit().data,desk=q.find('DeskPage');
@@ -193,7 +197,7 @@ def verify(browser, url, pets, width):
               .map(l=>[l.string,q.label(l.node.parent,'Number')]),
             empty:desk.getComponentsInChildren(cc.Label).some(l=>l.string.includes('没有动物'))};
         }""")
-        assert snapshot["rows"] == ids and snapshot["residents"] == ids[:10], (status,sex,snapshot,ids)
+        assert snapshot["rows"] == ids and snapshot["residents"] == ids[:10], (status,stage,snapshot,ids)
         assert snapshot["cards"] == [[p["name"],"#"+p["id"][:5].upper()] for p in want], snapshot
         assert snapshot["n"] == min(10,len(want)) and snapshot["matched"] == len(want), snapshot
         assert want or snapshot["empty"], snapshot
@@ -206,7 +210,7 @@ def verify(browser, url, pets, width):
         })""",arg=shown)
         return shown
 
-    def reopen(species, status, sex):
+    def reopen(species, status, stage):
         tap(page, "Back")
         page.wait_for_function("()=>!!roomQA.find('RoomLink')")
         tap(page, "RoomLink")
@@ -216,16 +220,16 @@ def verify(browser, url, pets, width):
             wait_room(species)
         if status != "全部":
             select(0, status)
-        if sex != "全部":
-            select(1, sex)
-        return check(species, status, sex)
+        if stage != "全部":
+            select(1, stage)
+        return check(species, status, stage)
 
-    def random_entries(species, status, sex, count):
-        shown = check(species, status, sex)
+    def random_entries(species, status, stage, count):
+        shown = check(species, status, stage)
         assert len(shown) == count
         samples = [page.evaluate("roomQA.positions()")]
         for _ in range(5):
-            assert reopen(species, status, sex) == shown
+            assert reopen(species, status, stage) == shown
             samples.append(page.evaluate("roomQA.positions()"))
             if len(samples) >= 3 and varied(samples):
                 break
@@ -324,14 +328,14 @@ def verify(browser, url, pets, width):
         if species=="rabbit":
             for status in STATUSES:
                 select(0,status)
-                for sex in SEXES:
-                    select(1,sex)
-                    check(species,status,sex)
+                for stage in STAGES:
+                    select(1,stage)
+                    check(species,status,stage)
         elif species=="cat":
             select(0,"种源")
-            select(1,"公")
-            random_entries(species,"种源","公",1)
-            check_movement(species,check(species,"种源","公"))
+            select(1,"老年")
+            random_entries(species,"种源","老年",1)
+            check_movement(species,check(species,"种源","老年"))
     assert not errors,errors
     page.close()
     return screenshot
@@ -340,6 +344,7 @@ def verify(browser, url, pets, width):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--screenshot",type=Path,help="optional output path for the 390px ten-resident room")
+    parser.add_argument("--growth-screenshot",type=Path,help="optional output path for the open growth filter at 390px")
     args=parser.parse_args()
     shot=None
     with sync_playwright() as pw:
@@ -351,7 +356,7 @@ def main():
                     cwd=GAME,stdout=subprocess.PIPE,text=True,creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
                 try:
                     port=int(process.stdout.readline())
-                    shot=verify(browser,f"http://127.0.0.1:{port}",pets,width) or shot
+                    shot=verify(browser,f"http://127.0.0.1:{port}",pets,width,args.growth_screenshot) or shot
                 finally:
                     process.terminate()
                     process.wait(timeout=10)

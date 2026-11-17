@@ -5,6 +5,21 @@ function distance(a:Point,b:Point):number {
     return Math.hypot((a.x-b.x)/spacingX,(a.depth-b.depth)/spacingY);
 }
 
+export function litterPositions(count:number,width:number,height:number) {
+    if(!count)return [];
+    const columns=Math.min(count,Math.ceil(Math.sqrt(count*1.8))),rows=Math.ceil(count/columns);
+    const cellW=width*.90/columns,cellH=height*.43/rows;
+    const hit=Math.min(width*.19,cellW*.84,cellH*.9),feet=-hit*.46;
+    // Portraits have transparent margins. The touch targets stay inside their own floor cells.
+    const size=Math.min(width*.20,cellW*.82,cellH*1.23);
+    return Array.from({length:count},(_,i)=>{
+        const row=Math.floor(i/columns),inRow=Math.min(columns,count-row*columns);
+        const x=(i%columns-(inRow-1)/2)*cellW;
+        const y=height*(.5-.53)-(row+.78)*cellH-feet;
+        return {x,y,hit,feet,size,patrol:{x:Math.min(width*.035,(cellW-hit)*.4),y:(cellH-hit)*.12}};
+    });
+}
+
 export class RoomFloor {
     private readonly homes:Point[];
     private readonly assigned=new Map<string,Point>();

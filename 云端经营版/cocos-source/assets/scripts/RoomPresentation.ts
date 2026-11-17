@@ -1,7 +1,8 @@
-import { Node } from 'cc';
-import type { Choice, LedgerRow } from './ShopConnection';
+import { BlockInputEvents, Color, Graphics, Node, UITransform } from 'cc';
+import type { Choice, LedgerRow, MutationPreview } from './ShopConnection';
 import { animalFilters, box, caption, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
+import { litterPositions } from './RoomFloor';
 
 interface Animal {
     id:string; number:string; name:string; breed:string; coat:string; sex:string; stage:string; status:string; art:string;
@@ -11,9 +12,10 @@ interface RoomPage {
     kind:string; species?:string; count?:number; matchedCount?:number; residents?:Animal[]; wait?:number; remaining?:number;
     maturity?:number; estimate?:string; youngArt?:string; price?:number; breed?:string; coins?:number; signed?:boolean; date?:string;
     parents?:(Animal|null)[]; candidates?:Animal[]; confirm?:Choice; animal?:Animal; bornAt?:number; endsAt?:number;
+    guide?:{count:number;index:number};
     traits?:{type:string;label:string;rarity:string;grade:string}[];
 }
-type AnimalRow=LedgerRow & {animal?:Animal};
+type AnimalRow=LedgerRow & {animal?:Animal;litterMember?:boolean};
 const ink='#493A27', green='#29483E', muted='#725C42';
 function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:number,h:number):Node {
     return picture(parent,'Portrait',a.art,x,y,w,h,a.stage);
@@ -56,7 +58,8 @@ function tabs(c:PageCanvas,flush=false):void {
         caption(tab,'LockState','未开放',6,-11,40,19,11,color,true);
     });
 }
-function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:boolean,edgeTop=false):void {
+function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:boolean,edgeTop=false,
+                   links?:Map<string,Choice>):void {
     if(edgeTop)c.slot(-(c.width-c.inner)/2,0);
     const h=c.width*9/16;
     const scene=box(c.body,'Artwork',0,c.slot(h,10),c.width,h,'#B3834F');
@@ -67,8 +70,9 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
         box(scene,'FloorEdge',0,-h/2+2,c.width,4,'#795632');
     }
     const inRoster=c.key==='rooms'||c.key==='roomRoster';
-    const visible=animals.slice(0,inRoster?10:3);
-    const spots=inRoster ? c.ui.roomFloor!.positions(visible.map(a=>a.id),c.width,h) : [];
+    const visible=inRoster?animals.slice(0,10):animals;
+    const spots=inRoster?c.ui.roomFloor!.positions(visible.map(a=>a.id),c.width,h):
+        c.key==='litter'?litterPositions(visible.length,c.width,h):[];
     visible.forEach((a,i)=>{
         const spot=spots[i];
         const w=spot?.hit??c.width*.22,sh=spot?.hit??h*.36;
@@ -83,7 +87,8 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
         } else if(a.status!=='繁育中') {
             resident.addComponent(RoomAnimalWalk).setup(figure,a.art,a.stage,name,i,c.width,h,spot?.patrol);
         }
-        tap(resident,()=>c.ui.choose({page:'pet',args:{id:a.id}}));
+        const target=links?links.get(a.id):{page:'pet',args:{id:a.id}};
+        if(target)tap(resident,()=>c.ui.choose(target));
     });
 }
 function petLine(c:PageCanvas,a:Animal,i:number,choose:(()=>void)|undefined,tail='›',last=false,selected=false):void {
@@ -123,7 +128,8 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const countText=count===matched?count+' 只登记':'符合 '+matched+' / 共 '+count+' 只';
     section(c,name+'房名册',countText);
     const status=c.p.filters?.[0]?.find(option=>option.active)?.args?.filter||c.args.filter||'全部';
-    buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,filter:status},label:'挑选出售'}]);
+    const stage=c.p.filters?.[1]?.find(option=>option.active)?.args?.stage||'全部';
+    buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,filter:status,stage},label:'挑选出售'}]);
     animalFilters(c);
     c.startList();
     all.forEach((a,i)=>petLine(c,a,i,openPet(c,a),'›',i===all.length-1));
@@ -238,14 +244,20 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         c.startList();
         rows.forEach((r,i)=>c.row(r,i));
         c.startFooter();
-        const actions=c.p.actions||[],guideChoices=actions.filter(a=>a.page==='breed'&&a.args?.guide!==undefined);
-        if(guideChoices.length){
-            const selected=guideChoices.find(a=>a.args?.guide===c.args.guide);
-            let anchor:Node;
-            anchor=press(c.body,'ChooseGuide',selected?.label||'选择想培养的特征 ▾',0,c.slot(48,6),c.inner,
-                ()=>c.ui.openFilter([{anchor,options:guideChoices}],0));
-        }
-        c.actions(actions.filter(a=>!guideChoices.includes(a)));return;
+        const actions=c.p.actions||[],start=actions.find(a=>a.type==='care.breed');
+        const toggle=actions.find(a=>a.type==='care.toggle');
+        const selected=m.guide?.index??start?.args?.guide??-1;
+        const dimensions=actions.filter(a=>a.page==='breed'&&Number.isInteger(a.args?.guide)&&a.args!.guide>=0);
+        const noGuide=actions.find(a=>a.page==='breed'&&a.args?.guide===-1)
+            ||{page:'breed',label:'不使用指导单',args:{...c.args,guide:-1}};
+        const options=[noGuide,...dimensions].map(a=>({...a,active:a.args?.guide===selected}));
+        const choice=options.find(a=>a.active)||options[0];
+        const y=c.slot(48,6),w=toggle?(c.inner-6)*.55:c.inner;
+        const anchor=press(c.body,'ChooseGuide',choice.label+' ▾',(w-c.inner)/2,y,w,
+            ()=>c.ui.openFilter([{anchor,options}],0));
+        if(toggle)press(c.body,'BonusSettings','六维加成设置',(w+6)/2,y,c.inner-w-6,c.ui.openBreedingBonus);
+        const modify=actions.find(a=>a.page==='breed'&&a.args?.picking);
+        c.actions([...(start?[start]:[]),...(modify?[modify]:[])]);return;
     }
     section(c,'选择亲本','成年或老年 · 一公一母');
     c.startList();
@@ -278,15 +290,70 @@ function breeding(c:PageCanvas,m:RoomPage):void {
     tabs(c);
     buttons(c,c.p.actions||[]);
 }
+
+export function drawBreedingBonus(parent:Node,preview:MutationPreview|undefined,enabled:boolean,
+                                 pending:boolean,setEnabled:(value:boolean)=>void,close:()=>void):void {
+    const bounds=parent.getComponent(UITransform)!;
+    const overlay=box(parent,'BonusDialog',0,0,bounds.width,bounds.height);
+    const shade=overlay.addComponent(Graphics);
+    shade.fillColor=new Color(26,43,35,164);
+    shade.rect(-bounds.width/2,-bounds.height/2,bounds.width,bounds.height);shade.fill();
+    tap(overlay,close);overlay.addComponent(BlockInputEvents);
+    const w=Math.min(360,bounds.width-20),inner=w-28;
+    const fields=preview?.fields||[],h=fields.length?258+fields.length*29:258;
+    const panel=frame(overlay,'Settings',0,0,w,h,'#FCF0D2','#866846');
+    panel.addComponent(BlockInputEvents);
+    const scale=Math.min(1,(bounds.height-16)/h);
+    panel.setScale(scale,scale,1);
+    const top=h/2;
+    heading(panel,'Title','六维选育加成',0,top-26,inner,32,21,green);
+    const description=preview?'本房研究 Lv.'+preview.level+' · 设置用于下次繁育':'设置用于本房下次繁育';
+    caption(panel,'Level',description,0,top-54,inner,23,13,muted);
+    const bw=(inner-8)/2;
+    for(const value of [true,false]){
+        const name=value?'开启':'关闭',active=value===enabled;
+        press(panel,value?'BonusOn':'BonusOff',(active?'✓ ':'')+name,(value?-1:1)*(bw+8)/2,top-94,bw,
+            ()=>{if(!pending&&!active)setEnabled(value);},active,false,44);
+    }
+    const offset=top-134;
+    const colName=inner*.33,colParents=inner*.30,colChance=inner-colName-colParents;
+    const nameX=(colName-inner)/2,parentsX=-inner/2+colName+colParents/2,chanceX=(inner-colChance)/2;
+    if(fields.length){
+        caption(panel,'Field','特征',nameX,offset,colName,21,13,muted);
+        caption(panel,'Parents','母 / 父',parentsX,offset,colParents,21,13,muted,true);
+        caption(panel,'Effect','上浮一档概率',chanceX,offset,colChance,21,13,muted,true);
+        fields.forEach((field,i)=>{
+            const row=box(panel,'Trait'+i,0,offset-25-i*29,inner,29);
+            box(row,'Rule',0,14,inner,1,'#D9C49B');
+            caption(row,'Name',field.name,nameX,0,colName,25,14,ink);
+            caption(row,'Parents',field.mother+' / '+field.father,parentsX,0,colParents,25,13,muted,true);
+            heading(row,'Chance',(enabled?field.on:field.off)+'%',chanceX,0,colChance,25,15,green,true);
+        });
+    }
+    const hint=fields.length?'上浮以幼体选中的亲本评分为基准，已计入本窝指导单的选择。':'当前经营服务未提供逐项概率。';
+    caption(panel,'Explanation',hint,0,-h/2+80,inner,38,13,muted);
+    press(panel,'Back','返回配对',0,-h/2+34,inner,close,false,false,44);
+}
+
 function litter(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
-    const pets=rows.filter(r=>r.animal).map(r=>r.animal!);
-    roomScene(c,c.p.art!,pets,m.species!,true,true);
+    const members=rows.filter(r=>r.litterMember||r.animal);
+    const animals:Animal[]=[];
+    const links=new Map<string,Choice>();
+    for(const row of members){
+        if(!row.animal)continue;
+        animals.push(row.animal);
+        if(row.link)links.set(row.animal.id,row.link);
+    }
+    roomScene(c,c.p.art!,animals,m.species!,true,true,links);
     c.startList();
     section(c,'这一窝',m.count+' 只出生');
     if(c.p.subtitle)note(c,c.p.subtitle);
     c.startList();
-    pets.forEach((p,i)=>petLine(c,p,i,openPet(c,p),'›',i===pets.length-1));
-    rows.filter(r=>!r.animal).forEach((r,i)=>c.row(r,i));
+    members.forEach((r,i)=>{
+        if(r.animal)petLine(c,r.animal,i,r.link?()=>c.ui.choose(r.link!):undefined,r.link?'›':'',i===members.length-1);
+        else c.row(r,i);
+    });
+    rows.filter(r=>!r.litterMember&&!r.animal).forEach((r,i)=>c.row(r,members.length+i));
     c.startFooter();
     buttons(c,c.p.actions||[]);
 }

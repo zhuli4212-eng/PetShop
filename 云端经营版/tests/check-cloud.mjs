@@ -65,6 +65,10 @@ async function checkLegacyParents(url,db) {
   await db.prepare('INSERT INTO cloud_shops(account_id,revision,snapshot) VALUES (?,1,?)').bind(account,JSON.stringify(legacy)).run();
   const market=(await accepted(url,who,'page',{page:'market',args:{filter:'种源'}})).page;
   assert.deepEqual(market.rows.map(row=>row.link.args.id),[father]);
+  const litter=(await accepted(url,who,'page',{page:'litter',args:{species:'rabbit'}})).page;
+  const newborns=legacy.state.rooms.rabbit.lastLitter.ids;
+  assert.deepEqual(litter.rows.filter(row=>newborns.includes(row.animal?.id)).map(row=>row.animal.id),newborns);
+  assert.equal(litter.animals.length,newborns.length);
   const row=await db.prepare('SELECT snapshot FROM cloud_shops WHERE account_id=?').bind(account).first();
   const saved=JSON.parse(row.snapshot).state;
   assert.deepEqual(saved.pets.map(p=>p.id),legacy.state.pets.map(p=>p.id));
@@ -97,10 +101,16 @@ try {
   assert.equal(other.profileId,legacy.profileId);
   assert.equal(other.coins,1777);
   assert.notEqual(shop.profileId,other.profileId);
+  const parentId=sex=>legacy.pets.find(p=>p.sex===sex).id;
+  const pair=(await accepted(url,owner,'page',{page:'breed',args:{species:'rabbit',mother:parentId('母'),father:parentId('公')}})).page;
+  assert.equal(pair.presentation.kind,'pairConfirm');
+  assert.equal(pair.presentation.mutationPreview.fields.length,6);
+  assert.ok(pair.actions.some(action=>action.label==='不使用指导单'&&action.active&&action.args.guide===-1));
   for (const page of ['market','sale']) {
     const args=page==='sale'?{channel:'market',species:'rabbit',filter:'种源'}:{filter:'种源'};
     const result=(await accepted(url,owner,'page',{page,args})).page;
-    assert.deepEqual(result.filters[0].map(option=>option.label),['全部','种源','未繁育','已故']);
+    assert.deepEqual(result.filters[0].map(option=>option.label),['全部','种源','未繁育']);
+    assert.deepEqual(result.filters[1].map(option=>option.label),['全部','幼年','成长','成年','老年','已故']);
     assert.equal(result.rows.length,1);
     assert.equal(result.rows[0].visual.name,legacy.pets[0].name);
     assert.ok(result.rows[0].visual.blockedReason.includes('种源'));
@@ -115,12 +125,13 @@ try {
   assert.equal(await players(tester),4);
   const room = async args => (await accepted(url,tester,'page',{page:'rooms',args:{species:'rabbit',...args}})).page;
   const roster = await room({});
-  assert.deepEqual(roster.filters[0].map(option=>option.label), ['全部','种源','未繁育','已故']);
-  const females = await room({filter:'未繁育',sex:'母'});
-  const expected = roster.rows.flatMap(row=>row.animal?.sex==='母' && row.animal.status==='未繁育' ? [row.animal.id] : []);
+  assert.deepEqual(roster.filters[0].map(option=>option.label), ['全部','种源','未繁育']);
+  assert.deepEqual(roster.filters[1].map(option=>option.label), ['全部','幼年','成长','成年','老年','已故']);
+  const young = await room({filter:'未繁育',stage:'幼年'});
+  const expected = roster.rows.flatMap(row=>row.animal?.stage==='幼年' && row.animal.status==='未繁育' ? [row.animal.id] : []);
   assert.equal(expected.length,2);
-  assert.deepEqual(females.presentation.residents.map(p=>p.id),expected);
-  assert.deepEqual((await room({filter:'已故'})).presentation.residents,[]);
+  assert.deepEqual(young.presentation.residents.map(p=>p.id),expected);
+  assert.deepEqual((await room({stage:'已故'})).presentation.residents,[]);
   assert.equal((await accepted(url,tester,'shop')).coins,680);
   assert.equal(await players(owner),2);
   assert.deepEqual(await accepted(url,tester,'receipts/'+cmd.requestId),duplicates[0]);

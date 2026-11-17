@@ -9,7 +9,9 @@ from playwright.sync_api import sync_playwright
 
 
 GAME = Path(__file__).resolve().parents[1]
-FILTERS = ["全部", "种源", "未繁育", "已故"]
+FILTERS = ["全部", "种源", "未繁育"]
+STAGES = ["全部", "幼年", "成长", "成年", "老年", "已故"]
+PET_STAGES = ["成年","成长","已故","成年","幼年","成年","已故","老年"]
 # name, species, unbred and idle, protected, deceased, busy
 PETS = [
     ("胡桃","rabbit",False,False,False,False), ("小麦","rabbit",True,True,False,False),
@@ -30,7 +32,8 @@ s.rooms.cat=structuredClone(s.rooms.rabbit);
 s.pets=samples.map(([id,name,species,retained,dead],i)=>({...structuredClone(base),id,name,species,retained,
   bred:i===0,sex:[0,2,3,7].includes(i)?'公':'母',
   breedKey:species==='cat'?'british':['angora','lop','domestic','lionhead'][i%4],
-  coatIndex:1+i%6,bornAt:now-(dead?15*86400000:i===4?60000:species==='cat'?6*86400000+90*60000-20000:86400000)}));
+  coatIndex:1+i%6,bornAt:now-(dead?15*86400000:i===4?12*60000-20000:i===1?20*60000:
+    species==='cat'?6*86400000+90*60000-100000:86400000)}));
 const mother=s.pets[5],father=s.pets[3];
 s.rooms.rabbit.job={motherId:mother.id,fatherId:father.id,mother,father,endsAt:now+86400000,offspring:[]};
 store.save(s);
@@ -111,25 +114,31 @@ def verify(browser, process, width):
     def at(key):
         page.wait_for_function("key=>marketQA.visit()?.key===key && marketQA.visit().version!==undefined",arg=key)
 
-    def status(value):
-        tap(name="StatusFilter")
+    def choose_filter(index,value):
+        tap(name=("StatusFilter","GrowthStageFilter")[index])
         page.wait_for_function("()=>!!marketQA.find('FilterMenu')")
         options = page.evaluate("""()=>marketQA.find('Options',marketQA.find('FilterMenu')).children
             .map(n=>n.getChildByName('Caption').getComponent(cc.Label).string)""")
-        assert options==FILTERS,options
+        assert options==(FILTERS,STAGES)[index],options
         tap(name="Option"+str(options.index(value)))
-        page.wait_for_function("""value=>!marketQA.find('FilterMenu') && marketQA.find('StatusFilter') &&
-            marketQA.visit()?.data?.filters?.[0].find(o=>o.active)?.label===value""",arg=value)
+        page.wait_for_function("""([index,value])=>!marketQA.find('FilterMenu') && marketQA.find('StatusFilter') &&
+            marketQA.visit()?.data?.filters?.[index].find(o=>o.active)?.label===value""",arg=[index,value])
+
+    def status(value):
+        choose_filter(0,value)
+
+    def growth(value):
+        choose_filter(1,value)
 
     def selected(expected):
         page.wait_for_function("""ids=>{const v=marketQA.visit();return Array.from(v.selected).sort().join('|')
             ===ids.slice().sort().join('|') && marketQA.find('SelectionCount',marketQA.desk())?.getComponent(cc.Label)
             .string.includes('已选 '+ids.length+' 只')}""",arg=expected)
 
-    def check(key, value, species=None):
+    def check(key, value, species=None, stage="全部"):
         at(key)
         state=page.evaluate("""()=>{const q=marketQA,v=q.visit(),p=v.data,d=q.desk();
-          return {filter:p.filters[0].find(o=>o.active).label,count:p.visual.eligibleCount,protected:p.visual.protectedCount,
+          return {filters:p.filters.map(g=>g.find(o=>o.active).label),count:p.visual.eligibleCount,protected:p.visual.protectedCount,
             empty:p.empty,labels:q.labels(d).map(l=>l.string),rows:p.rows.map((r,i)=>{
               const row=q.find('Row'+i,d);
               return {id:r.link.args.id,select:r.select,price:r.visual.price,reason:r.visual.blockedReason,
@@ -137,10 +146,10 @@ def verify(browser, process, width):
                 gray:q.find('Icon',row)?.getComponent(cc.Sprite).grayscale};
             })};
         }""")
-        assert state["filter"]==value,state
+        assert state["filters"]==[value,stage],state
         indices=[i for i,(_,kind,unbred,protected,dead,_) in enumerate(PETS)
-                 if (species is None or kind==species) and
-                 {"全部":True,"种源":protected,"未繁育":unbred,"已故":dead}[value]]
+                 if (species is None or kind==species) and (stage=="全部" or PET_STAGES[i]==stage) and
+                 {"全部":True,"种源":protected,"未繁育":unbred}[value]]
         assert [r["id"] for r in state["rows"]]==[IDS[i] for i in indices],state
         eligible=[]
         for i,r in zip(indices,state["rows"]):
@@ -160,10 +169,12 @@ def verify(browser, process, width):
         return eligible
 
     def quote(expected):
+        filters=page.evaluate("()=>marketQA.visit().data.filters.map(g=>g.find(o=>o.active).label)")
         tap(copy="核对出售")
         at("saleQuote")
         action=page.evaluate("""()=>marketQA.visit().data.actions.find(a=>a.type==='sale.commit')""")
         assert action and sorted(action["args"]["ids"])==sorted(expected),action
+        assert [action["args"].get(key,"全部") for key in ("filter","stage")]==filters,action
         total=sum(action["args"]["amounts"])
         assert page.evaluate("t=>marketQA.labels(marketQA.desk()).some(l=>l.string==='合计 '+t+' 金币')",total)
         return action
@@ -210,15 +221,17 @@ def verify(browser, process, width):
     check("market","未繁育")
     selected(ok)
     image = page.screenshot() if width==390 else None
-    for value in ("种源","已故","全部"):
+    for value in ("种源","未繁育","全部"):
         status(value)
-        check("market",value)
-        if value!="全部":
-            tap(row=0,name="Check")
-            tap(copy="全选本页")
-            tap(copy="核对出售")
-            at("market")
-            selected([])
+        for stage in (*STAGES[1:],"全部"):
+            growth(stage)
+            eligible=check("market",value,stage=stage)
+            if not eligible and (value,stage) in (("种源","成长"),("全部","已故")):
+                tap(row=0,name="Check")
+                tap(copy="全选本页")
+                tap(copy="核对出售")
+                at("market")
+                selected([])
     tap(row=3,name="Check")  # A busy rabbit in the unfiltered list.
     selected([])
 
@@ -226,25 +239,28 @@ def verify(browser, process, width):
     tap(name="RoomLink")
     at("rooms")
     status("未繁育")
+    growth("幼年")
     tap(copy="挑选出售")
-    room_ok=check("sale","未繁育","rabbit")
+    room_ok=check("sale","未繁育","rabbit","幼年")
     tap(copy="全选本页")
     selected(room_ok)
     quote(room_ok)
     tap(copy="修改选择")
-    check("sale","未繁育","rabbit")
+    check("sale","未繁育","rabbit","幼年")
     selected(room_ok)
-    for value in ("已故","种源","全部"):
+    for value in ("未繁育","种源","全部"):
         status(value)
-        check("sale",value,"rabbit")
+        for stage in (*STAGES[1:],"全部"):
+            growth(stage)
+            check("sale",value,"rabbit",stage)
     home()
     tap(name="RoomLink")
     at("rooms")
     tap(name="Tab1")
     page.wait_for_function("()=>marketQA.visit().args.species==='cat' && marketQA.find('StatusFilter')")
-    status("已故")
+    growth("已故")
     tap(copy="挑选出售")
-    assert not check("sale","已故","cat")
+    assert not check("sale","全部","cat","已故")
     tap(copy="全选本页")
     tap(copy="核对出售")
     at("sale")
@@ -262,6 +278,29 @@ def verify(browser, process, width):
     at("market")
     after,new_ids=ledger()
     assert new_ids==[i for i in old_ids if i!=IDS[0]] and after["coins"]-before["coins"]==sum(action["args"]["amounts"])
+    def next_minute():
+        process.stdin.write("next-minute\n")
+        process.stdin.flush()
+        assert process.stdout.readline().strip()=="advanced"
+
+    # When the only selected juvenile grows up, the old stage-bound quote is refused.
+    status("未繁育")
+    growth("幼年")
+    tap(copy="全选本页")
+    selected([IDS[4]])
+    young=quote([IDS[4]])
+    def birthday(route):
+        next_minute()
+        route.continue_()
+    page.route("**/api/action",birthday,times=1)
+    with page.expect_response(lambda r:r.url.endswith("/api/action") and r.request.post_data_json["type"]=="sale.commit") as aged:
+        tap(copy=young["label"])
+    assert aged.value.status==409 and all(t in aged.value.json()["error"] for t in ("栗子","幼年","成长"))
+    stable,unsold=ledger()
+    assert stable["coins"]==after["coins"] and unsold==new_ids
+    home()
+    tap(name="Hotspot_market")
+    at("market")
     # Between quote and settlement another client protects one animal and the other reaches natural death.
     remaining=[IDS[4],IDS[7]]
     tap(copy="全选本页")
@@ -272,9 +311,7 @@ def verify(browser, process, width):
         res=page.request.post(url+"/api/action",data={"type":"care.retain","args":{"id":IDS[4],"retained":True},
             "requestId":"market-second-client-"+str(width),"profileId":shop["profileId"],"version":shop["version"]})
         assert res.ok,res.text()
-        process.stdin.write("next-minute\n")
-        process.stdin.flush()
-        assert process.stdout.readline().strip()=="advanced"
+        next_minute()
         route.continue_()
     page.route("**/api/action",other_client,times=1)
     with page.expect_response(lambda r:r.url.endswith("/api/action") and r.request.post_data_json["type"]=="sale.commit") as blocked:

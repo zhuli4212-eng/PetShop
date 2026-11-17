@@ -59,7 +59,7 @@ function roomOf(s, species) {
   requireValue(room,'请先开放对应房间。');
   return room;
 }
-const stageNames = ['幼年','成长','成年','老年','已故'];
+export const stageNames = ['幼年','成长','成年','老年','已故'];
 export function lifeDates(p) {
   const cfg=SPECIES[p.species];
   const growthAt=p.bornAt+cfg.young*MINUTE, adultAt=growthAt+cfg.growth*MINUTE;
@@ -88,13 +88,16 @@ const stockStatus = (s,p) => isBusy(s,p)?'繁育中':p.bred?'已繁育':'未繁�
 export const rosterFilters = {
   全部:()=>true, 种源:(_s,p)=>p.retained===true,
   未繁育:(s,p,now)=>stageOf(p,now)!=='已故'&&stockStatus(s,p)==='未繁育',
-  已故:(_s,p,now)=>stageOf(p,now)==='已故',
 };
 const legacyFilters = {在养:'全部',后备种源:'种源',可配对:'未繁育'};
 export function rosterFilter(value) {
   if(typeof value!=='string')return '全部';
   if(Object.hasOwn(legacyFilters,value))return legacyFilters[value];
   return Object.hasOwn(rosterFilters,value)?value:'全部';
+}
+export function rosterStage(value,filter) {
+  if(stageNames.includes(value))return value;
+  return filter==='已故'?'已故':'全部';
 }
 function conditionGrade(grade) {
   const score=GRADES.indexOf(grade);
@@ -191,6 +194,10 @@ export function repairLegacyParentRetention(s) {
   return changed;
 }
 
+function birthIdentity({id,name,sex,breedKey,coatIndex,mixed}) {
+  return {id,name,sex,breedKey,coatIndex,mixed:!!mixed};
+}
+
 export function tickCare(s,now) {
   let changed=false;
   const refreshes=[];
@@ -204,9 +211,14 @@ export function tickCare(s,now) {
         p.retained=false;
       }
       s.pets.push(...job.offspring);
-      room.lastLitter={ids:job.offspring.map(p=>p.id),bornAt:job.endsAt,mother:job.mother.name,father:job.father.name,
+      room.lastLitter={ids:job.offspring.map(p=>p.id),children:job.offspring.map(birthIdentity),bornAt:job.endsAt,mother:job.mother.name,father:job.father.name,
         parents:[job.mother,job.father].map(({id,name,sex,bornAt})=>({id,name,sex,bornAt,species}))};
       room.job=null;changed=true;
+    } else if(room.lastLitter && !room.lastLitter.children) {
+      // Preserve the identities still available when opening an older save, before another sale.
+      const ids=new Set(room.lastLitter.ids);
+      room.lastLitter.children=s.pets.filter(p=>ids.has(p.id)).map(birthIdentity);
+      changed=true;
     }
   }
   if (refreshes.length) {
@@ -217,12 +229,27 @@ export function tickCare(s,now) {
   }
   return changed;
 }
+function gradeBaseline(grades,guided) {
+  return guided?{first:grades[0]>grades[1]?0:1,chance:.8}:{first:0,chance:.5};
+}
+
+export function mutationPreview(mother,father,guide,level,enabled) {
+  return {enabled,level,fields:fields.map((name,i)=>{
+    const m=mother.traits[i].grade,f=father.traits[i].grade;
+    const grades=[GRADES.indexOf(m),GRADES.indexOf(f)];
+    const {first,chance}=gradeBaseline(grades,i===guide);
+    const a=grades[first],b=grades[1-first];
+    const rise=lv=>Number((100*(chance*scoreRiseChance(a,b,lv)+(1-chance)*scoreRiseChance(b,a,lv))).toFixed(3));
+    return {name,mother:m,father:f,off:rise(0),on:rise(level)};
+  })};
+}
+
 function inherit(mother,father,options) {
   return fields.map((_,i)=>{
     const parents=[mother.traits[i],father.traits[i]];
     const grades=parents.map(t=>GRADES.indexOf(t.grade));
-    const high=grades[0]>grades[1]?0:1;
-    const j=i===options.guide ? (Math.random()<.8?high:1-high) : (Math.random()<.5?0:1);
+    const {first,chance}=gradeBaseline(grades,i===options.guide);
+    const j=Math.random()<chance?first:1-first;
     const base=grades[j],ref=grades[1-j];
     const up=scoreRiseChance(base,ref,options.positive);
     const roll=Math.random(), next=base+(roll<up?1:roll<up+.1?-1:0);

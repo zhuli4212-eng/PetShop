@@ -1,5 +1,5 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import { BREEDS, SPECIES, TRAITS, breedName, carePage, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, stageEnd, stageOf, stockStatus } from './care.mjs';
+import { BREEDS, SPECIES, TRAITS, breedName, carePage, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, stageEnd, stageNames, stageOf, stockStatus } from './care.mjs';
 import { bredValuePercent, researchBenefit } from './research-effects.mjs';
 
 const minute = 60_000;
@@ -297,6 +297,7 @@ function quoteSelection(s, args, now, agreedAmounts) {
   requireValue(Array.isArray(ids) && ids.length && new Set(ids).size === ids.length, '请勾选动物，每只只能选一次。');
   let target;
   const filter = args.channel === 'market' ? rosterFilter(args.filter) : '全部';
+  const stage = args.channel === 'market' ? rosterStage(args.stage,args.filter) : '全部';
   const lines = [], issues = [];
   try { target = saleTarget(s, args, now); }
   catch (error) {
@@ -322,6 +323,10 @@ function quoteSelection(s, args, now, agreedAmounts) {
       issues.push(name + '已不符合「' + filter + '」筛选');
       continue;
     }
+    if(stage!=='全部' && stageOf(p,now)!==stage){
+      issues.push(name+'已不符合「'+stage+'」筛选，目前为'+stageOf(p,now));
+      continue;
+    }
     if (!target) continue;
     const amount = salePrice(s, p, now, args.channel, target.rate);
     if (Array.isArray(agreedAmounts) && agreedAmounts[index] !== amount) {
@@ -339,8 +344,9 @@ function quoteSelection(s, args, now, agreedAmounts) {
   const terms = [target.channel, args.targetId || null, lines, risks];
   if (target.species) terms.push(target.species);
   if (filter !== '全部') terms.push(filter);
+  if (stage !== '全部') terms.push({stage});
   const hash = createHash('sha256').update(JSON.stringify(terms)).digest('hex');
-  return { target, lines, risks, hash, filter, total: lines.reduce((sum, row) => sum + row.amount, 0) };
+  return { target, lines, risks, hash, filter, stage, total: lines.reduce((sum, row) => sum + row.amount, 0) };
 }
 export function validateSaleQuote(s, args, now) {
   const quote = quoteSelection(s, args, now, args.amounts);
@@ -384,11 +390,12 @@ const nextPage = (label, page, args = {}) => ({ label, page, args });
 const linkRow = (title, text, page, args = {}, art) => ({ title, text, art, link: { page, args } });
 function marketRoster(s, page, args, target, now) {
   const filter = rosterFilter(args.filter);
+  const stage = rosterStage(args.stage,args.filter);
   const scope = {channel:'market', ...(target.species && {species:target.species})};
   const rows = [], counts = {'种源保护':0, '繁育中':0, '已故':0};
   let eligibleCount = 0;
   for (const p of s.pets) {
-    if (!target.eligible(p) || !rosterFilters[filter](s,p,now)) continue;
+    if (!target.eligible(p) || !rosterFilters[filter](s,p,now) || (stage!=='全部' && stageOf(p,now)!==stage)) continue;
     const reasons = saleBlocks(s,p,now,'market');
     const number = p.id.slice(0,5).toUpperCase(), summary = petCaption(p,now,stockStatus(s,p));
     const visual = {name:p.name, number, summary};
@@ -408,8 +415,9 @@ function marketRoster(s, page, args, target, now) {
   const reasons = Object.entries(counts).filter(([,count])=>count).map(([reason,count])=>reason+' '+count+' 只');
   return {title:channelNames.market, subtitle:[target.condition,...reasons].join(' · '),
     visual:{eligibleCount, protectedCount:counts.种源保护}, empty:'当前筛选下没有动物。', rows,
-    filters:[Object.keys(rosterFilters).map(label=>({...nextPage(label,page,{...scope,filter:label}), active:label===filter}))],
-    actions:eligibleCount?[{...nextPage('核对所选报价','saleQuote',{...scope,...(filter!=='全部'&&{filter})}),useSelection:true}]:[]};
+    filters:[Object.keys(rosterFilters).map(label=>({...nextPage(label,page,{...scope,filter:label,stage}), active:label===filter})),
+      ['全部',...stageNames].map(label=>({...nextPage(label,page,{...scope,filter,stage:label}),active:label===stage}))],
+    actions:eligibleCount?[{...nextPage('核对所选报价','saleQuote',{...scope,...(filter!=='全部'&&{filter}),...(stage!=='全部'&&{stage})}),useSelection:true}]:[]};
 }
 function orderActions(s, id) {
   const source = s.businessDay.freeUsed < 3 ? 'free' : 'paid';
@@ -456,13 +464,13 @@ export function businessPage(s, page, args, now) {
       actions: eligible.length ? [{ label: '核对所选报价', page: 'saleQuote', args: targetArgs, useSelection: true }] : [] };
   }
   if (page === 'saleQuote') {
-    const { target, lines, total, risks, hash, filter } = quoteSelection(s, args, now);
+    const { target, lines, total, risks, hash, filter, stage } = quoteSelection(s, args, now);
     const scope = target.species ? { species: target.species } : {};
     const rows = lines.map(line => ({ title: line.name, text: line.amount + ' 金币 · 编号 ' + line.id.slice(0, 6).toUpperCase() }));
     if (risks.length) rows.push({ title: '繁育提醒', text: '本批包含' + risks.join('、') + '。' });
     return { title: '核对出售', subtitle: channelNames[args.channel] + ' · ' + lines.length + ' 只，合计 ' + total + ' 金币',
       rows, actions: [{ label: '确认交付 · ' + total + ' 金币', type: 'sale.commit',
-        args: { channel: args.channel, ...scope, ...(filter!=='全部'&&{filter}), ids: args.ids, targetId: args.targetId || null,
+        args: { channel: args.channel, ...scope, ...(filter!=='全部'&&{filter}), ...(stage!=='全部'&&{stage}), ids: args.ids, targetId: args.targetId || null,
           amounts: lines.map(line => line.amount), hash } }, { label: '修改选择', type: 'ui.editSelection' }] };
   }
   if (page === 'orders') {

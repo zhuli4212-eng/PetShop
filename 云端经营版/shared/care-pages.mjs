@@ -1,6 +1,6 @@
 import {
   SPECIES, BREEDS, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
-  lifeDates, beijingTime, rosterFilter, rosterFilters,
+  lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview,
 } from './care.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
 
@@ -49,19 +49,19 @@ function roster(s,a,now) {
   if(!room) return closedRoom(s,species,'rooms',now);
   const all=s.pets.filter(p=>p.species===species);
   const filter=rosterFilter(a.filter);
-  const sex=['公','母'].includes(a.sex)?a.sex:'全部';
-  const shown=all.filter(p=>(sex==='全部'||p.sex===sex)&&rosterFilters[filter](s,p,now)).map(p=>petRow(s,p,now));
+  const stage=rosterStage(a.stage,a.filter);
+  const shown=all.filter(p=>(stage==='全部'||stageOf(p,now)===stage)&&rosterFilters[filter](s,p,now)).map(p=>petRow(s,p,now));
   const residents=shown.slice(0,10).map(row=>row.animal);
   return {title:'动物房间',art:cfg.art,animals:residents.map(p=>p.art),animalStages:residents.map(p=>p.stage),
     presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents},
-    subtitle:'名册 '+shown.length+' 只 · '+filter+' · '+sex,
+    subtitle:'名册 '+shown.length+' 只 · '+filter+' · '+stage,
     rows:[link(room.job?'查看正在繁育的一窝':'进入繁育台',room.job?'预计 '+describeRemaining(room.job.endsAt-now)+' 后出生':'挑选亲本并比较六维标签','breed',{species}),
       ...(room.lastLitter?[link('最近出生的一窝',room.lastLitter.ids.length+' 只','litter',{species})]:[]),
       ...(room.openingReceipt?[link('查看入住回执','购房时的两只幼体、成年时刻与余款','roomReceipt',{species})]:[]),
       ...shown,...(!shown.length?[{title:'当前筛选下没有动物。'}]:[])],
     tabs:options(s,'rooms',species),filters:[
-      Object.keys(rosterFilters).map(v=>({...go(v,'rooms',{species,filter:v,sex}),active:v===filter})),
-      ['全部','公','母'].map(v=>({...go(v,'rooms',{species,filter,sex:v}),active:v===sex}))]};
+      Object.keys(rosterFilters).map(v=>({...go(v,'rooms',{species,filter:v,stage}),active:v===filter})),
+      ['全部',...stageNames].map(v=>({...go(v,'rooms',{species,filter,stage:v}),active:v===stage}))]};
 }
 function checkin(s,now) {
   const signed=s.care.signedDay===dayAt(now);
@@ -134,24 +134,26 @@ function pairPage(s,a,now) {
   }
   const allowed=fields.map((_,i)=>i).filter(i=>mother.traits[i].grade!==father.traits[i].grade);
   const guide=allowed.includes(a.guide)&&room.items.guide>0?a.guide:-1;
-  const levels=s.research?.[species]??[0,0,0];
+  const [rare=0,mutation=0]=s.research?.[species]??[];
   const motherLook=BREEDS[mother.breedKey].name,fatherLook=BREEDS[father.breedKey].name;
   const registration=mixedOffspring(mother,father)?'杂交':motherLook;
   const appearance=mother.breedKey===father.breedKey?'幼体都是'+motherLook+'外形。':
     '每只幼体独立决定外形，'+motherLook+'和'+fatherLook+'各占 50%。';
   return {title:'确认配对',subtitle:mother.name+' × '+father.name,art:cfg.art,animals:[petArt(mother),petArt(father)],animalStages:[stageOf(mother,now),stageOf(father,now)],
-    presentation:{kind:'pairConfirm',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>specimen(s,p,now))},
+    presentation:{kind:'pairConfirm',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>specimen(s,p,now)),
+      guide:{count:room.items.guide,index:guide},mutationPreview:mutationPreview(mother,father,guide,mutation,!!room.mutationEnabled)},
     rows:[{title:'后代登记品种 · '+registration,text:appearance},
       {title:'一生仅一次繁育',text:'开始后不可取消或换亲本。等待 '+cfg.wait+' 分钟，预计 '+cfg.min+'–'+(cfg.min+cfg.litter.length-1)+' 只。'},
       ...fields.map((f,i)=>({title:f,text:'母 '+mother.traits[i].grade+' '+mother.traits[i].label+'　父 '+father.traits[i].grade+' '+father.traits[i].label})),
-      {title:'出生研究加成',text:'重抽稀有率 +'+(levels[0]*5)+'% · 正向变异率 +'+(room.mutationEnabled?levels[1]*3:0)+'%（相对基础）'},
+      {title:'出生研究加成',text:'重抽稀有率 +'+(rare*5)+'% · 正向变异率 +'+(room.mutationEnabled?mutation*3:0)+'%（相对基础）'},
       {title:'选育指导单 '+room.items.guide+' 张',text:guide>=0?
         '已选「'+fields[guide]+'」。每只幼体有 80% 的机会从较高分起算，20% 从较低分起算，之后仍可能升降。若比赛目标较低，指导可能让幼体离目标更远。':
         '配对前可选一项父母评分不同的特征，让这一窝幼体更容易随分数高的一方。'}],
     actions:[act('开始繁育','care.breed',{...args,guide},'确认让 '+mother.name+' 和 '+father.name+' 使用一生唯一的繁育机会？'+
       (mother.retained||father.retained?'幼体出生时，双亲自动取消留种。':'')+(guide>=0?'将使用一张选育指导单。若目标偏低，按高分选育可能更难匹配。':''),'breed',{species}),
       go('修改亲本','breed',{...args,picking:true}),act(room.mutationEnabled?'关闭六维加成':'启用六维加成','care.toggle',{species,enabled:!room.mutationEnabled},undefined,'breed',{...args,guide}),
-      ...(guide>=0?[go('撤下指导单','breed',args)]:[]),...(room.items.guide?allowed.map(i=>go('指导'+fields[i],'breed',{...args,guide:i})):[])]};
+      ...[-1,...(room.items.guide>0?allowed:[])].map(i=>({
+        ...go(i===-1?'不使用指导单':'指导'+fields[i],'breed',{...args,guide:i}),active:i===guide,replace:true}))]};
 }
 function litterParents(s,litter,children,now) {
   // Older litters store names. A remaining child's parent IDs can still identify
@@ -177,13 +179,32 @@ function litterParents(s,litter,children,now) {
 function litter(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],l=room?.lastLitter;
   if(!l) return empty('出生记录','这间房还没有出生记录。');
-  const pets=l.ids.map(id=>s.pets.find(p=>p.id===id)).filter(Boolean);
+  const residents=new Map(s.pets.map(p=>[p.id,p]));
+  const birthRecords=new Map((l.children??[]).map(p=>[p.id,p]));
+  const missing=new Set(l.ids.filter(id=>!residents.has(id)&&!birthRecords.has(id)));
+  const historicalNames=new Map();
+  if(missing.size){
+    for(const {pet} of Object.values(s.show?.entries??{})){
+      if(!missing.has(pet?.id))continue;
+      if(pet.name)historicalNames.set(pet.id,pet.name);
+      if(SPECIES[species].breeds.includes(pet.breedKey)&&BREEDS[pet.breedKey].coats[pet.coatIndex-1]&&['公','母'].includes(pet.sex))birthRecords.set(pet.id,pet);
+    }
+    for(const sale of s.sales??[])for(const line of sale.lines)if(missing.has(line.id)&&line.name)historicalNames.set(line.id,line.name);
+  }
+  const children=l.ids.map(id=>{
+    const current=residents.get(id);
+    if(current)return {...petRow(s,current,now),litterMember:true};
+    const p=birthRecords.get(id),tag='#'+number({id});
+    if(!p)return {litterMember:true,title:(historicalNames.get(id)||'同窝幼体')+' · '+tag,text:'已离店 · 早期记录未保存外观'};
+    const animal={id,number:number(p),name:p.name,sex:p.sex,breed:breedName(p),coat:coatName(p),stage:'幼年',status:'已离店',art:petArt(p),departed:true};
+    return {litterMember:true,title:p.name+' · '+p.sex,text:[animal.breed,animal.coat,tag,'已离店 · 出生时外观'].join(' · '),animal,art:animal.art,stage:animal.stage};
+  });
+  const portraits=children.filter(row=>row.art);
   return {title:'这一窝出生了',subtitle:l.mother+' × '+l.father+' · 共 '+l.ids.length+' 只',
     presentation:{kind:'litter',species:SPECIES[species].name,count:l.ids.length,bornAt:l.bornAt},
-    art:SPECIES[species].art,animals:pets.slice(0,3).map(petArt),animalStages:pets.slice(0,3).map(p=>stageOf(p,now)),
+    art:SPECIES[species].art,animals:portraits.map(row=>row.art),animalStages:portraits.map(row=>row.stage),
     rows:[{title:'本窝出生',text:beijingTime(l.bornAt)+'（北京时间） · 共 '+l.ids.length+' 只'},
-      ...litterParents(s,l,pets,now),
-      ...pets.map(p=>petRow(s,p,now)),...(l.ids.length>pets.length?[{title:'已离店 '+(l.ids.length-pets.length)+' 只'}]:[])],
+      ...litterParents(s,l,l.ids.map(id=>residents.get(id)).filter(Boolean),now),...children],
     actions:[go('挑选留种','litterKeep',{species,bornAt:l.bornAt}),go('前往动物房间','rooms',{species})]};
 }
 function litterSelection(s,page,a,now) {

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { initCare, careAction, carePage } from './care.mjs';
 import { initBusiness, tickBusiness, businessHeartbeat, businessPage as view, businessAction as act,
   purchasePrice, youngPurchaseBase, salePrice, readyOrderId } from './business.mjs';
@@ -153,14 +154,14 @@ test('市场两个入口按房间标签显示可售和禁售个体，切换筛�
   const cat = add('cat-seed',{species:'cat',breedKey:'british',retained:true});
   s.rooms.rabbit.job = {motherId:busy.id,fatherId:'unregistered'};
   const expected = {
-    全部:[mother,father,seed,busy,dead], 种源:[seed,busy,dead], 未繁育:[mother,seed], 已故:[dead],
+    全部:[mother,father,seed,busy,dead], 种源:[seed,busy,dead], 未繁育:[mother,seed],
   };
   for (const [filter, pets] of Object.entries(expected)) {
     const room = carePage(s,'rooms',{species:'rabbit',filter},t0);
     assert.deepEqual(room.rows.flatMap(row=>row.animal?[row.animal.id]:[]),pets.map(p=>p.id));
     for (const [page,scope] of [['sale',{channel:'market',species:'rabbit'}],['market',{channel:'market'}]]) {
       const listed = view(s,page,{...scope,filter},t0);
-      const all = page==='market' && filter!=='已故' ? [...pets,cat] : pets;
+      const all = page==='market' ? [...pets,cat] : pets;
       assert.deepEqual(listed.rows.map(r=>r.link.args.id),all.map(p=>p.id));
       assert.equal(listed.visual.eligibleCount,all.filter(p=>p===mother||p===father).length);
       assert.equal(listed.visual.protectedCount,all.filter(p=>p.retained).length);
@@ -168,7 +169,7 @@ test('市场两个入口按房间标签显示可售和禁售个体，切换筛�
       assert.deepEqual(listed.filters[0].filter(choice=>choice.active).map(choice=>choice.label),[filter]);
       for (const choice of listed.filters[0]) {
         assert.equal(choice.page,page);
-        assert.deepEqual(choice.args,{...scope,filter:choice.label});
+        assert.deepEqual(choice.args,{...scope,filter:choice.label,stage:'全部'});
       }
       for (const [i,row] of listed.rows.entries()) {
         const p=all[i];
@@ -187,11 +188,44 @@ test('市场两个入口按房间标签显示可售和禁售个体，切换筛�
         }
       }
       assert.equal(listed.actions.length,Number(listed.visual.eligibleCount>0));
+      const stages=['全部','幼年','成长','成年','老年','已故'];
+      assert.deepEqual(listed.filters[1].map(o=>o.label),stages);
+      for (const choice of listed.filters[1]){
+        const stage=choice.label;
+        assert.deepEqual(choice.args,{...scope,filter,stage});
+        const filtered=view(s,page,choice.args,t0);
+        const matches=all.filter(p=>stage==='全部'||stage===(p===cat?'成长':p===dead?'已故':'成年'));
+        assert.deepEqual(filtered.rows.map(r=>r.link.args.id),matches.map(p=>p.id));
+        assert.equal(filtered.visual.eligibleCount,matches.filter(p=>p===mother||p===father).length);
+        assert.ok(filtered.filters[0].every(o=>o.args.stage===stage));
+      }
     }
   }
   const empty=view(s,'sale',{channel:'market',species:'dog',filter:'已故'},t0);
   assert.equal(empty.rows.length,0);
   assert.equal(empty.visual.eligibleCount,0);
+  const legacy=view(s,'market',{filter:'已故'},t0);
+  assert.deepEqual(legacy.filters.map(group=>group.find(o=>o.active).label),['全部','已故']);
+  assert.deepEqual(legacy.rows.map(row=>row.link.args.id),[dead.id]);
+});
+
+test('市场成长阶段进入新报价的凭据，跨阶段整批拒绝，旧报价按原条件成交',()=>{
+  const s=fresh(),[a,b]=s.pets,scope={channel:'market',species:'rabbit',filter:'未繁育',stage:'幼年'};
+  a.bornAt=t0-12*min+1;b.bornAt=t0;
+  const list=view(s,'sale',scope,t0);
+  assert.deepEqual(list.actions[0].args,scope);
+  const ids=[a.id,b.id], command=view(s,'saleQuote',{...scope,ids},t0).actions[0];
+  assert.equal(command.args.stage,'幼年');
+  assert.throws(()=>act(s,command.type,{...command.args,stage:'全部'},t0),/重新核价/);
+  assert.throws(()=>act(s,command.type,command.args,t0+1),/不符合「幼年」筛选，目前为成长/);
+  assert.throws(()=>view(s,'saleQuote',{...scope,ids},t0+1),/不符合「幼年」筛选/);
+  assert.deepEqual(s.pets.map(p=>p.id),ids);assert.equal(s.coins,680);assert.equal(s.sales.length,0);
+  // A quote issued by the previous four-status market has no growth-stage term.
+  const amount=salePrice(s,a,t0,'market'),lines=[{id:a.id,name:a.name,amount}];
+  const terms=['market',null,lines,['兔房最后的未繁育母兔'],'rabbit','未繁育'];
+  const hash=createHash('sha256').update(JSON.stringify(terms)).digest('hex');
+  act(s,'sale.commit',{channel:'market',species:'rabbit',filter:'未繁育',ids:[a.id],amounts:[amount],hash},t0);
+  assert.deepEqual(s.pets.map(p=>p.id),[b.id]);assert.equal(s.coins,680+amount);
 });
 
 test('市场筛选报价和成交复核个体状态；在全部中已繁育、空闲、未留种的动物可售', () => {
