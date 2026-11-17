@@ -85,6 +85,17 @@ export const petArt = p => 'pets/'+p.breedKey+'-coat'+String(p.coatIndex).padSta
 const coatName = p => BREEDS[p.breedKey].coats[p.coatIndex-1];
 const canBreed = (s,p,now) => !p.bred && !isBusy(s,p) && ['成年','老年'].includes(stageOf(p,now));
 const stockStatus = (s,p) => isBusy(s,p)?'繁育中':p.bred?'已繁育':'未繁育';
+export const rosterFilters = {
+  全部:()=>true, 种源:(_s,p)=>p.retained===true,
+  未繁育:(s,p,now)=>stageOf(p,now)!=='已故'&&stockStatus(s,p)==='未繁育',
+  已故:(_s,p,now)=>stageOf(p,now)==='已故',
+};
+const legacyFilters = {在养:'全部',后备种源:'种源',可配对:'未繁育'};
+export function rosterFilter(value) {
+  if(typeof value!=='string')return '全部';
+  if(Object.hasOwn(legacyFilters,value))return legacyFilters[value];
+  return Object.hasOwn(rosterFilters,value)?value:'全部';
+}
 function conditionGrade(grade) {
   const score=GRADES.indexOf(grade);
   return {type:fields[5],label:score<2?'明显偏差':score===2?'轻微偏差':'未见明显缺陷',rarity:'普通',grade};

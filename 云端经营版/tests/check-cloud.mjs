@@ -58,6 +58,7 @@ try {
   assert.ok([401,403].includes(anonymous.status),'Anonymous shop status '+anonymous.status+' '+JSON.stringify(anonymous.body?.error));
   const legacy=new RequestGameStore().snapshot().state;
   legacy.coins=1777;
+  legacy.pets[0].retained=true;
   const transfer=key=>fetch(new URL('/internal/import',url),{method:'POST',headers:{
     'content-type':'application/json','authorization':'Bearer '+key},body:JSON.stringify(legacy)});
   assert.equal((await transfer('incorrect-local-test-value')).status,404);
@@ -67,6 +68,16 @@ try {
   assert.equal(other.profileId,legacy.profileId);
   assert.equal(other.coins,1777);
   assert.notEqual(shop.profileId,other.profileId);
+  for (const page of ['market','sale']) {
+    const args=page==='sale'?{channel:'market',species:'rabbit',filter:'种源'}:{filter:'种源'};
+    const result=(await accepted(url,owner,'page',{page,args})).page;
+    assert.deepEqual(result.filters[0].map(option=>option.label),['全部','种源','未繁育','已故']);
+    assert.equal(result.rows.length,1);
+    assert.equal(result.rows[0].visual.name,legacy.pets[0].name);
+    assert.ok(result.rows[0].visual.blockedReason.includes('种源'));
+    assert.equal(result.rows[0].select,undefined);
+    assert.equal(result.visual.eligibleCount,0);
+  }
   const players=async who=>(await accepted(url,who,'page',{page:'rooms',args:{species:'rabbit'}})).page.rows.filter(r=>r.animal).length;
   assert.equal(await players(tester),2);
   const cmd={requestId:'cloud-concurrent-checkin',profileId:shop.profileId,version:shop.version,type:'care.checkin',args:{}};

@@ -1,6 +1,6 @@
 import { assetManager, isValid, Sprite, SpriteFrame, UITransform } from 'cc';
 import type { Choice, LedgerPage, LedgerRow } from './ShopConnection';
-import { box, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
+import { animalFilters, box, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { banner, blocks, brown, buttons, card, cream, dock, edge, green, info, ink, note, section, text, thumbTabs } from './BusinessCards';
 
 interface ResearchBenefit {
@@ -9,7 +9,7 @@ interface ResearchBenefit {
 }
 interface RowVisual {
     condition?:string; difficulty?:string; available?:boolean; rate?:number; choices?:Choice[];
-    name?:string; price?:number; summary?:string; mode?:string; benefit?:ResearchBenefit; status?:string; uncollected?:boolean;
+    name?:string; number?:string; price?:number; summary?:string; blockedReason?:string; mode?:string; benefit?:ResearchBenefit; status?:string; uncollected?:boolean;
 }
 interface PageVisual {
     shelf?:LedgerPage; remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
@@ -51,9 +51,42 @@ function orders(c:PageCanvas):void {
     });
     dock(c,c.p.actions||[],-1);
 }
+function marketRow(c:PageCanvas,r:DisplayRow,i:number):void {
+    const v=r.visual!;
+    const chosen=!!r.select&&c.ui.selected.has(r.select),blocked=!r.select;
+    // A sale opened in a room already occupies the work window. The main market
+    // can open a dossier and return to the same list, selection and scroll position.
+    const details=c.key==='market'?r.link:undefined;
+    const w=c.inner,left=-w/2+68,right=w/2-(details?62:10),infoW=right-left;
+    const summary=v.summary||r.text||'',summaryH=Math.max(17,blocks(summary,infoW,12)*17);
+    const reason=v.blockedReason||'',reasonH=reason?blocks(reason,w-22,13)*19+9:0;
+    const mainH=Math.max(60,34+summaryH+6),h=mainH+reasonH,top=h/2;
+    const muted='#625F56',mainY=top-mainH/2;
+    const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,blocked?'#E8E5DB':chosen?'#E3EBCD':cream,
+        blocked?'#B6B2A6':chosen?'#618063':edge);
+    const check=frame(n,'Check',-w/2+15,mainY,17,17,blocked?'#D5D2C8':chosen?'#365F4A':'#FFF8E6',
+        blocked?'#A29E93':chosen?'#365F4A':'#9A8970',false);
+    if(chosen||blocked)text(check,'Mark',blocked?'–':'✓',0,0,16,18,14,blocked?muted:'#FFF7E3','center',true);
+    if(r.art){
+        const icon=picture(n,'Icon',r.art,-w/2+45,mainY,34,35,r.stage);
+        if(blocked)icon.getComponent(Sprite)!.grayscale=true;
+    }
+    const priceW=typeof v.price==='number'?60:0;
+    const name=(v.name||r.title)+(v.number?'  #'+v.number:'');
+    text(n,'Name',name,left+(infoW-priceW)/2,top-17,infoW-priceW,24,15,blocked?muted:ink,'left',true);
+    if(priceW)text(n,'Price',v.price+' 金币',right-priceW/2,top-17,priceW,24,12,'#77552B','right',true);
+    text(n,'Summary',summary,left+infoW/2,top-32-summaryH/2,infoW,summaryH,12,blocked?muted:brown);
+    if(reason){
+        box(n,'ReasonRule',0,top-mainH,w-16,1,'#C5C1B6');
+        text(n,'BlockedReason',reason,0,top-mainH-reasonH/2,w-22,reasonH-3,13,muted,'left',true);
+    }
+    if(r.select)tap(n,()=>c.ui.toggle(r.select!));
+    if(details)press(n,'Details','档案',w/2-30,mainY,46,()=>c.ui.choose(details),false,false,44);
+}
+
 function sale(c:PageCanvas):void {
     const channel=c.key==='sale'?String(c.args.channel):c.key,mode=channel==='order'?'交付':channel==='recycle'?'回收':'出售';
-    const list=rows(c);
+    const list=rows(c),ids=list.filter(r=>r.select).map(r=>r.select!);
     if(channel==='recycle'){
         banner(c,'lab','研究所');c.startList();labTabs(c,'recycle');
         c.strip([['','全部'],['rabbit','兔'],['cat','猫'],['dog','狗']].map(([species,label])=>({
@@ -66,9 +99,12 @@ function sale(c:PageCanvas):void {
     if(channel==='order'||channel==='guest')note(c,c.p.subtitle||'');
     const protectedCount=pageVisual(c).protectedCount||0;
     const protection=protectedCount&&(channel==='recycle'||channel==='market')?' · 种源保护 '+protectedCount+' 只':'';
-    section(c,channel==='recycle'?'回收已故动物':'选择'+mode+'的动物',list.length+' 只可选'+protection);
+    const count=channel==='market'&&c.p.filters?.length ? '可售 '+ids.length+' / 共 '+list.length+' 只' : ids.length+' 只可选'+protection;
+    section(c,channel==='recycle'?'回收已故动物':'选择'+mode+'的动物',count);
+    if(channel==='market')animalFilters(c);
     c.startList();
     for(const [i,r] of list.entries()){
+        if(channel==='market'&&r.visual){marketRow(c,r,i);continue;}
         if(!r.select||!r.visual){c.row(r,i);continue;}
         const chosen=c.ui.selected.has(r.select),w=c.inner,h=56,n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,chosen?'#E3EBCD':cream,chosen?'#618063':edge);
         const cb=frame(n,'Check',-w/2+18,0,17,17,chosen?'#365F4A':'#FFF8E6',chosen?'#365F4A':'#9A8970');
@@ -83,13 +119,15 @@ function sale(c:PageCanvas):void {
     }
     if(!list.length)c.empty();
     c.startFooter();
-    const ids=list.filter(r=>r.select).map(r=>r.select!),all=ids.length>0&&ids.every(id=>c.ui.selected.has(id));
+    const selected=ids.filter(id=>c.ui.selected.has(id)),all=ids.length>0&&selected.length===ids.length;
     const total=list.reduce((sum,r)=>sum+(r.select&&c.ui.selected.has(r.select)?r.visual?.price||0:0),0);
     const w=c.inner,n=box(c.body,'SaleBar',0,c.slot(58,5),w,58,'#F2E4C5');
     box(n,'TopRule',0,28,w,1,'#B49B70');
-    text(n,'SelectionCount','已选 '+c.ui.selected.size+' 只 · '+total+' 金币',-59,0,w-127,38,14,green,'left',true);
+    text(n,'SelectionCount','已选 '+selected.length+' 只 · '+total+' 金币',-59,0,w-127,38,14,green,'left',true);
     const a=(c.p.actions||[])[0];
-    press(n,'Action0','核对'+mode,w/2-55,0,105,()=>{if(a)c.ui.choose(a);},true,!a||c.ui.selected.size===0,48);
+    press(n,'Action0','核对'+mode,w/2-55,0,105,()=>{
+        if(a)c.ui.choose(channel==='market'?{...a,useSelection:false,args:{...a.args,ids:selected}}:a);
+    },true,!a||!selected.length,48);
     buttons(c,[{label:all?'清空选择':'全选本页',type:'ui.selectAll',disabled:!ids.length,args:{ids,clear:all}}],-1);
 }
 function quote(c:PageCanvas):void {

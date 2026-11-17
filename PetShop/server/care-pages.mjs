@@ -1,6 +1,6 @@
 import {
   SPECIES, BREEDS, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
-  lifeDates, beijingTime,
+  lifeDates, beijingTime, rosterFilter, rosterFilters,
 } from './care.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
 
@@ -21,12 +21,6 @@ const petRow = (s,p,now,page='pet',args={id:p.id})=>{
 const describeRemaining = ms=>ms<60_000?Math.max(1,Math.ceil(ms/1000))+' 秒':ms<3_600_000?Math.ceil(ms/60_000)+' 分钟':ms<86_400_000?Math.ceil(ms/3_600_000)+' 小时':Math.ceil(ms/86_400_000)+' 天';
 const empty = (title,text,page='rooms')=>({title,rows:[{title:text}],actions:[go('查看名册',page)]});
 const speciesKey = a=>a.species&&Object.hasOwn(SPECIES,a.species)?a.species:'rabbit';
-const roomFilters = {
-  全部:()=>true, 种源:(_s,p)=>p.retained===true,
-  未繁育:(s,p,now)=>stageOf(p,now)!=='已故'&&stockStatus(s,p)==='未繁育',
-  已故:(_s,p,now)=>stageOf(p,now)==='已故',
-};
-const oldRoomFilters = {在养:'全部',后备种源:'种源',可配对:'未繁育'};
 function closedRoom(s,species,page,now) {
   const c=SPECIES[species],cost=purchasePrice(s,c.roomCost),breed=BREEDS[c.breeds[0]].name;
   const estimate=beijingTime(lifeDates({species,bornAt:now}).adultAt).slice(0,16);
@@ -54,10 +48,9 @@ function roster(s,a,now) {
   const species=speciesKey(a), cfg=SPECIES[species],room=s.rooms[species];
   if(!room) return closedRoom(s,species,'rooms',now);
   const all=s.pets.filter(p=>p.species===species);
-  const requested=Object.hasOwn(oldRoomFilters,a.filter)?oldRoomFilters[a.filter]:a.filter;
-  const filter=Object.hasOwn(roomFilters,requested)?requested:'全部';
+  const filter=rosterFilter(a.filter);
   const sex=['公','母'].includes(a.sex)?a.sex:'全部';
-  const shown=all.filter(p=>(sex==='全部'||p.sex===sex)&&roomFilters[filter](s,p,now)).map(p=>petRow(s,p,now));
+  const shown=all.filter(p=>(sex==='全部'||p.sex===sex)&&rosterFilters[filter](s,p,now)).map(p=>petRow(s,p,now));
   const residents=shown.slice(0,10).map(row=>row.animal);
   return {title:'动物房间',art:cfg.art,animals:residents.map(p=>p.art),animalStages:residents.map(p=>p.stage),
     presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents},
@@ -67,7 +60,7 @@ function roster(s,a,now) {
       ...(room.openingReceipt?[link('查看入住回执','购房时的两只幼体、成年时刻与余款','roomReceipt',{species})]:[]),
       ...shown,...(!shown.length?[{title:'当前筛选下没有动物。'}]:[])],
     tabs:options(s,'rooms',species),filters:[
-      Object.keys(roomFilters).map(v=>({...go(v,'rooms',{species,filter:v,sex}),active:v===filter})),
+      Object.keys(rosterFilters).map(v=>({...go(v,'rooms',{species,filter:v,sex}),active:v===filter})),
       ['全部','公','母'].map(v=>({...go(v,'rooms',{species,filter,sex:v}),active:v===sex}))]};
 }
 function checkin(s,now) {

@@ -1,6 +1,6 @@
-import { Graphics, Node } from 'cc';
+import { Node } from 'cc';
 import type { Choice, LedgerRow } from './ShopConnection';
-import { box, caption, frame, heading, picture, press, rect, tap, type FilterField, type PageCanvas } from './LedgerCanvas';
+import { animalFilters, box, caption, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
 
 interface Animal {
@@ -42,22 +42,6 @@ function buttons(c:PageCanvas,items:Choice[]):void {
     const y=c.slot(48,10),w=(c.inner-(items.length-1)*8)/items.length;
     items.forEach((a,i)=>press(c.body,'Action'+i,a.label||'查看',-c.inner/2+w/2+i*(w+8),y,w,
         ()=>c.ui.choose(a),i===0,Boolean(a.disabled),48));
-}
-function rosterFilters(c:PageCanvas):void {
-    const groups=(c.p.filters||[]).filter(group=>group.length);
-    if(!groups.length)return;
-    const gap=8,h=44,y=c.slot(h,10),w=(c.inner-gap*(groups.length-1))/groups.length;
-    const fields:FilterField[]=groups.map((options,i)=>{
-        const current=options.find(a=>a.active)||options[0];
-        const x=-c.inner/2+w/2+i*(w+gap);
-        const anchor=frame(c.body,i?'SexFilter':'StatusFilter',x,y,w,h,'#FFF1D2','#B39665',false);
-        const label=(i?'性别':'状态')+'　'+current.label;
-        caption(anchor,'Caption',label,-5,0,w-28,h-2,14,green).isBold=true;
-        const arrow=box(anchor,'Arrow',w/2-16,-1,10,8).addComponent(Graphics);
-        for(let j=0;j<3;j++)rect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');
-        tap(anchor,()=>c.ui.openFilter(fields,i));
-        return {anchor,options};
-    });
 }
 function tabs(c:PageCanvas,flush=false):void {
     const items=c.p.tabs||[];
@@ -138,8 +122,9 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const count=m.count??all.length,matched=m.matchedCount??all.length;
     const countText=count===matched?count+' 只登记':'符合 '+matched+' / 共 '+count+' 只';
     section(c,name+'房名册',countText);
-    buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room},label:'挑选出售'}]);
-    rosterFilters(c);
+    const status=c.p.filters?.[0]?.find(option=>option.active)?.args?.filter||c.args.filter||'全部';
+    buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,filter:status},label:'挑选出售'}]);
+    animalFilters(c);
     c.startList();
     all.forEach((a,i)=>petLine(c,a,i,openPet(c,a),'›',i===all.length-1));
     if(!all.length)note(c,c.p.empty||'当前筛选下没有动物。');

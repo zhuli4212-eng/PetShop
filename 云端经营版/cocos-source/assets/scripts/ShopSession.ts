@@ -109,13 +109,17 @@ export class ShopSession {
         if(key==='sale'&&args.preselectId&&['market','recycle'].includes(args.channel))key=args.channel;
         const dest=featureFor(key,args,this.owner);
         const visit:Visit={key,args,selected:new Set(),offset:0};
-        if((key==='market'||key==='recycle')&&typeof args.preselectId==='string')visit.selected.add(args.preselectId);
         if(dest){
             // A button that points back at the same section restores its selection
             // and scroll. Changed filters, columns and rooms start a fresh list.
             const existing=this.feature;
             const same=existing&&existing.key===key&&JSON.stringify(existing.args)===JSON.stringify(args);
             this.feature=same?existing:visit;
+            if((key==='market'||key==='recycle')&&typeof args.preselectId==='string'){
+                // An explicit dossier action selects just that individual, including on a repeat visit.
+                this.feature.selected.clear();
+                this.feature.selected.add(args.preselectId);
+            }
             if(key==='rooms' && !this.feature.roomFloor){
                 const species=args.species||'rabbit';
                 this.feature.roomFloor=existing?.key==='rooms' && (existing.args.species||'rabbit')===species

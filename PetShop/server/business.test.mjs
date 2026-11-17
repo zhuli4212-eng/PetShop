@@ -139,6 +139,86 @@ test('从房间挑选、报价和交付同物种的多只动物，从市场柜�
   assert.deepEqual(s.pets.map(p=>p.id),[cat.id]);
 });
 
+test('市场两个入口按房间标签显示可售和禁售个体，切换筛选保留入口及房种', () => {
+  const s = fresh(), [mother,father] = s.pets;
+  father.bred = true;
+  function add(id, fields) {
+    const p = {...mother,id,name:id,...fields};
+    s.pets.push(p);
+    return p;
+  }
+  const seed = add('seed-rabbit',{retained:true});
+  const busy = add('busy-seed',{retained:true});
+  const dead = add('dead-seed',{retained:true,bornAt:t0-7*24*60*min});
+  const cat = add('cat-seed',{species:'cat',breedKey:'british',retained:true});
+  s.rooms.rabbit.job = {motherId:busy.id,fatherId:'unregistered'};
+  const expected = {
+    全部:[mother,father,seed,busy,dead], 种源:[seed,busy,dead], 未繁育:[mother,seed], 已故:[dead],
+  };
+  for (const [filter, pets] of Object.entries(expected)) {
+    const room = carePage(s,'rooms',{species:'rabbit',filter},t0);
+    assert.deepEqual(room.rows.flatMap(row=>row.animal?[row.animal.id]:[]),pets.map(p=>p.id));
+    for (const [page,scope] of [['sale',{channel:'market',species:'rabbit'}],['market',{channel:'market'}]]) {
+      const listed = view(s,page,{...scope,filter},t0);
+      const all = page==='market' && filter!=='已故' ? [...pets,cat] : pets;
+      assert.deepEqual(listed.rows.map(r=>r.link.args.id),all.map(p=>p.id));
+      assert.equal(listed.visual.eligibleCount,all.filter(p=>p===mother||p===father).length);
+      assert.equal(listed.visual.protectedCount,all.filter(p=>p.retained).length);
+      assert.deepEqual(listed.filters[0].map(choice=>choice.label),Object.keys(expected));
+      assert.deepEqual(listed.filters[0].filter(choice=>choice.active).map(choice=>choice.label),[filter]);
+      for (const choice of listed.filters[0]) {
+        assert.equal(choice.page,page);
+        assert.deepEqual(choice.args,{...scope,filter:choice.label});
+      }
+      for (const [i,row] of listed.rows.entries()) {
+        const p=all[i];
+        assert.equal(row.link.page,'pet');
+        assert.equal(row.visual.number,p.id.slice(0,5).toUpperCase());
+        if (p===mother || p===father) {
+          assert.equal(row.select,p.id);
+          assert.equal(row.visual.price,salePrice(s,p,t0,'market'));
+          assert.equal(row.visual.blockedReason,undefined);
+        } else {
+          assert.equal(row.select,undefined);
+          assert.equal(row.visual.price,undefined);
+          assert.match(row.visual.blockedReason,/种源保护/);
+          if(p===busy)assert.match(row.visual.blockedReason,/繁育中/);
+          if(p===dead)assert.match(row.visual.blockedReason,/已故/);
+        }
+      }
+      assert.equal(listed.actions.length,Number(listed.visual.eligibleCount>0));
+    }
+  }
+  const empty=view(s,'sale',{channel:'market',species:'dog',filter:'已故'},t0);
+  assert.equal(empty.rows.length,0);
+  assert.equal(empty.visual.eligibleCount,0);
+});
+
+test('市场筛选报价和成交复核个体状态；在全部中已繁育、空闲、未留种的动物可售', () => {
+  const s=fresh(), [a,b]=s.pets;
+  const scope={channel:'market',species:'rabbit',filter:'未繁育'};
+  const list=view(s,'sale',scope,t0);
+  assert.deepEqual(list.actions[0].args,scope);
+  const ids=[a.id], confirm=view(s,'saleQuote',{...list.actions[0].args,ids},t0).actions[0];
+  assert.equal(confirm.args.filter,scope.filter);
+  assert.throws(()=>act(s,confirm.type,{...confirm.args,filter:'全部'},t0),/重新核价/);
+  s.rooms.rabbit.job={motherId:a.id,fatherId:b.id};
+  assert.throws(()=>act(s,confirm.type,confirm.args,t0),/繁育中/);
+  s.rooms.rabbit.job=null;
+  a.bred=true;
+  assert.throws(()=>view(s,'saleQuote',{...scope,ids},t0),/不符合「未繁育」筛选/);
+  assert.throws(()=>act(s,confirm.type,confirm.args,t0),/不符合「未繁育」筛选/);
+  assert.equal(s.sales.length,0);
+  assert.equal(s.coins,680);
+  const current=view(s,'market',{},t0).rows.find(r=>r.select===a.id);
+  assert.match(current.visual.summary,/已繁育/);
+  const quote=quoted(s,'market',ids);
+  assert.deepEqual(quote.amounts,[current.visual.price]);
+  act(s,'sale.commit',quote,t0);
+  assert.equal(s.coins,680+current.visual.price);
+  assert.deepEqual(view(s,'market',{},t0).rows.map(r=>r.select),[b.id]);
+});
+
 test('批量同一只失效/变价拒绝整批；幼年和已故仅可按对应渠道交付', () => {
   const s = fresh(), [a, b] = s.pets, ids = [a.id, b.id];
   const oldQuote = quoted(s, 'market', ids);
@@ -151,7 +231,10 @@ test('批量同一只失效/变价拒绝整批；幼年和已故仅可按对应�
   assert.throws(() => act(s, 'sale.commit', oldQuote, t0), /不再符合/);
   s.rooms.rabbit.job = null;
   a.bornAt = t0 - 10 * 24 * 60 * min;
-  assert.equal(view(s, 'market', {}, t0).rows.length, 1);
+  const market=view(s,'market',{},t0);
+  assert.equal(market.rows.length,2);
+  assert.equal(market.visual.eligibleCount,1);
+  assert.equal(market.rows.find(r=>r.link.args.id===a.id).visual.blockedReason,'已故');
   assert.deepEqual(view(s, 'recycle', {}, t0).rows.map(r=>r.select), [a.id]);
   const before=structuredClone(s);
   assert.throws(()=>quoted(s,'recycle',ids),/只回收已故/);
@@ -176,16 +259,18 @@ test('种源不进入任何交易，报价后留种整笔拒绝；取消留种�
     const sale=()=>view(s,'sale',{channel,targetId},at);
     const quote=quoted(s,channel,ids,targetId,at);
     for(const p of s.pets)careAction(s,'care.retain',{id:p.id,retained:true},t0);
-    assert.equal(sale().rows.length,0);
-    assert.equal(sale().visual.protectedCount,2);
-    assert.match(sale().empty,/种源不可出售/);
+    const protectedList=sale();
+    assert.equal(protectedList.rows.length,channel==='market'?2:0);
+    assert.equal(protectedList.visual.protectedCount,2);
+    assert.equal(protectedList.actions.length,0);
+    if(channel!=='market')assert.match(protectedList.empty,/种源不可出售/);
     if(channel==='order'){
       assert.equal(readyOrderId(s,at),null);
       assert.equal(view(s,'orders',{},at).rows[0].visual.available,false);
     }
     if(channel==='guest')assert.equal(view(s,'guest',{},at).actions[0].disabled,true);
     careAction(s,'care.retain',{id:b.id,retained:false},at);
-    assert.deepEqual(sale().rows.map(r=>r.select),[b.id]);
+    assert.deepEqual(sale().rows.filter(r=>r.select).map(r=>r.select),[b.id]);
     const marked=structuredClone(s);
     assert.throws(()=>quoted(s,channel,ids,targetId,at),/种源/);
     assert.throws(()=>act(s,'sale.commit',quote,at),/种源/);

@@ -117,6 +117,24 @@ export function press(parent: Node, name: string, title: string, x: number, y: n
     return n;
 }
 
+/** The room publishes status and sex choices. The market publishes status alone. */
+export function animalFilters(c:PageCanvas):void {
+    const groups=(c.p.filters||[]).filter(group=>group.length);
+    if(!groups.length)return;
+    const gap=8,h=44,y=c.slot(h,10),w=(c.inner-gap*(groups.length-1))/groups.length;
+    const fields:FilterField[]=groups.map((options,i)=>{
+        const current=options.find(a=>a.active)||options[0];
+        const x=-c.inner/2+w/2+i*(w+gap);
+        const anchor=frame(c.body,i?'SexFilter':'StatusFilter',x,y,w,h,'#FFF1D2','#B39665',false);
+        const label=(i?'性别':'状态')+'　'+current.label;
+        caption(anchor,'Caption',label,-5,0,w-28,h-2,14,'#29483E').isBold=true;
+        const arrow=box(anchor,'Arrow',w/2-16,-1,10,8).addComponent(Graphics);
+        for(let j=0;j<3;j++)rect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');
+        tap(anchor,()=>c.ui.openFilter(fields,i));
+        return {anchor,options};
+    });
+}
+
 /** Attach to the screen so its paper and touch targets stay outside the list's scrolling mask. */
 export function filterMenu(parent:Node,fields:FilterField[],index:number,close:()=>void,
                            switchField:(index:number)=>void,choose:(option:Choice)=>void):Node {
