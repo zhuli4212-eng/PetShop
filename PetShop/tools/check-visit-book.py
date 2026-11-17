@@ -10,8 +10,11 @@ PROJECT = Path(__file__).resolve().parents[1]
 SERVER = """
 import {GameStore} from './server/game-store.mjs';
 import {createPetShopServer} from './server/main.mjs';
-const store=new GameStore(process.argv[1]);
-store.shop();store.state.coins=4000;store.save(store.state);
+let store=new GameStore(process.argv[1]);
+store.shop();store.state.coins=4000;
+if(process.argv[2]==='legacy')delete store.state.visitBook.tutorial;
+store.save(store.state);
+store=new GameStore(process.argv[1]);
 const server=createPetShopServer(undefined,{store});
 server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
 """
@@ -21,9 +24,10 @@ SCENE = """
 
 
 def verify(width):
+    legacy=width==320
     with TemporaryDirectory(prefix="petshop-built-notes-") as save:
         process = subprocess.Popen(
-            ["node", "--input-type=module", "-e", SERVER, save], cwd=PROJECT,
+            ["node", "--input-type=module", "-e", SERVER, save, "legacy" if legacy else "new"], cwd=PROJECT,
             stdout=subprocess.PIPE, text=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         try:
             url = "http://127.0.0.1:" + str(int(process.stdout.readline()))
@@ -35,6 +39,8 @@ def verify(width):
                 page.goto(url)
                 page.wait_for_function("() => window.cc && (" + SCENE + ")()?.session.current?.key==='visitBook'")
                 page.evaluate("() => {window.shopForCheck=" + SCENE + "}")
+                opening=page.evaluate("shopForCheck().session.current.data.actions")
+                assert opening[0]["page"]=="tutorial" and opening[0]["label"]==("查看开店四步" if legacy else "开始新手引导"),opening
 
                 def entry(key, args=None):
                     return page.evaluate("([k,a])=>shopForCheck().session.open(k,a)", [key, args or {}])
@@ -59,6 +65,7 @@ def verify(width):
                     tap("跳过，进店")
                 assert ack.value.request.post_data_json["reader"]["read"] == ["opening"]
                 assert ack.value.json()["letter"] is None
+                assert bool(ack.value.json().get("tutorial")) != legacy
 
                 # Keep a section open while a real purchase produces the first-room story.
                 entry("rooms", {"species": "cat"})
@@ -75,11 +82,20 @@ def verify(width):
                 assert story.value.json()["letter"] is None
                 entry("openingGuide")
                 assert page.evaluate("shopForCheck().session.current.data.readNoteIds.length") == 0
-                page.keyboard.press("Escape")
-                page.keyboard.press("Escape")
+                tap("查看开店四步")
+                page.wait_for_function("shopForCheck().session.current?.data?.presentation?.kind==='tutorial'")
+                guide=page.evaluate("shopForCheck().session.current.data")
+                assert len(guide["rows"])==4 and bool(guide["presentation"].get("archived"))==legacy
+                if legacy:
+                    assert [a.get("type") for a in guide["actions"]]==["ui.back"]
+                for _ in range(4):
+                    if not page.evaluate("shopForCheck().session.active"):break
+                    page.keyboard.press("Escape")
                 page.wait_for_function("!shopForCheck().session.active")
+                previous_client=page.evaluate("shopForCheck().clientId")
                 with page.expect_response(lambda r: r.url.endswith("/api/heartbeat")
-                                          and r.request.post_data_json.get("foreground") is True, timeout=60_000) as reopened:
+                                          and r.request.post_data_json.get("foreground") is True
+                                          and r.request.post_data_json.get("clientId")!=previous_client, timeout=60_000) as reopened:
                     page.reload()
                 assert reopened.value.json()["letter"] is None
                 page.wait_for_function("() => window.cc && (" + SCENE + ")()?.shop?.profileId")

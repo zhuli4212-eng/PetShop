@@ -5,7 +5,7 @@ import { box, caption, picture, drawConnection } from './ShopEntranceView';
 import { ShopHomeFeatures } from './ShopHomeFeatures';
 import { ShopSession } from './ShopSession';
 import { ShopkeeperWalk } from './ShopkeeperWalk';
-import { rect } from './LedgerCanvas';
+import { frame, rect, tap } from './LedgerCanvas';
 
 const { ccclass, property } = _decorator;
 const ROOM_WIDTH = 390;
@@ -29,6 +29,9 @@ export class ShopMain extends Component {
     private footer!: Node;
     private roomLink!: Node;
     private collectionLink!: Node;
+    private tutorialLink!:Node;
+    private tutorialStep!:Label;
+    private tutorialTitle!:Label;
     private layer!: Node;
     private state: 'connecting' | 'offline' | 'open' = 'connecting';
     private session!:ShopSession;
@@ -65,6 +68,13 @@ export class ShopMain extends Component {
         this.levelProgress=caption(this.header,'LevelProgress','',0,-12,178,20,12,'#E8D9B2');
         this.roomLink=this.footer.getChildByName('RoomLink')!;
         this.collectionLink=this.footer.getChildByName('TrophyBook')!;
+        this.tutorialLink=frame(this.footer,'TutorialLink',0,0,134,46,'#F0DCAC','#987446',false);
+        this.tutorialStep=caption(this.tutorialLink,'Progress','',-2,10,116,18,12,'#685035');
+        this.tutorialTitle=caption(this.tutorialLink,'Step','',-5,-9,108,22,14,'#29483E');
+        this.tutorialTitle.isBold=true;
+        caption(this.tutorialLink,'Arrow','›',56,-5,17,29,20,'#496944',true);
+        tap(this.tutorialLink,()=>{if(this.state==='open'&&!this.session.active)void this.session.open('tutorial');});
+        this.tutorialLink.active=false;
         this.layout();
         this.schedule(this.poll,5);
         this.schedule(this.pulse,20);
@@ -148,7 +158,13 @@ export class ShopMain extends Component {
         const xp=shop.shopExperience;
         this.levelProgress.string=xp?'店铺 '+shop.shopLevel+' 级 · '+(xp.toNext?'经验 '+xp.intoLevel+'/'+xp.toNext:'已满级'):'';
         const status=this.footer.getChildByName('Status')?.getComponent(Label);
-        if(status)status.string=shop.dayClaimed?'今日已签到':'今日签到待领取';
+        const tutorial=shop.tutorial;
+        this.tutorialLink.active=!!tutorial&&!tutorial.completed;
+        if(this.tutorialLink.active&&tutorial){
+            this.tutorialStep.string='新手引导　'+tutorial.step+'/'+tutorial.total;
+            this.tutorialTitle.string=tutorial.title;
+        }
+        if(status){status.node.active=!this.tutorialLink.active;status.string=shop.dayClaimed?'今日已签到':'今日签到待领取';}
         const decor=(shop.decor||[]).join(',');
         if(this.decorKey!==decor){
             this.decorKey=decor;
@@ -282,6 +298,9 @@ export class ShopMain extends Component {
         this.footer.setPosition(0,-h/2+29);
         this.footer.getComponent(UITransform)!.setContentSize(width,58);
         this.footer.getChildByName('Status')!.setPosition(-width/2+97,13);
+        const guideScale=Math.min(1,Math.max(.1,(width-178)/134));
+        this.tutorialLink.setScale(guideScale,guideScale,1);
+        this.tutorialLink.setPosition(-width/2+8+67*guideScale,0);
         this.roomLink.setPosition(width/2-46,0);
         this.collectionLink.setPosition(width/2-129,0);
         this.room.setPosition(0,-3);

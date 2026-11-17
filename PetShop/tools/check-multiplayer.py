@@ -74,14 +74,16 @@ def register(page, name):
     return submit(page,name,register=True)
 
 
-def tap_game_label(page, caption):
-    x, y = page.evaluate("""caption => {
+def tap_game_label(page, caption, *, path=False):
+    x, y = page.evaluate("""([caption,path]) => {
         const main = shopUI();
-        const node = main.session.host.layer.getComponentsInChildren(cc.Label).find(label => label.string === caption).node;
+        const node = path ? main.node.getChildByPath(caption) : main.session.host.layer.getComponentsInChildren(cc.Label)
+            .find(label => label.node.activeInHierarchy && label.string === caption).node;
+        if(!node?.activeInHierarchy)throw Error('Missing active touch target '+caption);
         const p = main.node.getComponent(cc.Canvas).cameraComponent.worldToScreen(node.worldPosition);
         const canvas = document.getElementById('GameCanvas'), rect = canvas.getBoundingClientRect();
         return [rect.left + p.x * rect.width / canvas.width, rect.bottom - p.y * rect.height / canvas.height];
-    }""", caption)
+    }""", [caption,path])
     page.touchscreen.tap(x, y)
 
 
@@ -108,7 +110,10 @@ def verify(pw, address):
             used_entry=register(page,a)
             page.wait_for_function("currentLedger()?.title === '旧店交接'")
             first_id = page.evaluate("shopUI().shop.profileId")
-            tap_game_label(page,"去签到簿")
+            assert page.evaluate("currentLedger().actions.some(a=>a.page==='tutorial')")
+            tap_game_label(page,"跳过，进店")
+            page.wait_for_function("shopUI().home.active")
+            tap_game_label(page,"ShopHome/RoomPlane/Entrances/Hotspot_profile/Sign",path=True)
             page.wait_for_function("currentLedger()?.title === '每日签到'")
             tap_game_label(page,"领养两只幼兔")
             page.wait_for_function("currentLedger()?.presentation?.signed === true")

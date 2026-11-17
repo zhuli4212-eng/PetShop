@@ -7,7 +7,7 @@ import { drawBusiness } from './BusinessPresentation';
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean => ['saleQuote','researchNode','researchTable'].includes(key);
 
-function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean): void {
+function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toGuide=false): void {
     const h = modal ? 54 : 64;
     const n = box(parent,'Header',0,(height-h)/2,width,h,modal ? '#34594C' : paper.green);
     const g = n.getComponent(Graphics)!;
@@ -29,7 +29,7 @@ function drawHeader(parent: Node, width: number, height: number, title: string, 
             rect(arrow,-20+i*1.4,-1+i*1.4,3,2.5,'#FFF0BD');
             rect(arrow,-20+i*1.4,-1-i*1.4,3,2.5,'#FFF0BD');
         }
-        caption(backNode,'Caption','返回',5,0,34,40,14,'#FFF0BD',true).isBold=true;
+        caption(backNode,'Caption',toGuide?'回引导':'返回',toGuide?9:5,0,toGuide?43:34,40,toGuide?13:14,'#FFF0BD',true).isBold=true;
         tap(backNode,back);
         const balanceWidth=Math.max(66,String(coins).length*9+47);
         const wallet=frame(n,'Wallet',width/2-10-balanceWidth/2,3,balanceWidth,27,'#193D34','#75916A',false);
@@ -150,6 +150,35 @@ function account(ctx: PageCanvas): boolean {
     return false;
 }
 
+function tutorial(c:PageCanvas):boolean {
+    const m=c.p.presentation;
+    if(m?.kind!=='tutorial')return false;
+    const focus=frame(c.body,'TutorFocus',0,c.slot(74),c.inner,74,paper.green,'#617C5E',false);
+    const progress=m.archived?'开店手册':m.completed?'四步已完成':'当前第 '+m.step+' 步 / 共 '+m.total+' 步';
+    caption(focus,'Progress',progress,0,17,c.inner-26,23,13,'#E5D9AF');
+    heading(focus,'Title',m.archived?'开店四件事':m.completed?'你已经学会照料小店':m.title||c.p.title,
+        0,-12,c.inner-26,31,19,paper.cream);
+    c.startList();
+    (c.p.rows||[]).forEach((row,i)=>{
+        const textW=c.inner-58,th=Math.max(23,lines(row.title,textW,15)*21);
+        const dh=row.text?Math.max(21,lines(row.text,textW,13)*19):0;
+        const h=th+dh+19;
+        const card=frame(c.body,'TutorStep'+i,0,c.slot(h,6),c.inner,h,row.current?'#E8EDD3':paper.card,row.current?'#78936C':paper.brass,false);
+        const badge=frame(card,'Index',-c.inner/2+23,h/2-23,25,25,row.done?'#45694F':'#F3E3BF',row.current?'#78936C':paper.brass,false);
+        heading(badge,'Value',row.done?'✓':String(i+1),0,0,23,23,14,row.done?'#FFF0CA':paper.green,true);
+        heading(card,'Title',row.title.replace(/^\d+\.\s*/,''),19,h/2-9-th/2,textW,th,15,paper.ink);
+        if(row.text)caption(card,'Detail',row.text,19,h/2-9-th-dh/2,textW,dh,13,paper.muted);
+    });
+    const actions=c.p.actions||[];
+    c.startFooter();
+    for(let i=0;i<actions.length;i+=2) {
+        const group=actions.slice(i,i+2),y=c.slot(48,6),w=(c.inner-6*(group.length-1))/group.length;
+        group.forEach((a,j)=>press(c.body,'TutorAction'+(i+j),a.label||'继续',-c.inner/2+w/2+j*(w+6),y,w,
+            ()=>c.ui.choose(a),!i&&!j,!!a.disabled));
+    }
+    return true;
+}
+
 function generic(ctx:PageCanvas):void {
     const {p,body,inner,slot}=ctx;
     ctx.strip(p.tabs||[],'Tab');
@@ -168,7 +197,7 @@ function generic(ctx:PageCanvas):void {
     }
 }
 
-interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;}
+interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;backToGuide?:boolean;}
 
 // Keep explanatory cards whole when they do not fit, while animal and transaction lists can scroll.
 function paginateDetails(content:Node,sheet:Node,ui:LedgerUI,width:number,top:number,height:number):boolean {
@@ -221,7 +250,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     const ctx=layout.ctx;
     if(opts.offline)press(content,'Retry','离线 · 重新连接',0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
     if(opts.pending)ctx.row({title:'有一笔操作等待确认',text:'查询原请求回执',action:{type:'ui.receipt'}},-1);
-    if(opts.ready===false || !(drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
+    if(opts.ready===false || !(tutorial(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
     const extent=layout.extent();
     const actualHeight=modal?Math.min(maxHeight,headerHeight+extent+4):height;
     const bodyHeight=actualHeight-headerHeight-(modal?4:0);
@@ -269,7 +298,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     area.setContentSize(width,Math.max(vh,listHeight));
     scroll.vertical=listHeight>vh;
     const titles:Record<string,string>={rooms:'动物房间',research:'研究技能树',login:'账号',profile:'每日签到',pet:'个体档案',collection:'奖杯收集册'};
-    drawHeader(sheet,width,actualHeight,(opts.ready!==false&&titles[key])||p.title,coins,ui.back,modal);
+    drawHeader(sheet,width,actualHeight,(opts.ready!==false&&titles[key])||p.title,coins,ui.back,modal,opts.backToGuide);
     if(modal) {
         const g=sheet.addComponent(Graphics);g.lineWidth=3;g.strokeColor=new Color().fromHEX('#745437');
         g.rect(-width/2+1.5,-actualHeight/2+1.5,width-3,actualHeight-3);g.stroke();

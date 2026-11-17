@@ -45,7 +45,12 @@ export class ShopHomeFeatures {
             }
             if(entry.label) {
                 entry.label.node.parent!.active=!!rule&&!rule.unlocked;
-                if(rule&&!rule.unlocked)entry.label.string=rule.requiredLevel+' 级开放';
+                if(rule&&!rule.unlocked){
+                    const preview=entry.key==='orders'&&shop.tutorial?.step===4;
+                    entry.label.string=preview?'可预览':rule.requiredLevel+' 级开放';
+                    entry.label.node.setPosition(preview?0:7,0);
+                    entry.label.node.parent!.getChildByName('LockIcon')!.active=!preview;
+                }
             }
         }
     }

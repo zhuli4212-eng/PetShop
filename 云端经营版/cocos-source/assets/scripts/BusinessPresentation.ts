@@ -25,7 +25,10 @@ const back={label:'返回',type:'ui.back'};
 function orders(c:PageCanvas):void {
     banner(c,'orders','订单柜台');
     c.startList();
-    section(c,'普通订单','免费取消 '+(pageVisual(c).remaining??'—')+' / 3');
+    if(c.p.visual?.preview){
+        section(c,'普通订单','新手预览');
+        note(c,c.p.subtitle||'店铺达到 2 级后可交付或取消订单。');
+    }else section(c,'普通订单','免费取消 '+(pageVisual(c).remaining??'—')+' / 3');
     c.startList();
     rows(c).forEach((r,i)=>{
         const v=r.visual;

@@ -4,7 +4,7 @@ import { initBusiness, tickBusiness, businessPage, businessAction, businessHeart
 import { initShow, tickShow, showPage, showAction } from './show.mjs';
 import { shopProgress, saleExperience, shopRaceAccess } from './shop-progression.mjs';
 import { featureNames, featureAccess, operationFeature, shopRules } from './shop-features.mjs';
-import { initVisitBook, recordMilestone, seedRecoveryRows, unreadLetter, updateVisit, visitHistoryPage } from './visit-book.mjs';
+import { initVisitBook, recordMilestone, seedRecoveryRows, tutorialAccess, tutorialStatus, unreadLetter, updateVisit, visitHistoryPage, visitTutorialDestination } from './visit-book.mjs';
 
 export { shopRules };
 const legacyEntrances = Object.keys(featureNames).filter(key=>key!=='collection');
@@ -47,7 +47,7 @@ function publicShop(s,now,rules) {
   return { protocol:1, profileId:s.profileId, version:s.version, mode:s.mode, name:'宠物店', coins:s.coins,
     shopLevel:level, shopExperience, ...shopRaceAccess(rules,s.createdAt,now),
     featureAccess:access, entrances:legacyEntrances.filter(key=>access[key].unlocked),
-    now, hints, dayClaimed, decor:Object.keys(s.decor || {}).filter(k=>s.decor[k]?.placed),
+    ...(s.visitBook.tutorial&&{tutorial:tutorialStatus(s)}),now, hints, dayClaimed, decor:Object.keys(s.decor || {}).filter(k=>s.decor[k]?.placed),
     rooms:Object.keys(s.rooms || {}).filter(k=>s.rooms[k]), notice:s.journal.at(-1) ?? null };
 }
 function accountPage(s,now,access) {
@@ -56,6 +56,7 @@ function accountPage(s,now,access) {
     {title:'店铺资产',text:s.coins+' 金币 · '+s.pets.length+' 只在册动物'},
     {title:'店主编号',text:s.profileId},
     {title:'开店交接',text:'重读旧店主留下的第一页。',link:{page:'openingGuide'}},
+    {title:'开店四步',text:s.visitBook.tutorial?'查看新手引导进度。':'重读开店步骤说明。',link:{page:'tutorial'}},
     ...(s.visitBook.lastReport?[{title:'上次回店摘要',text:'查看离开期间已结算的事项。',link:{page:'lastVisit'}}]:[]),
     ...seedRecoveryRows(s,now,access),
     {title:'设备时间',text:'请保持设备时间准确。向前调时会立即推进成长和比赛，可能让动物自然寿终。调回时钟无法撤销已经结算的事件。'},
@@ -141,13 +142,28 @@ export class ShopEngine {
   page(page,args) {
     const now=this.advance(), s=this.state;
     const level=shopProgress(this.rules,s.shopXp).level;
-    this.requireFeature(level,operationFeature(page,args));
+    if(!tutorialAccess(s,page,args))this.requireFeature(level,operationFeature(page,args));
     // Rendering cannot mutate the authoritative store.
     const data=structuredClone(s);
     const access=featureAccess(this.rules,level);
     let view=page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access);
     for(const get of pageHandlers) {if(view) break;view=get(data,page,args,now,this.rules);}
     if(!view) throw new GameError('这个页面暂不可用，请返回店铺。',404);
+    if(!access.lab.unlocked&&s.visitBook.tutorial?.bought&&['shelf','offer'].includes(page)){
+      view.actions=[{label:'返回新手引导',page:'tutorial'}];
+      view.subtitle=(view.subtitle?view.subtitle+' · ':'')+'本次引导采购已完成，再次采购需店铺 '+access.lab.requiredLevel+' 级。';
+    }
+    if(page==='orders'&&tutorialAccess(s,page,args)&&(!access.orders.unlocked||!tutorialStatus(s).completed)){
+      const preview=!access.orders.unlocked;
+      if(preview){
+        view.rows=view.rows.map(({title,text})=>({title,text}));
+        view.actions=[];
+        view.subtitle='委托预览 · 店铺 '+access.orders.requiredLevel+' 级开放交付与取消。';
+        view.visual={...view.visual,preview:true};
+      }
+      if(!s.visitBook.tutorial.marketViewed)view.actions.push({label:'去自由市场',page:'market'});
+      view.actions.push({label:'返回新手引导',page:'tutorial'});
+    }
     const sale=view.actions?.find(a=>a.type==='sale.commit');
     if(sale) {
       this.requireFeature(level,operationFeature(sale.type,sale.args));
@@ -156,7 +172,9 @@ export class ShopEngine {
       view.visual={...view.visual,saleExperience:xp};
       if(xp)view.subtitle+=' · 店铺经验 +'+xp;
     }
-    return {shop:publicShop(s,now,this.rules),page:view};
+    const viewed=visitTutorialDestination(s,page);
+    if(viewed!==s){viewed.clock=now;this.save(viewed);}
+    return {shop:publicShop(viewed,now,this.rules),page:view};
   }
   receipt(id) {
     this.ensure();
@@ -178,7 +196,7 @@ export class ShopEngine {
       throw new GameError('店内情况已变化，请查看最新资料后重新确认。');
     }
     const level=shopProgress(this.rules,current.shopXp).level;
-    this.requireFeature(level,operationFeature(type,args));
+    if(!tutorialAccess(current,type,args))this.requireFeature(level,operationFeature(type,args));
     if(type==='sale.commit'&&args.litterRetention)this.requireFeature(level,'breed');
     const s=structuredClone(current);
     let message;

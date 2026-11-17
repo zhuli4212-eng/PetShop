@@ -89,6 +89,7 @@ try {
   const anonymous=await api(url,null,'shop');
   assert.ok([401,403].includes(anonymous.status),'Anonymous shop status '+anonymous.status+' '+JSON.stringify(anonymous.body?.error));
   const legacy=new RequestGameStore().snapshot().state;
+  delete legacy.visitBook.tutorial;
   legacy.coins=1777;
   legacy.pets[0].retained=true;
   const transfer=key=>fetch(new URL('/internal/import',url),{method:'POST',headers:{
@@ -101,6 +102,11 @@ try {
   assert.equal(other.profileId,legacy.profileId);
   assert.equal(other.coins,1777);
   assert.notEqual(shop.profileId,other.profileId);
+  assert.equal(other.tutorial,undefined);
+  const handbook=(await accepted(url,owner,'page',{page:'tutorial',args:{}})).page;
+  assert.equal(handbook.presentation.archived,true);
+  assert.deepEqual(handbook.actions.map(action=>action.type),['ui.back']);
+  assert.equal(shop.tutorial.step,1);
   const parentId=sex=>legacy.pets.find(p=>p.sex===sex).id;
   const pair=(await accepted(url,owner,'page',{page:'breed',args:{species:'rabbit',mother:parentId('母'),father:parentId('公')}})).page;
   assert.equal(pair.presentation.kind,'pairConfirm');
