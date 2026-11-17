@@ -11,6 +11,67 @@ function clock() {
   return {wall:()=>now,monotonic:()=>0,advance:ms=>{now+=ms;}};
 }
 
+test('在途旧窝按出生时刻只解除双亲保护，完成后可以手动重新留种',()=>{
+  const timer=clock(),game=new RequestGameStore(null,timer);
+  game.state.shopXp=1000;
+  const [mother,father]=game.state.pets.map(p=>p.id);
+  function act(store,key,type,args){
+    const shop=store.shop();
+    return store.act({requestId:'parent-mark-'+key,profileId:shop.profileId,version:shop.version,type,args});
+  }
+  for(const id of [mother,father])act(game,id,'care.retain',{id,retained:true});
+  act(game,'pair','care.breed',{species:'rabbit',mother,father});
+  const pending=roundTrip(game);
+  delete pending.state.care.parentRetentionChecked;
+  timer.advance(119999);
+  const resumed=new RequestGameStore(pending,timer);
+  const marked=g=>g.page('rooms',{filter:'种源'}).page.rows.filter(r=>r.animal).map(r=>r.animal.id);
+  assert.deepEqual(marked(resumed),[mother,father]);
+  timer.advance(1);
+  assert.deepEqual(marked(resumed),[]);
+  assert.ok(resumed.state.pets.slice(0,2).every(p=>p.bred===true&&!p.retained));
+  assert.ok(resumed.page('market',{}).page.rows.filter(r=>[mother,father].includes(r.select)).length===2);
+  const child=resumed.state.pets[2].id;
+  act(resumed,'child','care.retain',{id:child,retained:true});
+  act(resumed,'father-again','care.retain',{id:father,retained:true});
+  const current=roundTrip(resumed);
+  const legacy=structuredClone(current);
+  delete legacy.state.care.parentRetentionChecked;
+  legacy.state.pets.find(p=>p.id===mother).retained=true;
+  const repaired=new RequestGameStore(legacy,timer);
+  assert.deepEqual(marked(repaired),[father,child]);
+  assert.equal(repaired.state.version,legacy.state.version+1);
+  assert.equal(repaired.state.coins,current.state.coins);
+  assert.deepEqual(repaired.state.sales,current.state.sales);
+  assert.deepEqual(repaired.state.receipts,current.state.receipts);
+  const again=new RequestGameStore(roundTrip(repaired),timer);
+  assert.equal(again.dirty,false);
+  act(again,'mother-again','care.retain',{id:mother,retained:true});
+  assert.deepEqual(marked(new RequestGameStore(roundTrip(again),timer)),[mother,father,child]);
+
+  // Insufficient history and later whole-litter decisions cannot prove a stale mark.
+  for(const amend of [
+    s=>{delete s.receipts['parent-mark-'+mother];},
+    s=>{delete s.receipts['parent-mark-pair'];},
+    s=>{s.rooms.rabbit.lastLitter=null;s.pets=s.pets.filter(p=>p.id===mother||p.id===father);},
+    s=>{s.receipts['older-format']={key:'?',result:{version:s.version}};},
+    s=>{s.receipts['keep-after']={key:JSON.stringify(['care.keepLitter',{keepIds:[mother]}]),result:{version:++s.version}};},
+    s=>{s.receipts['keep-after']={key:JSON.stringify(['sale.commit',{litterRetention:{keepIds:[mother]}}]),result:{version:++s.version}};},
+  ]){
+    const snapshot=structuredClone(legacy);
+    amend(snapshot.state);
+    const restored=new RequestGameStore(snapshot,timer);
+    assert.ok(marked(restored).includes(mother));
+    assert.equal(restored.state.version,snapshot.state.version);
+  }
+  const sold=structuredClone(legacy);
+  sold.state.pets=sold.state.pets.filter(p=>p.id!==mother);
+  sold.state.sales.push({at:timer.wall(),channel:'market',lines:[{id:mother,name:'已售亲本',amount:100}],total:100});
+  const restored=new RequestGameStore(sold,timer);
+  assert.ok(!restored.state.pets.some(p=>p.id===mother));
+  assert.deepEqual(restored.state.sales,sold.state.sales);
+});
+
 test('单请求经营档在独立副本成交，丢弃竞争副本及跨请求重放均不会重复发放',()=>{
   const timer=clock(), first=new RequestGameStore(null,timer), shop=first.shop();
   assert.equal(first.dirty,true);

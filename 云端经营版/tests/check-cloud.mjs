@@ -44,6 +44,34 @@ async function runBrowser(url){
   const proc=spawn(process.env.PYTHON||'python',['-B',path.join(root,'tests/check-mobile.py'),url],{stdio:'inherit',windowsHide:true});
   await new Promise((resolve,reject)=>{proc.on('error',reject);proc.on('close',code=>code===0?resolve():reject(Error('Mobile test exited '+code)));});
 }
+async function checkLegacyParents(url,db) {
+  let now=Date.now()-180000;
+  const game=new RequestGameStore(null,{wall:()=>now,monotonic:()=>0});
+  game.state.shopXp=1000;
+  const [mother,father]=game.state.pets.map(p=>p.id);
+  const act=(type,args)=>{
+    const {profileId,version}=game.shop();
+    return game.act({type,args,requestId:randomUUID(),profileId,version});
+  };
+  for(const id of [mother,father])act('care.retain',{id,retained:true});
+  act('care.breed',{species:'rabbit',mother,father});
+  now+=120001;
+  game.shop();
+  act('care.retain',{id:father,retained:true});
+  const legacy=game.snapshot();
+  legacy.state.pets.find(p=>p.id===mother).retained=true;
+  delete legacy.state.care.parentRetentionChecked;
+  const who='petshop-old-breeding-test',account='player:'+who;
+  await db.prepare('INSERT INTO cloud_shops(account_id,revision,snapshot) VALUES (?,1,?)').bind(account,JSON.stringify(legacy)).run();
+  const market=(await accepted(url,who,'page',{page:'market',args:{filter:'种源'}})).page;
+  assert.deepEqual(market.rows.map(row=>row.link.args.id),[father]);
+  const row=await db.prepare('SELECT snapshot FROM cloud_shops WHERE account_id=?').bind(account).first();
+  const saved=JSON.parse(row.snapshot).state;
+  assert.deepEqual(saved.pets.map(p=>p.id),legacy.state.pets.map(p=>p.id));
+  assert.equal(saved.coins,legacy.state.coins);
+  assert.deepEqual(saved.sales,legacy.state.sales);
+  assert.equal(saved.pets.find(p=>p.id===mother).retained,false);
+}
 try {
   let url=await start();
   const db=await runtime.getD1Database('DB');
@@ -65,6 +93,7 @@ try {
   assert.equal((await transfer(importKey)).status,201);
   assert.equal((await transfer(importKey)).status,409);
   const other=await accepted(url,owner,'shop'),shop=await accepted(url,tester,'shop');
+  await checkLegacyParents(url,db);
   assert.equal(other.profileId,legacy.profileId);
   assert.equal(other.coins,1777);
   assert.notEqual(shop.profileId,other.profileId);

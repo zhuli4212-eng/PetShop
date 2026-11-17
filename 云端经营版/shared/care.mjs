@@ -131,7 +131,7 @@ function shelfBatch(s,species,number,usedNames) {
 }
 export function initCare(s,now) {
   if (s.care) return;
-  s.care={seed:randomBytes(16).toString('hex'),signedDay:null,claimIds:[]};
+  s.care={seed:randomBytes(16).toString('hex'),signedDay:null,claimIds:[],parentRetentionChecked:true};
   s.rooms={rabbit:newRoom(now)};
   const usedNames=new Set();
   s.pets=[
@@ -140,6 +140,57 @@ export function initCare(s,now) {
   ];
   tickCare(s,now);
 }
+
+// Some early saves kept both parents' pre-breeding marks after a recorded birth.
+// Receipt versions order player decisions without relying on the player's device clock.
+export function repairLegacyParentRetention(s) {
+  const candidates=new Map(s.pets.filter(p=>p.bred===true&&p.retained===true&&!isBusy(s,p))
+    .map(p=>[p.id,{pet:p,paired:0,marked:0}]));
+  if(!candidates.size)return false;
+  const parents=new Set();
+  for(const child of s.pets){
+    if(child.bornAt<=s.clock){parents.add(child.motherId);parents.add(child.fatherId);}
+  }
+  for(const room of Object.values(s.rooms)){
+    const litter=room?.lastLitter;
+    if(litter?.bornAt<=s.clock)for(const p of litter.parents||[])parents.add(p.id);
+  }
+  for(const receipt of Object.values(s.receipts)){
+    const version=receipt?.result?.version;
+    if(!Number.isSafeInteger(version)||version<1||version>s.version)return false;
+    let command;
+    try {command=JSON.parse(receipt.key);} catch {return false;}
+    if(!Array.isArray(command)||command.length!==2)return false;
+    const [type,args]=command;
+    if(!args||typeof args!=='object')return false;
+    if(type==='care.breed'){
+      for(const id of [args.mother,args.father]){
+        const parent=candidates.get(id);
+        if(parent)parent.paired=Math.max(parent.paired,version);
+      }
+    }else{
+      let kept;
+      if(type==='care.retain'&&args.retained===true)kept=[args.id];
+      else if(type==='care.keepLitter')kept=args.keepIds;
+      else if(type==='sale.commit'&&args.litterRetention)kept=args.litterRetention.keepIds;
+      else continue;
+      if(!Array.isArray(kept))return false;
+      for(const id of kept){
+        const parent=candidates.get(id);
+        if(parent)parent.marked=Math.max(parent.marked,version);
+      }
+    }
+  }
+  let changed=false;
+  for(const [id,{pet,paired,marked}] of candidates){
+    if(parents.has(id)&&marked>0&&marked<paired){
+      pet.retained=false;
+      changed=true;
+    }
+  }
+  return changed;
+}
+
 export function tickCare(s,now) {
   let changed=false;
   const refreshes=[];
