@@ -40,7 +40,7 @@ function allowOrigin(req, res) {
   return true;
 }
 
-async function serveFile(req, res, webRoot, pathname) {
+export async function serveFile(req, res, webRoot, pathname) {
   let root;
   try {
     root = await realpath(webRoot);

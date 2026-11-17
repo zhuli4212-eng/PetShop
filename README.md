@@ -5,6 +5,7 @@
 ## 在新电脑上打开
 
 - **继续日常经营**　电脑双击 `PetShop/启动宠物店.cmd`，手机打开[云端宠物店](https://petshop-cloud-play.zhuli4212.chatgpt.site/)。两台设备使用同一 ChatGPT 账号，读取同一份云端经营档。电脑打开云端版只需要浏览器。
+- **邀请异地玩家各自开店**　在开服电脑双击 `PetShop/启动多人试玩服.cmd`，把窗口显示的 HTTPS 地址发给玩家。新玩家先注册账号名，之后输入同名即可继续原店。[多人开服说明](PetShop/README.md#异地多人试玩)
 - **运行离线版**　用有此私有仓库权限的 GitHub 账号克隆项目，安装 Node.js 24，双击 `PetShop/start-offline.cmd`。离线版单独保存本机进度，首次启动时若没有本机存档会创建新店。
 - **搬迁旧机进度**　从[项目 Releases](https://github.com/zhuli4212-eng/PetShop/releases) 下载整项目迁移 ZIP，按压缩包内的《迁移说明》解压。如已克隆仓库，首次启动本地游戏前，将 ZIP 内的 `宠物店/PetShop/local/local_sim` 复制到检出的 `PetShop/local/local_sim`。如果新电脑已有自己的本地店铺，先保存一份副本。云端版与本地版独立保存。
 
