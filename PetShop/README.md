@@ -12,7 +12,7 @@ Cocos Creator 3.8.8 的 2D 项目。主场景在 `assets/scenes/ShopMain.scene`�
 
 ## 异地多人试玩
 
-每位玩家在这个服务器上单独开店。新玩家先点「注册」，输入账号名后进入自己的店。老玩家在「登录」输入原名即可续玩；知道账号名的人也可以进入这家店。游戏里的「账号 → 切换多人账号」可退出当前登录。
+每位玩家单独开店。新玩家点「注册」，输入账号名即可开店。以后每次打开或刷新游戏都会回到登录页。同一浏览器再次打开同一试玩地址时会自动填入上次成功登录的账号名，点「登录店铺」即可续玩，也可以改填另一个已注册的账号。换设备时手动输入原账号名即可。知道账号名的人都可以进入这家店。游戏里的「账号 → 切换多人账号」可以退出。
 
 1. 开服电脑需要 Node.js 24 和 Cloudflare 的 `cloudflared`。这台电脑已装好两者。新电脑可从 [Cloudflare 官方下载页](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/) 安装并把 `cloudflared` 加入 PATH，也可以设置 `CLOUDFLARED` 指向可执行文件。
 2. 双击 `启动多人试玩服.cmd`，等窗口出现「异地试玩地址」。将这个完整的 HTTPS 网址发给玩家，电脑浏览器也用同一个网址登录。当前地址同时写入 `local/multiplayer/试玩地址.url`。保持开服电脑联网、唤醒和运行。

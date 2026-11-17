@@ -5,11 +5,13 @@ import path from 'node:path';
 import test from 'node:test';
 import { createMultiplayerServer } from './multiplayer.mjs';
 
+const webEntry='<!doctype html><html><head><script src="/index.js"></script></head><body>隔离店铺</body></html>';
+
 async function fixture(t,publicOrigin) {
   const dir=await mkdtemp(path.join(tmpdir(),'petshop-multiplayer-http-'));
   const webRoot=path.join(dir,'www');
   await mkdir(webRoot);
-  await writeFile(path.join(webRoot,'index.html'),'<body>隔离店铺</body>');
+  await writeFile(path.join(webRoot,'index.html'),webEntry);
   await writeFile(path.join(webRoot,'index.js'),'/* multiplayer fixture */');
   let server,base;
   const stop=async()=>{
@@ -67,9 +69,9 @@ test('两个账号的签到、名册、操作回执和心跳只使用各自的�
   const handoff=await r('/api/page',{cookie:alice,data:{page:'multiplayerAccount'}});
   assert.equal(handoff.headers.get('x-petshop-account'),'switch');
   assert.equal((await r('/api/page',{cookie:alice,data:{page:'rooms'}})).headers.has('x-petshop-account'),false);
-  const html=await (await r('/',{cookie:alice})).text();
+  const html=await (await r((await a.json()).entry,{cookie:alice})).text();
   assert.match(html,/auth\/game-account\.js/);
-  assert.equal(await readFile(path.join(f.webRoot,'index.html'),'utf8'),'<body>隔离店铺</body>');
+  assert.equal(await readFile(path.join(f.webRoot,'index.html'),'utf8'),webEntry);
   assert.equal((await r('/index.js',{cookie:alice})).status,200);
   await f.restart();
   assert.equal((await getShop(alice)).profileId,sa.profileId);
@@ -84,6 +86,64 @@ test('两个账号的签到、名册、操作回执和心跳只使用各自的�
   assert.equal((await r('/auth/logout',{cookie:switched,data:{}})).status,200);
   assert.equal((await r('/api/shop',{cookie:switched})).status,401);
   assert.equal((await r('/api/shop',{cookie:bob})).status,200);
+});
+
+test('每次进入需手动确认，短时许可绑定当前会话且并发也只消费一次，旧标签不能操作另一店',async t=>{
+  const {request:r,restart}=await fixture(t);
+  async function sign(route,username,cookie){
+    const res=await r('/auth/'+route,{data:{username},cookie});
+    assert.equal(res.status,200);
+    const data=await res.json();
+    assert.match(data.entry,/^\/play\?entry=[\w-]+$/);
+    return {...data,cookie:cookieOf(res)};
+  }
+  async function needsLogin(path,cookie,method){
+    const res=await r(path,{cookie,method});
+    assert.equal(res.status,303);assert.equal(res.headers.get('location'),'/login');
+    assert.equal(res.headers.get('cache-control'),'no-store');
+  }
+  const alice=await sign('register','西街兔A'),other=await sign('login','西街兔A');
+  for(const url of ['/','/index.html?from=bookmark','/play'])await needsLogin(url,alice.cookie);
+  assert.deepEqual(await (await r('/auth/session',{cookie:alice.cookie})).json(),{authenticated:true,username:'西街兔A'});
+  await needsLogin(alice.entry,other.cookie);await needsLogin(alice.entry,undefined);
+  await needsLogin(alice.entry,alice.cookie,'HEAD');
+  const admitted=await Promise.all([r(alice.entry,{cookie:alice.cookie}),r(alice.entry,{cookie:alice.cookie})]);
+  assert.deepEqual(admitted.map(x=>x.status).sort(),[200,303]);
+  const html=await admitted.find(x=>x.status===200).text();
+  const account=html.match(/<head><meta name="petshop-game-account" content="([\w-]+)"><script src="\/auth\/game-account\.js"><\/script><script src="\/index\.js">/i)?.[1];
+  assert.ok(account,'游戏首次发送请求之前已绑定店主');
+  await needsLogin(alice.entry,alice.cookie);
+  const manual=await sign('login',' 西街兔a ',alice.cookie),nextTab=await sign('login','西街兔Ａ',alice.cookie);
+  assert.equal(manual.username,'西街兔A');assert.equal(manual.cookie,alice.cookie);assert.equal(nextTab.cookie,alice.cookie);
+  assert.notEqual(manual.entry,nextTab.entry);
+  for(const url of [manual.entry,nextTab.entry])assert.equal((await r(url,{cookie:alice.cookie})).status,200);
+
+  const bob=await sign('register','北街猫B',alice.cookie);
+  await needsLogin(alice.entry,bob.cookie);
+  assert.equal((await r('/api/shop',{cookie:alice.cookie})).status,401);
+  const oldTab={'X-PetShop-Game-Account':account};
+  assert.equal((await r('/api/shop',{cookie:bob.cookie,headers:oldTab})).status,401);
+  const shop=await (await r('/api/shop',{cookie:bob.cookie})).json();
+  const requestId='stale-shop-checkin-test';
+  const claim={requestId,profileId:shop.profileId,version:shop.version,type:'care.checkin',args:{}};
+  assert.equal((await r('/api/action',{cookie:bob.cookie,headers:oldTab,data:claim})).status,401);
+  assert.equal((await r('/api/receipts/'+requestId,{cookie:bob.cookie})).status,404);
+  assert.equal((await r('/api/shop',{cookie:other.cookie,headers:oldTab})).status,200);
+  const accountB=(await (await r(bob.entry,{cookie:bob.cookie})).text()).match(/petshop-game-account" content="([\w-]+)"/)?.[1];
+  assert.ok(accountB);assert.notEqual(accountB,account);
+  assert.equal((await r('/api/action',{cookie:bob.cookie,headers:{'X-PetShop-Game-Account':accountB},data:claim})).status,200);
+  const pending=await sign('login','北街猫B',bob.cookie);
+  await restart();
+  await needsLogin(pending.entry,bob.cookie);
+  assert.equal((await (await r('/auth/session',{cookie:bob.cookie})).json()).username,'北街猫B');
+  const expiring=await sign('login','北街猫B',bob.cookie);
+  const future=Date.now()+61_000;
+  const clock=t.mock.method(Date,'now',()=>future);
+  await needsLogin(expiring.entry,bob.cookie);
+  clock.mock.restore();
+  const abandoned=await sign('login','北街猫B',bob.cookie);
+  assert.equal((await r('/auth/logout',{cookie:bob.cookie,data:{}})).status,200);
+  await needsLogin(abandoned.entry,bob.cookie);
 });
 
 test('公网启动等待固定来源，Cookie 带 Secure，来路和多人路由按配置限制',async t=>{

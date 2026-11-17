@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { mkdirSync, realpathSync } from 'node:fs';
 import { readFile, realpath } from 'node:fs/promises';
@@ -13,6 +13,7 @@ const multiplayerData=fileURLToPath(new URL('../local/multiplayer/',import.meta.
 const loopbacks=new Set(['localhost','127.0.0.1','[::1]']);
 const loginCsp="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
 const error=(status,message)=>Object.assign(new Error(message),{status});
+const entryLifetime=60_000;
 
 function send(req,res,status,type,value) {
   res.writeHead(status,{'Content-Type':type,'Content-Length':Buffer.byteLength(value),'Cache-Control':'no-store'});
@@ -20,6 +21,10 @@ function send(req,res,status,type,value) {
 }
 function json(req,res,status,value) {
   send(req,res,status,'application/json; charset=utf-8',JSON.stringify(value));
+}
+function loginPage(res) {
+  res.writeHead(303,{Location:'/login','Cache-Control':'no-store'});
+  res.end();
 }
 function fixedOrigin(value) {
   const url=new URL(value);
@@ -100,6 +105,17 @@ export function createMultiplayerServer({publicOrigin,dataDirectory=multiplayerD
   const data=realpathSync(dataDirectory);
   if(isInside(web,data)||isInside(data,web))throw Error('多人数据目录与静态游戏目录必须分开。');
   const store=new MultiplayerStore(path.join(data,'multiplayer.sqlite'));
+  const entries=new Map();
+  function issueEntry(token) {
+    const now=Date.now();
+    for(const [key,entry] of entries) {
+      if(entry.expiresAt>now)break;
+      entries.delete(key);
+    }
+    const key=randomBytes(24).toString('base64url');
+    entries.set(key,{token,expiresAt:now+entryLifetime});
+    return '/play?entry='+key;
+  }
   const server=createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','same-origin');
@@ -120,6 +136,7 @@ export function createMultiplayerServer({publicOrigin,dataDirectory=multiplayerD
       if(!route.startsWith('/')||route.startsWith('//')||/[\\:\x00]/u.test(route)||route.split('/').includes('..'))
         throw error(400,'资源路径无效。');
       const {name,token}=sessionCookie(req,secure);
+      if(get&&(route==='/'||route==='/index.html'))return loginPage(res);
       if(route==='/api/health'&&get)return json(req,res,200,{service:'petshop-multiplayer',status:'ok',protocol:1,gameplay:1});
       if(route==='/login'&&get){
         res.setHeader('Content-Security-Policy',loginCsp);
@@ -144,11 +161,16 @@ export function createMultiplayerServer({publicOrigin,dataDirectory=multiplayerD
         limitAttempt(store,res,[route,peer],route==='/auth/register'?300:1200);
         const {username}=await body(req,4096);
         if(typeof username!=='string')throw error(400,'请填写账号名。');
-        limitAttempt(store,res,[route,peer,username.trim().normalize('NFKC').toLowerCase()],60);
-        const login=await (route==='/auth/register'?store.register(username):store.login(username));
-        if(token)store.logout(token);
+        const nameKey=username.trim().normalize('NFKC').toLowerCase();
+        limitAttempt(store,res,[route,peer,nameKey],60);
+        const previous=store.session(token);
+        const sameAccount=route==='/auth/login'&&previous?.account.username.toLowerCase()===nameKey;
+        const login=sameAccount&&previous.expiresAt>Date.now()+entryLifetime
+          ? {...previous,token}
+          : await (route==='/auth/register'?store.register(username):store.login(username));
+        if(previous&&previous.account.id!==login.account.id)store.logout(token);
         setCookie(res,name,login.token,secure,login.expiresAt);
-        return json(req,res,200,{ok:true,username:login.account.username});
+        return json(req,res,200,{ok:true,username:login.account.username,entry:issueEntry(login.token)});
       }
       const receipt=route.match(/^\/api\/receipts\/([\w-]{1,100})$/);
       const read=route==='/api/shop'||!!receipt, write=['/api/page','/api/action','/api/heartbeat'].includes(route);
@@ -156,26 +178,32 @@ export function createMultiplayerServer({publicOrigin,dataDirectory=multiplayerD
         if(req.method!==(read?'GET':'POST'))throw error(405,'请求方式不正确。');
         const session=store.session(token);
         if(!session)throw error(401,'请先登录多人店铺。');
+        const gameAccount=req.headers['x-petshop-game-account'];
+        if(gameAccount!==undefined&&gameAccount!==session.account.id)throw error(401,'当前店铺账号已切换，请重新登录。');
         const args=write?await body(req,512*1024):null;
         const result=gameResult(store,token,route,args,receipt?.[1],session.account);
         if(route==='/api/page'&&args.page==='multiplayerAccount')res.setHeader('X-PetShop-Account','switch');
         return json(req,res,200,result);
       }
       if(route==='/favicon.ico'&&get){res.writeHead(204);return res.end();}
-      const entry=route==='/'||route==='/index.html';
+      const entry=route==='/play';
       if(!entry&&!/^\/(?:assets|cocos-js|src)\//.test(route)&&!['/style.css','/index.js','/application.js'].includes(route))
         throw error(404,'地址不存在。');
       if(!get)throw error(405,'请求方式不正确。');
-      if(!store.session(token)){
-        if(!entry)throw error(401,'请先登录多人店铺。');
-        res.writeHead(303,{Location:'/login','Cache-Control':'no-store'});return res.end();
-      }
+      const session=store.session(token);
       if(entry){
+        const key=new URL(req.url,expected).searchParams.get('entry'),permit=entries.get(key);
+        if(req.method!=='GET'||!session||!permit||permit.token!==token||permit.expiresAt<=Date.now())return loginPage(res);
+        entries.delete(key);
         const file=await realpath(path.join(web,'index.html'));
         if(!isInside(web,file))throw error(403,'资源路径超出游戏目录。');
-        const html=await readFile(file,'utf8'),script='<script defer src="/auth/game-account.js"></script>';
-        return send(req,res,200,'text/html; charset=utf-8',/<\/body>/i.test(html)?html.replace(/<\/body>/i,script+'</body>'):html+script);
+        const html=await readFile(file,'utf8');
+        const script='<meta name="petshop-game-account" content="'+session.account.id+'"><script src="/auth/game-account.js"></script>';
+        const head=/<head\b[^>]*>/i;
+        const gameHtml=head.test(html)?html.replace(head,m=>m+script):html.replace(/<body\b|$/i,m=>script+m);
+        return send(req,res,200,'text/html; charset=utf-8',gameHtml);
       }
+      if(!session)throw error(401,'请先登录多人店铺。');
       await serveFile(req,res,web,route);
     } catch(e){
       if(res.destroyed||res.headersSent)return;

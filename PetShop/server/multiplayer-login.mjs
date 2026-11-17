@@ -35,7 +35,7 @@ export function renderMultiplayerLogin() {
       <div id="signed-in" hidden>
         <p class="account-label">当前账号</p>
         <p id="current-name" dir="auto"></p>
-        <a href="/" class="primary">返回店铺</a>
+        <a href="/login" class="primary">返回登录页</a>
         <button id="logout" type="button" class="secondary">退出并切换账号</button>
       </div>
       <p id="error" role="alert" hidden></p>
@@ -125,10 +125,19 @@ function initializeLogin() {
   const heading = element('heading'), loading = element('loading'), retry = element('retry');
   const anonymous = element('anonymous'), signedIn = element('signed-in'), error = element('error');
   const form = element('account-form'), nameInput = element('username'), submit = element('submit'), logout = element('logout');
-  const register = new URLSearchParams(location.search).has('register');
+  const params = new URLSearchParams(location.search);
+  const register = params.has('register'), switching = params.has('switch');
   const endpoint = register ? '/auth/register' : '/auth/login';
   const submitLabel = register ? '注册并开店' : '登录店铺';
+  const lastAccountKey = 'petshop.multiplayer.lastUsername';
   let busy = false;
+
+  function rememberAccount(username) {
+    try { localStorage.setItem(lastAccountKey, username); } catch {}
+  }
+  function lastAccount() {
+    try { return localStorage.getItem(lastAccountKey) || ''; } catch { return ''; }
+  }
 
   function showError(message = '') {
     error.hidden = !message;
@@ -160,7 +169,8 @@ function initializeLogin() {
     showError();
     try {
       const session = await request('/auth/session');
-      if (session.authenticated) {
+      if (session.authenticated && !lastAccount()) rememberAccount(session.username);
+      if (switching && session.authenticated) {
         title('店主账号');
         element('current-name').textContent = session.username;
         signedIn.hidden = false;
@@ -170,6 +180,7 @@ function initializeLogin() {
         element('name-hint').textContent = register ? '1–32 个字符，可用中文、字母、数字及 . _ @ -。' : '输入注册时使用的账号名。';
         submit.textContent = submitLabel;
         form.action = endpoint;
+        if (!register) nameInput.value = session.username || lastAccount();
         anonymous.hidden = false;
       }
     } catch (err) {
@@ -194,8 +205,9 @@ function initializeLogin() {
     busy = true; submit.disabled = true; nameInput.readOnly = true;
     submit.textContent = register ? '正在注册…' : '正在登录…';
     try {
-      await request(endpoint, {username});
-      location.replace('/');
+      const result = await request(endpoint, {username});
+      rememberAccount(result.username);
+      location.replace(result.entry);
     } catch (err) {
       showError(messageFor(err));
       busy = false; submit.disabled = false; nameInput.readOnly = false;
@@ -225,12 +237,19 @@ export const loginScript = '(' + initializeLogin.toString() + ')();';
 // The shipped Cocos client uses XMLHttpRequest for ledger pages. The multiplayer
 // server marks the read-only account-switch page only after its link is chosen.
 function connectAccountPage() {
+  window.addEventListener('pageshow', event => { if (event.persisted) location.replace('/login'); });
+  if (new URLSearchParams(location.search).has('entry')) {
+    history.replaceState(history.state, '', location.pathname + location.hash);
+  }
+  const account = document.querySelector('meta[name="petshop-game-account"]').content;
   const apiRoot = new URL('/api/', location.href).href, pageUrl = apiRoot + 'page';
   const open = XMLHttpRequest.prototype.open;
   const observed = new WeakSet();
   XMLHttpRequest.prototype.open = function (method, url, ...options) {
     const result = open.call(this, method, url, ...options);
-    if (new URL(url, document.baseURI).href.startsWith(apiRoot) && !observed.has(this)) {
+    if (!new URL(url, document.baseURI).href.startsWith(apiRoot)) return result;
+    this.setRequestHeader('X-PetShop-Game-Account', account);
+    if (!observed.has(this)) {
       observed.add(this);
       this.addEventListener('load', function () {
         if (this.status === 401 && this.responseURL.startsWith(apiRoot)) {
