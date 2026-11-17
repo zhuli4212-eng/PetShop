@@ -6,15 +6,15 @@ Cocos Creator 3.8.8 的 2D 项目。主场景在 `assets/scenes/ShopMain.scene`�
 
 ## 开始游戏
 
-手机浏览器打开[云端经营版](https://petshop-cloud-play.zhuli4212.chatgpt.site)，登录拥有该站点的 ChatGPT 账号即可继续经营。不同设备使用同一账号会读取同一份云存档。首次部署时已复制本机店铺，之后本地版与云端版各自保存进度。
+电脑双击 `启动宠物店.cmd`，手机浏览器打开[云端经营版](https://petshop-cloud-play.zhuli4212.chatgpt.site/)。两台设备登录同一 ChatGPT 账号即可继续经营同一家店。首次部署时已复制当时的本机存档，日常经营以云端存档为准。
 
-在 Windows 上双击 `启动宠物店.cmd`。启动器启动或复用本机的店铺服务，确认它已就绪，再打开同一服务提供的 Cocos 游戏。服务默认监听 `127.0.0.1:17888`。点场景物件进入功能，功能内点返回回店铺。档案、核价等操作窗点返回回到发起功能。报价中的「修改选择」可以继续编辑原先勾选的动物。[完整返回规则](../设计定稿/界面层级与返回逻辑-v1.0.md)
+需要继续旧的本机进度或离线测试时，在 Windows 上双击 `start-offline.cmd`。这个入口启动或复用 `127.0.0.1:17888` 的本机服务，独立保存进度。点场景物件进入功能，功能内点返回回店铺。档案、核价等操作窗点返回回到发起功能。报价中的「修改选择」可以继续编辑原先勾选的动物。[完整返回规则](../设计定稿/界面层级与返回逻辑-v1.0.md)
 
 ## 在编辑器里开发
 
 在工程目录运行 `.\启动宠物店.cmd --editor`，按同样的顺序启动服务和编辑器。按 Cocos 的预览按钮即可测试改动；Canvas 上的 ShopMain 组件可以指定其他店铺服务器地址。
 
-本地游戏使用 Web Mobile 构建。首次检出工程或改动客户端后，在工程根目录用 PowerShell 构建，然后双击启动器。
+本地游戏使用 Web Mobile 构建。首次检出工程或改动客户端后，在工程根目录用 PowerShell 构建，然后双击 `start-offline.cmd`。
 
 ```powershell
 & 'D:\app\CocosCreator\3.8.8\CocosCreator.exe' --project (Get-Location).Path --build ('configPath=' + (Resolve-Path 'tools/build-web-mobile.json').Path)
