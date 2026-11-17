@@ -9,6 +9,11 @@ const patrols: Record<string, Patrol> = {
     '猫': { waypoints: [[0,0],[13,-2],[5,2],[-10,0],[-5,-3]], speed: 6.3, cyclesPerSecond: 2.3, rest: 1.2 },
     '狗': { waypoints: [[0,0],[-13,-2],[-5,2],[12,0],[6,-4]], speed: 9.2, cyclesPerSecond: 2.3, rest: .55 },
 };
+// These rabbit strips include the height of the airborne phase in the four drawings.
+const hopsWithDrawnHeight = new Set([
+    'pet-walk/lop-coat06_female/texture',
+    'pet-young-walk/lop-coat06_female/texture',
+]);
 type Leg = { x: number; y: number; dx: number; dy: number; duration: number; cycles: number; elapsed: number };
 
 @ccclass('RoomAnimalWalk')
@@ -111,7 +116,7 @@ export class RoomAnimalWalk extends Component {
         if (!this.frames.length || !this.sprite.spriteFrame) return;
         if (!this.idle) {
             this.idle = this.sprite.spriteFrame;
-            this.hopHeight = this.sprite.node.getComponent(UITransform)!.height * .08;
+            this.hopHeight = hopsWithDrawnHeight.has(this.path) ? 0 : this.sprite.node.getComponent(UITransform)!.height * .08;
         }
         const delta = Math.min(dt, .1);
         if (!this.leg) {
