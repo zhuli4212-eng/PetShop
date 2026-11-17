@@ -9,7 +9,7 @@ import { shopRaceAccess } from './shop-progression.mjs';
 export const GAME_EPOCH = Date.parse('2026-11-09T20:00:00+08:00');
 const HOUR = 3600000, DAY = 24 * HOUR, WEEK = 7 * DAY;
 const grades = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'];
-const dimensions = ['性格', '品相', '毛发', '体态', '体型', '健全度'];
+const dimensions = ['性格', '品相', '毛发', '体态', '体型', '缺陷'];
 const animals = { rabbit: '兔', cat: '猫', dog: '狗' };
 // 模拟选手只保存六维评分，使用与物种页签一致的示意头像。
 const speciesPortrait = {rabbit:'pets/angora-coat01_female',cat:'pets/british-coat01_female',dog:'pets/shiba-coat01_male'};

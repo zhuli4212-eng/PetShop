@@ -7,7 +7,7 @@ const game=path.resolve(process.argv[2]||path.join(root,'../PetShop'));
 const clientFiles=['assets','cocos-js','src','application.js','index.html','index.js','style.css'];
 const editorFiles=['assets','settings','package.json','tsconfig.json','tools/build-web-mobile.json'];
 const sharedFiles=[
-  'request-store.mjs','shop-engine.mjs','care.mjs','pet-names.mjs','care-pages.mjs','business.mjs',
+  'request-store.mjs','shop-engine.mjs','care.mjs','defect.mjs','pet-names.mjs','care-pages.mjs','business.mjs',
   'research-effects.mjs','show.mjs','shop-features.mjs','shop-progression.mjs','visit-book.mjs',
   'shop-feature-levels.json','show-events.json',
 ];

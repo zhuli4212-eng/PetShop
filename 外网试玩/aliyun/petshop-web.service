@@ -1,0 +1,22 @@
+[Unit]
+Description=Petshop production HTTPS site
+After=petshop.service
+
+[Service]
+User=petshop
+Group=petshop
+RuntimeDirectory=petshop-web
+WorkingDirectory=/opt/petshop/current
+ExecStartPre=/opt/petshop/current/nginx -t -p /run/petshop-web/ -c /opt/petshop/current/nginx-production.conf
+ExecStart=/opt/petshop/current/nginx -g "daemon off;" -p /run/petshop-web/ -c /opt/petshop/current/nginx-production.conf
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

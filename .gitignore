@@ -10,3 +10,22 @@ __pycache__/
 .git-credentials
 Thumbs.db
 .DS_Store
+
+# Runtime data and deployment credentials stay outside the source repository.
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.dpapi
+*.pem
+*.key
+*.pfx
+*.p12
+origin-secret.txt
+upstream.env
+origin-gate.conf
+
+# Temporary image transport data and copied upload helpers; keep the PNG/PDF outputs.
+/output/ui-concept-20261117/generated-image.b64
+/output/ui-concept-20261117/library-helper/
+/output/migration/

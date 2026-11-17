@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { purchasePrice, youngPurchaseBase } from './business.mjs';
 import { rareRedrawPercent, scoreRiseChance } from './research-effects.mjs';
+import { GRADES, defectTrait, defectProbabilities } from './defect.mjs';
 import { occupiedPetNames, takePetName } from './pet-names.mjs';
 
 const MINUTE = 60_000, DAY = 24 * 60 * MINUTE, BATCH = 30 * MINUTE;
@@ -30,8 +31,9 @@ export const TRAITS = [
   [['匀称','舒展'],['步态轻盈','站姿端正'],['仪态出众']],
   [['紧凑','修长'],['骨架匀整','轮廓流畅'],['比例匀美']],
 ];
-const fields = ['性格','品相','毛发','体态','体型','健全度'];
-export const GRADES = ['E','D','C','B','A','S','S+'];
+const breedingFields = ['性格','品相','毛发','体态','体型'];
+const fields = [...breedingFields,'缺陷'];
+export { GRADES };
 const rarities = ['普通','少见','稀有'];
 const coatWeights = [25,25,18,14,10,8];
 const dayAt = t => new Date(t+8*60*MINUTE).toISOString().slice(0,10);
@@ -99,12 +101,8 @@ export function rosterStage(value,filter) {
   if(stageNames.includes(value))return value;
   return filter==='已故'?'已故':'全部';
 }
-function conditionGrade(grade) {
-  const score=GRADES.indexOf(grade);
-  return {type:fields[5],label:score<2?'明显偏差':score===2?'轻微偏差':'未见明显缺陷',rarity:'普通',grade};
-}
 function fixedTraits(first='温顺') {
-  return [first,'清秀','柔软','匀称','紧凑'].map((label,i)=>({type:fields[i],label,rarity:'普通',grade:'B'})).concat(conditionGrade('B'));
+  return [first,'清秀','柔软','匀称','紧凑'].map((label,i)=>({type:fields[i],label,rarity:'普通',grade:'B'})).concat(defectTrait('B'));
 }
 function makePet(usedNames,species,breedKey,sex,now,source,data={}) {
   const name=takePetName(usedNames,Math.random(),data.name);
@@ -123,10 +121,10 @@ function shelfBatch(s,species,number,usedNames) {
   const offers=['公','母'].map((sex,slot)=>{
     const rnd=field=>deterministic(seed+':'+slot+':'+field);
     const rare=rnd('rare')()<0.10?Math.floor(rnd('rare-slot')()*5):-1;
-    const traits=fields.map((_,i)=>{
+    const traits=breedingFields.map((_,i)=>{
       const grade=GRADES[weighted([0,10,40,42,8,0,0],rnd('grade-'+i))];
-      return i===5?conditionGrade(grade):rolledTrait(i,i===rare?2:weighted([80,20],rnd('rarity-'+i)),grade,rnd('tag-'+i));
-    });
+      return rolledTrait(i,i===rare?2:weighted([80,20],rnd('rarity-'+i)),grade,rnd('tag-'+i));
+    }).concat(defectTrait('B'));
     const id=createHash('sha256').update(seed+':'+slot+':id').digest('hex').slice(0,32);
     return { id,name:takePetName(usedNames,rnd('name')()),species,sex,breedKey,mixed:false,coatIndex:1+weighted(coatWeights,rnd('coat')),traits };
   });
@@ -134,7 +132,7 @@ function shelfBatch(s,species,number,usedNames) {
 }
 export function initCare(s,now) {
   if (s.care) return;
-  s.care={seed:randomBytes(16).toString('hex'),signedDay:null,claimIds:[],parentRetentionChecked:true};
+  s.care={seed:randomBytes(16).toString('hex'),signedDay:null,claimIds:[],parentRetentionChecked:true,defectGradesUpdated:true};
   s.rooms={rabbit:newRoom(now)};
   const usedNames=new Set();
   s.pets=[
@@ -200,6 +198,23 @@ function birthIdentity({id,name,sex,breedKey,coatIndex,mixed}) {
 
 export function tickCare(s,now) {
   let changed=false;
+  if (!s.care.defectGradesUpdated) {
+    // The store already froze these grades, including every unborn animal in an active job.
+    const updateLabel = pet => {
+      if (pet) pet.traits[5] = defectTrait(pet.traits[5].grade);
+    };
+    s.pets.forEach(updateLabel);
+    for (const room of Object.values(s.rooms)) {
+      room.shelf?.offers.forEach(updateLabel);
+      if (room.job) {
+        updateLabel(room.job.mother);
+        updateLabel(room.job.father);
+        room.job.offspring.forEach(updateLabel);
+      }
+    }
+    s.care.defectGradesUpdated=true;
+    changed=true;
+  }
   const refreshes=[];
   for (const [species,room] of Object.entries(s.rooms)) {
     const number=Math.max(0,Math.floor((now-room.openedAt)/BATCH));
@@ -234,7 +249,8 @@ function gradeBaseline(grades,guided) {
 }
 
 export function mutationPreview(mother,father,guide,level,enabled) {
-  return {enabled,level,fields:fields.map((name,i)=>{
+  const defect=defectProbabilities(mother.traits,father.traits);
+  return {enabled,level,defect,fields:breedingFields.map((name,i)=>{
     const m=mother.traits[i].grade,f=father.traits[i].grade;
     const grades=[GRADES.indexOf(m),GRADES.indexOf(f)];
     const {first,chance}=gradeBaseline(grades,i===guide);
@@ -244,8 +260,8 @@ export function mutationPreview(mother,father,guide,level,enabled) {
   })};
 }
 
-function inherit(mother,father,options) {
-  return fields.map((_,i)=>{
+function inherit(mother,father,options,defect) {
+  const traits=breedingFields.map((_,i)=>{
     const parents=[mother.traits[i],father.traits[i]];
     const grades=parents.map(t=>GRADES.indexOf(t.grade));
     const {first,chance}=gradeBaseline(grades,i===options.guide);
@@ -254,12 +270,13 @@ function inherit(mother,father,options) {
     const up=scoreRiseChance(base,ref,options.positive);
     const roll=Math.random(), next=base+(roll<up?1:roll<up+.1?-1:0);
     const grade=GRADES[Math.max(0,Math.min(6,Math.max(...grades)+1,next))];
-    if(i===5) return conditionGrade(grade);
     const from=Math.random();
     if(from<.8) return {...parents[from<.4?1:0],grade};
     const rare=rareRedrawPercent(options.rare);
     return rolledTrait(i,weighted([80-rare,20,rare]),grade,Math.random);
   });
+  traits.push(defectTrait(GRADES[weighted(defect.gradePercents)]));
+  return traits;
 }
 function startLitter(s,args,now) {
   const species=speciesOf(args.species), room=roomOf(s,species), cfg=SPECIES[species];
@@ -268,7 +285,7 @@ function startLitter(s,args,now) {
   requireValue(mother?.species===species && father?.species===species && mother.sex==='母' && father.sex==='公'
     && canBreed(s,mother,now) && canBreed(s,father,now),'请选择仍在店、可繁育的一公一母成年或老年动物。');
   const guide=args.guide??-1;
-  requireValue(Number.isInteger(guide)&&guide>=-1&&guide<6,'请选择有效的指导维度。');
+  requireValue(Number.isInteger(guide)&&guide>=-1&&guide<breedingFields.length,'请选择前五项中有效的指导维度。');
   if(guide>=0) {
     requireValue(room.items.guide>0,'该物种的选育指导单不足。');
     requireValue(mother.traits[guide].grade!==father.traits[guide].grade,'两只亲本此维评分相同，不能使用指导。');
@@ -277,6 +294,7 @@ function startLitter(s,args,now) {
   const options={rare,positive:room.mutationEnabled?mutation:0,guide};
   const endsAt=now+cfg.wait*MINUTE, n=cfg.min+weighted(cfg.litter);
   const mixed=mixedOffspring(mother,father);
+  const defect=defectProbabilities(mother.traits,father.traits);
   const usedNames=occupiedPetNames(s);
   const offspring=Array.from({length:n},()=>{
     const look=Math.random()<.5?mother:father;
@@ -284,7 +302,7 @@ function startLitter(s,args,now) {
       motherId:mother.id,fatherId:father.id,motherName:mother.name,fatherName:father.name,
       mixed,
       coatIndex:Math.random()<.85?look.coatIndex:weighted(coatWeights)+1,
-      traits:inherit(mother,father,options),
+      traits:inherit(mother,father,options,defect),
     });
   });
   if(guide>=0)room.items.guide--;
@@ -371,7 +389,7 @@ export function careAction(s,type,args,now) {
   if(type==='care.toggle') {
     requireValue(typeof args.enabled==='boolean','请选择开启或关闭。');
     room.mutationEnabled=args.enabled;
-    return '下次开始繁育时'+(args.enabled?'采用':'关闭')+'六维选育加成。';
+    return '下次开始繁育时'+(args.enabled?'采用':'关闭')+'五维选育加成。';
   }
   if(type==='care.review') {
     const p=s.pets.find(p=>p.id===args.id);

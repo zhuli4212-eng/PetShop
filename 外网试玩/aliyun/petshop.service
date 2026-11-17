@@ -1,0 +1,28 @@
+[Unit]
+Description=Petshop production account service
+After=network.target
+
+[Service]
+User=petshop
+Group=petshop
+StateDirectory=petshop
+StateDirectoryMode=0700
+WorkingDirectory=/opt/petshop/current
+Environment=PORT=8788
+Environment=PETSHOP_DB=/var/lib/petshop/shop.sqlite
+Environment=PETSHOP_REQUIRE_EXISTING=1
+Environment=PETSHOP_ORIGIN=https://petshop.zhu-li-4212.xyz
+Environment=PETSHOP_TRUST_PROXY=1
+EnvironmentFile=/etc/petshop/upstream.env
+ExecStartPre=/usr/bin/test -s /var/lib/petshop/shop.sqlite
+ExecStart=/opt/petshop/current/node /opt/petshop/current/server.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

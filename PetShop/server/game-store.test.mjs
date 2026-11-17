@@ -236,7 +236,7 @@ test('开店次日零点开私人赛，第三日零点开公开赛；重登延�
   function verifyLocked(round,opensDay){
     const args={...round,pet};
     const details=g.page('show.round',round).page;
-    assert.ok(details.rows.some(r=>r.text?.includes('六维')||r.title==='六维目标'));
+    assert.match(details.rows.find(row=>row.title==='六维目标').text,/缺陷 [EDCBAS]\+?$/);
     assert.ok(!details.rows.some(r=>r.link?.page==='show.review'));
     const check=g.page('show.review',args).page;
     assert.match(check.rows[0].title,new RegExp('开店第 '+opensDay+' 天'));

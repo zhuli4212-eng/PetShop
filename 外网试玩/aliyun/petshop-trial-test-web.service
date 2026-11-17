@@ -1,0 +1,20 @@
+[Unit]
+Description=Petshop test web server
+After=petshop-trial-test.service
+Wants=petshop-trial-test.service
+
+[Service]
+DynamicUser=yes
+RuntimeDirectory=petshop-trial-test-web
+WorkingDirectory=/opt/petshop-trial-test/current
+ExecStartPre=/opt/petshop-trial-test/current/nginx -t -p /run/petshop-trial-test-web/ -c /opt/petshop-trial-test/current/nginx.conf
+ExecStart=/opt/petshop-trial-test/current/nginx -g "daemon off;" -p /run/petshop-trial-test-web/ -c /opt/petshop-trial-test/current/nginx.conf
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

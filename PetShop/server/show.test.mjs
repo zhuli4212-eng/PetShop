@@ -13,7 +13,7 @@ import {GAME_EPOCH as epoch, initShow, tickShow, showPage, showAction, themes, r
 const H=3600000, D=24*H;
 function animal(name='小花',at=epoch) {
   return {id:name,name,species:'rabbit',breedKey:'angora',coatIndex:1,sex:'母',bornAt:at-H,bred:false,
-    traits:['性格','品相','毛发','体态','体型','健全度'].map(type=>({type,label:'测试',rarity:'普通',grade:'B'}))};
+    traits:['性格','品相','毛发','体态','体型','缺陷'].map(type=>({type,label:'测试',rarity:'普通',grade:'B'}))};
 }
 function fresh() {
   const s={profileId:'local-test',createdAt:epoch-2*D,rootSeed:'0123456789abcdef'.repeat(4),coins:680,pets:[animal()],rooms:{rabbit:{}}};

@@ -15,7 +15,7 @@ interface RoomPage {
     guide?:{count:number;index:number};
     traits?:{type:string;label:string;rarity:string;grade:string}[];
 }
-type AnimalRow=LedgerRow & {animal?:Animal;litterMember?:boolean};
+type AnimalRow=LedgerRow & {animal?:Animal;litterMember?:boolean;rateSummary?:boolean};
 const ink='#493A27', green='#29483E', muted='#725C42';
 const nextStage:Record<string,string>={幼年:'成长',成长:'成年',成年:'老年',老年:'寿终'};
 function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:number,h:number):Node {
@@ -85,7 +85,7 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
             const badgeY=spot?spot.feet+spot.size*.52+4:-sh*.37;
             const badge=box(resident,'AtRest',0,badgeY,33,15,'#544E44');
             caption(badge,'Caption','已故',0,0,32,14,10,'#FFF2D3',true);
-        } else if(a.status!=='繁育中') {
+        } else {
             resident.addComponent(RoomAnimalWalk).setup(figure,a.art,a.stage,name,i,c.width,h,spot?.patrol);
         }
         const target=links?links.get(a.id):{page:'pet',args:{id:a.id}};
@@ -212,7 +212,7 @@ function detail(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     caption(card,'Status',a.sex+' · '+a.stage+' · '+a.status,identityX,-84,identityW,28,12,muted);
     box(card,'Divider',left+identityW+4,-13,1,167,'#D8C39B');
     const start=left+identityW+12,traitW=w/2-start;
-    heading(card,'TraitsTitle','个体标签',start+traitW/2,60,traitW,22,15,green);
+    heading(card,'TraitsTitle','个体特征',start+traitW/2,60,traitW,22,15,green);
     (m.traits||[]).forEach((t,i)=>{
         const y=35-i*25;
         const line=box(card,'Trait'+i,start+traitW/2,y,traitW,25);
@@ -248,11 +248,13 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         heading(card,'Name'+i,animal?animal.name:'选择'+sex+m.species,px,-33,c.inner*.42,22,14,ink,true);
     });
     caption(card,'Cross','×',0,0,34,46,24,'#987951',true);
+    const rates=rows.find(row=>row.rateSummary);
+    if(rates)c.row(rates,-2);
     c.startList();
     if(hasConfirm) {
-        section(c,'核对亲本','六维标签');
+        section(c,'核对亲本','五项评分与缺陷等级');
         c.startList();
-        rows.forEach((r,i)=>c.row(r,i));
+        rows.filter(row=>!row.rateSummary).forEach((r,i)=>c.row(r,i));
         c.startFooter();
         const actions=c.p.actions||[],start=actions.find(a=>a.type==='care.breed');
         const toggle=actions.find(a=>a.type==='care.toggle');
@@ -265,7 +267,7 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         const y=c.slot(48,6),w=toggle?(c.inner-6)*.55:c.inner;
         const anchor=press(c.body,'ChooseGuide',choice.label+' ▾',(w-c.inner)/2,y,w,
             ()=>c.ui.openFilter([{anchor,options}],0));
-        if(toggle)press(c.body,'BonusSettings','六维加成设置',(w+6)/2,y,c.inner-w-6,c.ui.openBreedingBonus);
+        if(toggle)press(c.body,'BonusSettings','五维加成设置',(w+6)/2,y,c.inner-w-6,c.ui.openBreedingBonus);
         const modify=actions.find(a=>a.page==='breed'&&a.args?.picking);
         c.actions([...(start?[start]:[]),...(modify?[modify]:[])]);return;
     }
@@ -316,7 +318,7 @@ export function drawBreedingBonus(parent:Node,preview:MutationPreview|undefined,
     const scale=Math.min(1,(bounds.height-16)/h);
     panel.setScale(scale,scale,1);
     const top=h/2;
-    heading(panel,'Title','六维选育加成',0,top-26,inner,32,21,green);
+    heading(panel,'Title','五维选育加成',0,top-26,inner,32,21,green);
     const description=preview?'本房研究 Lv.'+preview.level+' · 设置用于下次繁育':'设置用于本房下次繁育';
     caption(panel,'Level',description,0,top-54,inner,23,13,muted);
     const bw=(inner-8)/2;

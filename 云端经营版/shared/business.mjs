@@ -10,7 +10,7 @@ const baseValues = { rabbit: 100, cat: 1200, dog: 1300 };
 const breedFactors = [100, 110, 120, 135];
 const stageFactors = { 幼年: 80, 成长: 92, 成年: 100, 老年: 65, 已故: 0 };
 const channelNames = { market: '自由市场', order: '订单交付', recycle: '研究所回收', guest: '来客委托' };
-const researchNames = ['稀有标签研究', '六维选育研究', '繁育后价值研究'];
+const researchNames = ['稀有标签研究', '五维选育研究', '繁育后价值研究'];
 const researchBases = { rabbit: 100, cat: 250, dog: 400 };
 const ornaments = {
   fence: { name: '矮篱', base: 80 }, lamp: { name: '台灯', base: 60 },

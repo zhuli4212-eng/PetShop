@@ -4,8 +4,9 @@
 
 ## 在新电脑上打开
 
-- **继续日常经营**　电脑双击 `PetShop/启动宠物店.cmd`，手机打开[云端宠物店](https://petshop-cloud-play.zhuli4212.chatgpt.site/)。两台设备使用同一 ChatGPT 账号，读取同一份云端经营档。电脑打开云端版只需要浏览器。
-- **邀请异地玩家各自开店**　在开服电脑双击 `PetShop/启动多人试玩服.cmd`，把窗口显示的 HTTPS 地址发给玩家。新玩家先注册账号名，之后输入同名即可继续原店。[多人开服说明](PetShop/README.md#异地多人试玩)
+- **继续日常经营**　电脑双击 `PetShop/启动宠物店.cmd`，手机打开[独立试玩站](https://petshop-trial.pages.dev/)。输入同一店主账号与密码，即可读取同一家店；无需运行本地服务器。游戏与账号存档运行在阿里云香港，Pages 保留原玩家入口。
+- **浏览器外网试玩**　[自有网站试玩](https://play.zhu-li-4212.xyz/petshop/) · [独立试玩站](https://petshop-trial.pages.dev/)。首次点「注册账号」设置账号名和密码，换手机或电脑输入同一组账号、密码即可续玩。两个试玩入口共用试玩存档。旧免密码账号从「旧账号设置密码」接回原店，浏览器早期本地档也可在注册时勾选带入。
+- **邀请异地玩家各自开店**　日常试玩直接发送上面的正式网址，每位玩家注册自己的账号与密码。`PetShop/启动多人试玩服.cmd` 是旧版本机免密码账号测试服，数据独立，不承接香港正式服玩家。[多人开服说明](PetShop/README.md#异地多人试玩)
 - **运行离线版**　用有此私有仓库权限的 GitHub 账号克隆项目，安装 Node.js 24，双击 `PetShop/start-offline.cmd`。离线版单独保存本机进度，首次启动时若没有本机存档会创建新店。
 - **搬迁旧机进度**　从[项目 Releases](https://github.com/zhuli4212-eng/PetShop/releases) 下载整项目迁移 ZIP，按压缩包内的《迁移说明》解压。如已克隆仓库，首次启动本地游戏前，将 ZIP 内的 `宠物店/PetShop/local/local_sim` 复制到检出的 `PetShop/local/local_sim`。如果新电脑已有自己的本地店铺，先保存一份副本。云端版与本地版独立保存。
 
@@ -21,5 +22,7 @@
 | [动物资源](动物资源/)、[美术确认稿](美术确认稿/)、[制作](制作/) | 动物动作、美术源稿、制作脚本及历代演示 |
 
 用 Cocos Dashboard 导入 `PetShop` 即可继续开发。在 `PetShop` 中运行 `node --test server/*.test.mjs` 可执行玩法回归。云端工程使用 pnpm 11.25.0，在 `云端经营版` 中运行 `pnpm install --frozen-lockfile` 和 `pnpm run build` 可重新打包。
+
+换电脑的完整步骤、测试命令、部署产物与存档恢复边界见[新电脑继续开发](新电脑继续开发.md)。[香港服部署说明](外网试玩/aliyun/README.md)记录当前正式服务；旧 Sites/D1 构建说明仅供历史核对，不应直接覆盖现有正式服。
 
 原有两个独立仓库的历史已并入 Git。标签 `history/mobile-preview` 和 `history/cloud-edition` 分别指向迁入前的最后提交。

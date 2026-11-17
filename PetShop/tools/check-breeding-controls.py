@@ -1,16 +1,20 @@
 """Touch the breeding settings in a Web Mobile build against disposable shops."""
 import argparse
+import base64
 import json
+from io import BytesIO
 import math
+import re
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 
 PROJECT = Path(__file__).resolve().parents[1]
-FIELDS = ["性格", "品相", "毛发", "体态", "体型", "健全度"]
+FIELDS = ["性格", "品相", "毛发", "体态", "体型"]
 GRADES = ["E", "D", "C", "B", "A", "S", "S+"]
 MOTHER = ["B", "A", "C", "S+", "E", "S"]
 FATHER = ["D", "B", "S", "S", "D", "C"]
@@ -24,8 +28,9 @@ import {createInterface} from 'node:readline';
 import {SPECIES} from './server/care.mjs';
 const [directory,webRoot,input] = process.argv.slice(1);
 const fixtures = JSON.parse(input);
-let now = Date.now();
-const store = new GameStore(directory,{wall:()=>now,monotonic:()=>0});
+const now = Date.now();
+let offset=0;
+const store = new GameStore(directory,{wall:()=>Date.now()+offset});
 store.ensure();
 const s=store.state, parents=s.pets, room=s.rooms.rabbit;
 s.shopXp=18000;s.visitBook.opening=false;s.pets=[];
@@ -47,7 +52,7 @@ store.save(s);
 const server=createPetShopServer(webRoot,{store});
 server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
 createInterface({input:process.stdin}).on('line', command=>{
-  if(command==='finish-litters'){now+=11*60000;console.log('advanced');}
+  if(command==='finish-litters'){offset+=11*60000;console.log('advanced');}
 });
 """
 
@@ -97,10 +102,17 @@ def fixtures(width):
     pairs = []
     for species,breed,cards,names in zip(SPECIES, ["angora","british","corgi"], CARDS,
                                           [["小满","青团"],["雪梨","花卷"],["栗子","核桃"]]):
-        father = FATHER
+        mother, father = MOTHER, FATHER
+        expected = [11.425,4.615]
+        if species=="rabbit":
+            mother = father = ["B"]*6
+            expected = [2,5]
         if species=="cat":
-            father = MOTHER if width==390 else [FATHER[0],*MOTHER[1:]]
-        pairs.append(dict(species=species,breed=breed,cards=cards,names=names,grades=[MOTHER,father],level=LEVEL))
+            mother = ["A"]*6
+            father = ["A","A","A","A" if width==390 else "C","A","D"]
+            expected = [2,10] if width==390 else [5.25,7.425]
+        pairs.append(dict(species=species,breed=breed,cards=cards,names=names,grades=[mother,father],level=LEVEL,
+                          expected=expected))
     return pairs
 
 
@@ -164,10 +176,10 @@ class Touch:
 
 
 def check_dialog(page, settings, selected, enabled):
-    names = page.evaluate("""()=>{const q=pairQA,d=q.find('BonusDialog');return d ? Array.from({length:6},(_,i)=>{
+    names = page.evaluate("""()=>{const q=pairQA,d=q.find('BonusDialog');return d ? Array.from({length:5},(_,i)=>{
         const row=q.find('Trait'+i,d);return {copy:q.texts(row),chance:q.find('Chance',row)?.getComponent(cc.Label).string};
     }):null;}""")
-    assert names and len(names)==6,names
+    assert names and not page.evaluate("()=>!!pairQA.find('Trait5',pairQA.find('BonusDialog'))"),names
     for i,row in enumerate(names):
         mother, father = (parent[i] for parent in settings["grades"])
         expected = rise(mother,father,i==selected,settings["level"] if enabled else 0)
@@ -180,14 +192,94 @@ def check_dialog(page, settings, selected, enabled):
     assert -1<=bounds["top"] and bounds["bottom"]<=page.viewport_size["height"]+1,bounds
 
 
-def verify(browser, web, width, output):
+def check_birth_rates(page, expected):
+    # Read the two labels that were actually drawn, including their screen bounds.
+    text,bounds = page.evaluate("""()=>{
+        const q=pairQA, fixed=q.find('Fixed',q.find('DeskPage'));
+        const title=fixed&&q.title('每只幼体的出生概率',fixed);
+        if(!title)return ['',null];
+        const row=title.parent;
+        return [q.texts(row).join(' '),q.box(row)];
+    }""")
+    assert bounds and -1<=bounds["top"]<bounds["bottom"]<=page.viewport_size["height"]+1,bounds
+    assert -1<=bounds["left"]<bounds["right"]<=page.viewport_size["width"]+1,bounds
+    for label,target in zip(["缺陷率","完美无缺率"],expected):
+        hit = re.search(label+r"\s*[：:]?\s*([0-9.]+)%",text)
+        assert hit and abs(float(hit[1])-target)<=0.011,(label,target,text)
+
+
+def observe_parent_motion(page, species):
+    return page.evaluate(r"""async species=>{
+        const q=pairQA, view=q.visit().data.presentation;
+        const parents=view.parents, indexes=[0,1];
+        if(parents.length!==2)throw Error('Missing parents');
+        const cycles=[[],[]],positions=[new Set(),new Set()],start=performance.now();
+        let firstTime=null, lastTime=null;
+        while(performance.now()-start<18000){
+            const desk=q.find('DeskPage'), art=q.find('Artwork',desk), clock=q.find('Remaining',desk);
+            if(!art||!clock)throw Error('Stage or countdown disappeared');
+            const bounds=q.box(art), t=clock.getComponent(cc.Label).string.match(/(\d+) 分 (\d+) 秒/);
+            if(t){lastTime=60*Number(t[1])+Number(t[2]);firstTime??=lastTime;}
+            for(const i of indexes){
+                const n=q.find('Resident'+i,art), w=n?.getComponent('RoomAnimalWalk');
+                if(!w||w.hopping!==(species==='rabbit'))throw Error('Missing species motion for parent '+i);
+                const expected='pet-walk/'+parents[i].art.split('/').pop()+'/texture';
+                if(w.path!==expected)throw Error('Wrong parent strip '+w.path+' expected '+expected);
+                const box=q.box(n), x=(box.left+box.right)/2, y=(box.top+box.bottom)/2;
+                if(x<0||y<0||x>innerWidth||y>innerHeight||x<bounds.left||x>bounds.right||y<bounds.top||y>bounds.bottom)
+                    throw Error('Parent outside the visible stage: '+JSON.stringify({i,box,bounds}));
+                const f=w.frames.indexOf(w.sprite.spriteFrame);
+                if(f>=0){
+                    const sequence=cycles[i];
+                    if(sequence.at(-1)!==f)sequence.push(f);
+                    positions[i].add(Math.round(n.position.x));
+                }
+            }
+            if(lastTime<firstTime&&indexes.every(i=>new Set(cycles[i]).size===4&&cycles[i].length>=8&&positions[i].size>=3)){
+                return {firstTime,lastTime,endsAt:view.endsAt,parentIds:parents.map(p=>p.id)};
+            }
+            await new Promise(requestAnimationFrame);
+        }
+        throw Error(JSON.stringify({species,cycles,positions:positions.map(s=>s.size),firstTime,lastTime}));
+    }""",species)
+
+
+def capture_motion(page,path):
+    captures=page.evaluate("""()=>new Promise(resolve=>{
+        const surface=document.createElement('canvas');
+        surface.width=innerWidth;surface.height=innerHeight;
+        const ctx=surface.getContext('2d'),gameCanvas=document.querySelector('canvas');
+        const result=[];
+        // Read completed Cocos frames before the browser releases its WebGL drawing buffer.
+        const capture=()=>{
+            const at=performance.now();
+            if(result.length&&at-result.at(-1)[0]<100)return;
+            ctx.drawImage(gameCanvas,0,0,surface.width,surface.height);
+            result.push([at,surface.toDataURL('image/png').split(',')[1]]);
+            if(result.length===32){
+                cc.director.off(cc.Director.EVENT_AFTER_DRAW,capture);
+                resolve(result);
+            }
+        };
+        cc.director.on(cc.Director.EVENT_AFTER_DRAW,capture);
+    })""")
+    times=[at for at,_ in captures]
+    frames=[Image.open(BytesIO(base64.b64decode(data))).convert("RGB") for _,data in captures]
+    assert frames[0].size==(390,844)
+    assert all(len(frame.getcolors(100000))>32 for frame in frames)
+    durations=[max(20,round((b-a)/10)*10) for a,b in zip(times,times[1:])]
+    frames[0].save(path,save_all=True,append_images=frames[1:],duration=durations+[durations[-1]],loop=0)
+
+
+def verify(browser, web, width, output, motion=False):
     samples = fixtures(width)
     with TemporaryDirectory(prefix="petshop-breeding-controls-") as directory:
         process = subprocess.Popen(["node","--input-type=module","-e",SEED,directory,str(web),json.dumps(samples)],
             cwd=PROJECT,stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True,encoding="utf-8",
             creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
         page = browser.new_page(viewport={"width":width,"height":568 if width==320 else 844},
-                                is_mobile=True,has_touch=True,device_scale_factor=1)
+                                is_mobile=True,has_touch=True,device_scale_factor=1,
+                                reduced_motion="no-preference" if motion else "reduce")
         errors = []
         page.on("pageerror",lambda err:errors.append(str(err)))
         def room_state(species):
@@ -210,9 +302,30 @@ def verify(browser, web, width, output):
                     # The parent names in the selection slots also appear in the rows.
                     touch.tap("Animal"+str(i),scope="DeskPage")
                     touch.wait("name=>pairQA.ready() && pairQA.visit().data.presentation.parents.some(p=>p?.name===name)",sample["names"][i])
+                check_birth_rates(page,sample["expected"])
                 touch.tap("Review",scope="DeskPage")
                 touch.kind("pairConfirm")
-                different = [i for i,(m,f) in enumerate(zip(*sample["grades"])) if m!=f] if initial else []
+                check_birth_rates(page,sample["expected"])
+                if motion:
+                    touch.tap(text="开始繁育",scope="DeskPage")
+                    touch.tap("Accept",scope="Confirm")
+                    touch.kind("breeding")
+                    first=observe_parent_motion(page,species)
+                    if output and species=="rabbit":
+                        capture_motion(page,output/"繁育中双亲动作-390.gif")
+                    touch.tap(text="前往动物房间",scope="DeskPage")
+                    touch.kind("rooms")
+                    touch.tap(text="进繁育台",scope="DeskPage")
+                    touch.kind("breeding")
+                    second=observe_parent_motion(page,species)
+                    assert first["parentIds"]==second["parentIds"] and first["endsAt"]==second["endsAt"]
+                    assert second["lastTime"]<first["lastTime"],(first,second)
+                    print(f"{width}px {species}: both parents cycled through 4 frames and patrolled, countdown {first['firstTime']} -> {second['lastTime']}s including leaving and returning.",flush=True)
+                    continue
+                if width==390 and species=="rabbit" and output:
+                    touch.wait("()=>!pairQA.find('Feedback')")
+                    page.screenshot(path=str(output/"配对确认-每只幼体缺陷率与完美无缺率-390.png"))
+                different = [i for i,(m,f) in enumerate(zip(*sample["grades"])) if i<len(FIELDS) and m!=f] if initial else []
                 labels = ["不使用指导单",*["指导"+FIELDS[i] for i in different]]
                 def options(active):
                     shown=touch.guide_options()
@@ -233,6 +346,7 @@ def verify(browser, web, width, output):
                     for item in (1,len(different),0,1):
                         options(labels[current])
                         selected = choose(item)
+                        check_birth_rates(page,sample["expected"])
                         current = item
                 assert "撤下指导单" not in page.evaluate("()=>pairQA.texts(pairQA.find('DeskPage'))")
                 enabled=True
@@ -263,9 +377,10 @@ def verify(browser, web, width, output):
                         assert room["mutationEnabled"]==enabled and room["items"]["guide"]==initial
                         if width==320 and enabled and output:
                             touch.wait("()=>!pairQA.find('Feedback')")
-                            page.screenshot(path=str(output/"六维加成实时概率-320.png"))
+                            page.screenshot(path=str(output/"五维加成实时概率-320.png"))
                     touch.tap("Back",scope="BonusDialog")
                     touch.wait("()=>!pairQA.find('BonusDialog')")
+                    check_birth_rates(page,sample["expected"])
                     assert page.evaluate("()=>pairQA.visit().detailPage||0")==previous
                     assert page.evaluate("()=>pairQA.visit().data.presentation.parents.map(p=>p.name)")==sample["names"]
                     touch.tap("BonusSettings",scope="DeskPage")
@@ -288,6 +403,9 @@ def verify(browser, web, width, output):
                 assert room["items"]["guide"]==initial-int(selected>=0)
                 assert room["job"]["options"]["guide"]==selected
                 assert room["job"]["options"]["positive"]==(LEVEL if enabled else 0)
+            if motion:
+                assert not errors,errors
+                return
             process.stdin.write("finish-litters\n")
             process.stdin.flush()
             assert process.stdout.readline().strip()=="advanced"
@@ -322,7 +440,8 @@ def verify(browser, web, width, output):
                             return n?.getComponentsInChildren(cc.Sprite).some(s=>s.node.activeInHierarchy&&s.spriteFrame);}""",node)
                     offset=touch.tap(node,scope="DeskPage")
                     touch.kind("pet")
-                    assert page.evaluate("pairQA.visit().data.presentation.animal.id")==litter["ids"][index]
+                    actual=page.evaluate("pairQA.visit().data.presentation.animal.id")
+                    assert actual==litter["ids"][index],(width,node,litter["ids"].index(actual),offset)
                     if index%2==0:
                         touch.tap("Back",scope="DeskPage")
                     else:
@@ -360,7 +479,7 @@ def verify(browser, web, width, output):
             touch.kind("litter")
             assert abs(page.evaluate("pairQA.offset()")-offset)<2
             assert not errors,errors
-            print(f"{width}px: three rooms, guide options, six live probabilities, settlement and both litter return routes passed.",flush=True)
+            print(f"{width}px: three rooms, guide options, five mutation chances, defect and perfect rates, settlement and both litter return routes passed.",flush=True)
         finally:
             page.close()
             process.terminate()
@@ -370,15 +489,16 @@ def verify(browser, web, width, output):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--web-root",type=Path,default=PROJECT/"build"/"web-mobile")
-    parser.add_argument("--screenshots",type=Path,help="directory for two acceptance screenshots")
+    parser.add_argument("--screenshots",type=Path,help="directory for acceptance screenshots")
+    parser.add_argument("--breeding-motion",action="store_true",help="check both parents' animated patrols, countdown, and re-entry")
     args=parser.parse_args()
     if args.screenshots:
         args.screenshots.mkdir(parents=True,exist_ok=True)
     with sync_playwright() as pw:
         browser=pw.chromium.launch(channel="msedge",args=["--use-angle=swiftshader","--enable-unsafe-swiftshader"])
         try:
-            for width in (320,390):
-                verify(browser,args.web_root.resolve(),width,args.screenshots)
+            for width in ((390,) if args.breeding_motion else (320,390)):
+                verify(browser,args.web_root.resolve(),width,args.screenshots,args.breeding_motion)
         finally:
             browser.close()
 

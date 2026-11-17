@@ -1,0 +1,24 @@
+[Unit]
+Description=Petshop test account service
+After=network.target
+
+[Service]
+DynamicUser=yes
+StateDirectory=petshop-trial-test
+StateDirectoryMode=0700
+WorkingDirectory=/opt/petshop-trial-test/current
+Environment=PORT=8787
+Environment=PETSHOP_DB=/var/lib/petshop-trial-test/shop.sqlite
+Environment=PETSHOP_ORIGIN=http://127.0.0.1:8080
+Environment=PETSHOP_TRUST_PROXY=1
+ExecStart=/opt/petshop-trial-test/current/node /opt/petshop-trial-test/current/server.mjs
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

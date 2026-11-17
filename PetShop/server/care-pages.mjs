@@ -1,5 +1,5 @@
 import {
-  SPECIES, BREEDS, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
+  SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
   lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview,
 } from './care.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
@@ -64,7 +64,7 @@ function roster(s,a,now) {
   return {title:'动物房间',art:cfg.art,animals:residents.map(p=>p.art),animalStages:residents.map(p=>p.stage),
     presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents,nextStageAt},
     subtitle:'名册 '+shown.length+' 只 · '+filter+' · '+stage,
-    rows:[link(room.job?'查看正在繁育的一窝':'进入繁育台',room.job?'预计 '+describeRemaining(room.job.endsAt-now)+' 后出生':'挑选亲本并比较六维标签','breed',{species}),
+    rows:[link(room.job?'查看正在繁育的一窝':'进入繁育台',room.job?'预计 '+describeRemaining(room.job.endsAt-now)+' 后出生':'挑选亲本，查看幼体的缺陷率和完美无缺率','breed',{species}),
       ...(room.lastLitter?[link('最近出生的一窝',room.lastLitter.ids.length+' 只','litter',{species})]:[]),
       ...(room.openingReceipt?[link('查看入住回执','购房时的两只幼体、成年时刻与余款','roomReceipt',{species})]:[]),
       ...shown,...(!shown.length?[{title:'当前筛选下没有动物。'}]:[])],
@@ -120,6 +120,11 @@ function detail(s,a,now) {
       ...(!isBusy(s,p)&&stage!=='已故'?[go('特征复评','review',{species:p.species,id:p.id})]:[]),
       ...(!isBusy(s,p)&&!p.retained?[stage==='已故'?go('前往研究所回收','recycle',{species:p.species,preselectId:p.id}):go('前往自由市场','market',{preselectId:p.id})]:[])]};
 }
+function offspringRateRow({defectPercent,perfectPercent,obviousPercent,mildPercent}) {
+  const percent=value=>Number(value.toFixed(2))+'%';
+  return {rateSummary:true,title:'每只幼体的出生概率',
+    text:'缺陷率 '+percent(defectPercent)+' · 完美无缺率 '+percent(perfectPercent)+'\n明显缺陷 '+percent(obviousPercent)+' · 轻微缺陷 '+percent(mildPercent)};
+}
 function pairPage(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
   if(!room) return closedRoom(s,species,'breed',now);
@@ -131,36 +136,42 @@ function pairPage(s,a,now) {
   const choices=s.pets.filter(p=>p.species===species&&canBreed(s,p,now));
   const mother=choices.find(p=>p.id===a.mother&&p.sex==='母'),father=choices.find(p=>p.id===a.father&&p.sex==='公');
   const args={species,...(mother?{mother:mother.id}:{}),...(father?{father:father.id}:{})};
+  const allowed=mother&&father?fields.slice(0,5).map((_,i)=>i).filter(i=>mother.traits[i].grade!==father.traits[i].grade):[];
+  const guide=allowed.includes(a.guide)&&room.items.guide>0?a.guide:-1;
+  const [rare=0,mutation=0]=s.research?.[species]??[];
+  const preview=mother&&father?mutationPreview(mother,father,guide,mutation,!!room.mutationEnabled):undefined;
   if(!mother||!father||a.picking) {
     const sex=!mother?'母':'公',pool=choices.filter(p=>p.sex===sex);
     return {title:'繁育台',art:'shop-modules/breeding-guide',subtitle:'挑选一公一母 · 目前可配 '+choices.length+' 只',
-      presentation:{kind:'pair',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>p?specimen(s,p,now):null),
+      presentation:{kind:'pair',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>p?specimen(s,p,now):null),mutationPreview:preview,
         candidates:choices.map(p=>specimen(s,p,now)),confirm:mother&&father?go('核对亲本','breed',args):null},
-      rows:[{title:mother?'母本：'+mother.name:father?'父本：'+father.name:'选择亲本',text:'点选一只可配的'+sex+'性作为'+(sex==='母'?'母本':'父本')+'。'},
+      rows:[...(preview?[offspringRateRow(preview.defect)]:[]),
+        {title:mother?'母本：'+mother.name:father?'父本：'+father.name:'选择亲本',text:'点选一只可配的'+sex+'性作为'+(sex==='母'?'母本':'父本')+'。'},
         ...pool.map(p=>petRow(s,p,now,'breed',{...args,[sex==='母'?'mother':'father']:p.id})),
         ...(!pool.length?[{title:'暂无合适的'+sex+'性亲本',text:'成年、老年且未繁育的空闲动物可参与配对。'}]:[])],
       tabs:options(s,'breed',species),actions:[...(room.lastLitter?[go('查看最近一窝','litter',{species})]:[]),go('查看房间','rooms',{species})]};
   }
-  const allowed=fields.map((_,i)=>i).filter(i=>mother.traits[i].grade!==father.traits[i].grade);
-  const guide=allowed.includes(a.guide)&&room.items.guide>0?a.guide:-1;
-  const [rare=0,mutation=0]=s.research?.[species]??[];
   const motherLook=BREEDS[mother.breedKey].name,fatherLook=BREEDS[father.breedKey].name;
   const registration=mixedOffspring(mother,father)?'杂交':motherLook;
   const appearance=mother.breedKey===father.breedKey?'幼体都是'+motherLook+'外形。':
     '每只幼体独立决定外形，'+motherLook+'和'+fatherLook+'各占 50%。';
   return {title:'确认配对',subtitle:mother.name+' × '+father.name,art:cfg.art,animals:[petArt(mother),petArt(father)],animalStages:[stageOf(mother,now),stageOf(father,now)],
     presentation:{kind:'pairConfirm',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>specimen(s,p,now)),
-      guide:{count:room.items.guide,index:guide},mutationPreview:mutationPreview(mother,father,guide,mutation,!!room.mutationEnabled)},
-    rows:[{title:'后代登记品种 · '+registration,text:appearance},
+      guide:{count:room.items.guide,index:guide},mutationPreview:preview},
+    rows:[{title:'后代登记品种 · '+registration,text:appearance},offspringRateRow(preview.defect),
       {title:'一生仅一次繁育',text:'开始后不可取消或换亲本。等待 '+cfg.wait+' 分钟，预计 '+cfg.min+'–'+(cfg.min+cfg.litter.length-1)+' 只。'},
-      ...fields.map((f,i)=>({title:f,text:'母 '+mother.traits[i].grade+' '+mother.traits[i].label+'　父 '+father.traits[i].grade+' '+father.traits[i].label})),
-      {title:'出生研究加成',text:'重抽稀有率 +'+(rare*5)+'% · 正向变异率 +'+(room.mutationEnabled?mutation*3:0)+'%（相对基础）'},
+      ...fields.map((field,i)=>{
+        const m=mother.traits[i],f=father.traits[i];
+        const gap=i<5?' · 相差 '+Math.abs(GRADES.indexOf(m.grade)-GRADES.indexOf(f.grade))+' 档':'';
+        return {title:field,text:'母 '+m.grade+' '+m.label+'　父 '+f.grade+' '+f.label+gap};
+      }),
+      {title:'出生研究加成',text:'重抽稀有率 +'+(rare*5)+'% · 五维升档率 +'+(room.mutationEnabled?mutation*3:0)+'%（相对基础）'},
       {title:'选育指导单 '+room.items.guide+' 张',text:guide>=0?
         '已选「'+fields[guide]+'」。每只幼体有 80% 的机会从较高分起算，20% 从较低分起算，之后仍可能升降。若比赛目标较低，指导可能让幼体离目标更远。':
-        '配对前可选一项父母评分不同的特征，让这一窝幼体更容易随分数高的一方。'}],
+        '从前五项选一项父母评分不同的特征，让这一窝幼体更容易随分数高的一方。'}],
     actions:[act('开始繁育','care.breed',{...args,guide},'确认让 '+mother.name+' 和 '+father.name+' 使用一生唯一的繁育机会？'+
       (mother.retained||father.retained?'幼体出生时，双亲自动取消留种。':'')+(guide>=0?'将使用一张选育指导单。若目标偏低，按高分选育可能更难匹配。':''),'breed',{species}),
-      go('修改亲本','breed',{...args,picking:true}),act(room.mutationEnabled?'关闭六维加成':'启用六维加成','care.toggle',{species,enabled:!room.mutationEnabled},undefined,'breed',{...args,guide}),
+      go('修改亲本','breed',{...args,picking:true}),act(room.mutationEnabled?'关闭五维加成':'启用五维加成','care.toggle',{species,enabled:!room.mutationEnabled},undefined,'breed',{...args,guide}),
       ...[-1,...(room.items.guide>0?allowed:[])].map(i=>({
         ...go(i===-1?'不使用指导单':'指导'+fields[i],'breed',{...args,guide:i}),active:i===guide,replace:true}))]};
 }
@@ -270,7 +281,7 @@ function services(s,a,now) {
     rows:Object.keys(itemName).map(item=>{
       const price=purchasePrice(s,cfg[item]);
       const effect=item==='review'?'选一项特征重新抽标签。可能抽回原词或降稀有度，仍消耗一次，评分不变。每只动物最多用 3 张。':
-        '配对前选一项父母评分不同的特征。每只幼体有 80% 的机会按高分起算。若比赛目标较低，可能更难匹配。';
+        '从前五项选一项父母评分不同的特征。每只幼体有 80% 的机会按高分起算。若比赛目标较低，可能更难匹配。';
       return {title:itemName[item]+' · 持有 '+room.items[item]+' 张',
         text:effect+'\n每张 '+price+' 金币'+(price===cfg[item]?'':'（原价 '+cfg[item]+' 金币）')};
     }),

@@ -3,16 +3,9 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { GameError, RequestGameStore } from './request-store.mjs';
+import { accountName } from './account-name.mjs';
 
 const sessionLifetime = 30 * 24 * 60 * 60 * 1000;
-
-function accountName(input) {
-  const name = typeof input === 'string' ? input.trim().normalize('NFKC') : '';
-  if (!/^[\p{L}\p{M}\p{N}._@-]{1,32}$/u.test(name)) {
-    throw new GameError('账号名限 1 至 32 个字，可用中文、字母、数字及 ._@-。', 400);
-  }
-  return { name, key: name.toLowerCase() };
-}
 
 function tokenDigest(token) {
   if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;

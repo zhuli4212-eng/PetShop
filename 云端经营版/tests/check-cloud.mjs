@@ -110,7 +110,10 @@ try {
   const parentId=sex=>legacy.pets.find(p=>p.sex===sex).id;
   const pair=(await accepted(url,owner,'page',{page:'breed',args:{species:'rabbit',mother:parentId('母'),father:parentId('公')}})).page;
   assert.equal(pair.presentation.kind,'pairConfirm');
-  assert.equal(pair.presentation.mutationPreview.fields.length,6);
+  assert.equal(pair.presentation.mutationPreview.fields.length,5);
+  const {defectPercent,perfectPercent}=pair.presentation.mutationPreview.defect;
+  assert.equal(defectPercent,2);
+  assert.equal(perfectPercent,5);
   assert.ok(pair.actions.some(action=>action.label==='不使用指导单'&&action.active&&action.args.guide===-1));
   for (const page of ['market','sale']) {
     const args=page==='sale'?{channel:'market',species:'rabbit',filter:'种源'}:{filter:'种源'};

@@ -1,0 +1,39 @@
+<main class="ledger">
+  <img class="shopfront" src="./trial-shopfront.png" width="384" height="576" alt="">
+  <section class="sheet" aria-labelledby="heading">
+    <header class="form-title">
+      <h1 id="heading">店主登录</h1>
+      <nav aria-label="账号操作">
+        <a id="register-tab" href="?register" hidden>注册账号</a>
+        <a id="login-tab" href="?" hidden>返回登录</a>
+      </nav>
+    </header>
+    <p id="loading" role="status">正在打开…</p>
+    <noscript>请启用 JavaScript 后刷新。</noscript>
+    <div id="anonymous" hidden>
+      <form id="account-form" method="post" action="./">
+        <label for="username">账号名</label>
+        <input id="username" name="username" type="text" required autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next">
+        <div id="setup-proof" hidden>
+          <div id="old-proof-choice" hidden>
+            <label class="legacy-option"><input id="use-legacy-proof" type="checkbox">用此浏览器的旧店验证</label>
+          </div>
+          <div id="code-field">
+            <label for="setup-code">一次性验证码</label>
+            <input id="setup-code" name="code" type="text" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" enterkeyhint="next" aria-describedby="code-hint" disabled>
+            <small id="code-hint">在仍登录的店主登记簿查看「设置密码验证码」，15 分钟内有效。</small>
+          </div>
+        </div>
+        <label for="password"><span id="password-label">密码</span><small id="password-hint" hidden>8–128 个字符</small></label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" autocapitalize="none" spellcheck="false" enterkeyhint="go">
+        <div id="legacy-choice" hidden>
+          <label class="legacy-option"><input id="import-legacy" type="checkbox">将此浏览器的旧店复制到新账号</label>
+        </div>
+        <button class="primary" id="submit" type="submit">登录店铺</button>
+      </form>
+      <a id="set-password-link" class="setup-link" href="?set-password" hidden>旧账号设置密码</a>
+    </div>
+    <p id="error" role="alert" hidden></p>
+    <button id="retry" class="primary" type="button" hidden>返回登录</button>
+  </section>
+</main>

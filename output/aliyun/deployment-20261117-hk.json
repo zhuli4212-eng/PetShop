@@ -1,0 +1,120 @@
+{
+  "date": "2026-11-17",
+  "region": "cn-hongkong",
+  "host": "47.243.58.106",
+  "upstream": "https://petshop.zhu-li-4212.xyz",
+  "productionDatabase": "/var/lib/petshop/shop.sqlite",
+  "previousD1": "frozen-backup",
+  "migratedAccounts": 11,
+  "migratedSessions": 27,
+  "frozenSnapshotSha256": "b8012c3eacf6ac2733ae78c98b611d8ad623c8c38c287b3b23fe1442cbd52876",
+  "deployments": [
+    {
+      "project": "petshop-trial",
+      "id": "e8649e9f-42e4-4285-b959-0bf04ec8e81a",
+      "url": "https://e8649e9f.petshop-trial.pages.dev",
+      "origin": "https://petshop.zhu-li-4212.xyz",
+      "staticUnchanged": true
+    },
+    {
+      "project": "dream-hunter",
+      "id": "5763f880-f5ba-41cc-a275-3b05b9fa4d5c",
+      "url": "https://5763f880.dream-hunter.pages.dev",
+      "origin": "https://petshop.zhu-li-4212.xyz",
+      "staticUnchanged": true
+    }
+  ],
+  "nativeCNChecks": {
+    "environment": "production",
+    "utc": "2026-11-17T13:20:08.822378+00:00",
+    "urls": [
+      "https://play.zhu-li-4212.xyz/petshop/",
+      "https://petshop-trial.pages.dev/"
+    ],
+    "native": {
+      "environment": "production",
+      "locations": [
+        "CN",
+        "CN"
+      ],
+      "statuses": [
+        {
+          "site": 1,
+          "route": "health",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "site": 1,
+          "route": "shop",
+          "method": "GET",
+          "status": 401
+        },
+        {
+          "site": 2,
+          "route": "health",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "site": 2,
+          "route": "shop",
+          "method": "GET",
+          "status": 401
+        },
+        {
+          "site": 1,
+          "route": "auth/login",
+          "method": "POST",
+          "status": 200
+        },
+        {
+          "site": 1,
+          "route": "shop",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "site": 2,
+          "route": "auth/login",
+          "method": "POST",
+          "status": 200
+        },
+        {
+          "site": 2,
+          "route": "shop",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "site": 1,
+          "route": "auth/logout",
+          "method": "POST",
+          "status": 200
+        },
+        {
+          "site": 2,
+          "route": "auth/logout",
+          "method": "POST",
+          "status": 200
+        }
+      ],
+      "sameAccount": true,
+      "sameShop": true,
+      "sameCheckinState": true
+    }
+  },
+  "serverRestartVerified": true,
+  "certificateDryRunPassed": true,
+  "browserLoginScreenVerified": true,
+  "pending": [
+    "physical phone validation",
+    "10-player long-running load test"
+  ],
+  "staticVerification": {
+    "unchangedPersonalAssets": 120,
+    "criticalGameAssets": 3,
+    "hashesMatched": true,
+    "largeFilesRequiredLongerTimeout": 5
+  }
+}
