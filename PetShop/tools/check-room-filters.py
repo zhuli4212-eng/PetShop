@@ -52,7 +52,7 @@ def fixture(reverse):
                              name=("青禾 山桃 小葵 奶酥 胡桃 桔梗 小麦 云团 棉花 银杏 "
                                    "豆沙 小满 枫糖 柚子 梨花 南星").split()[i],
                              species=species, sex=sex, breedKey=breed, coatIndex=coat,
-                             retained=i in (1, 3, 8), bred=i in (4, 13),
+                             retained=i in (1, 3, 8) or (n == 1 and i == 10), bred=i in (4, 13),
                              busy=i in (1, 12), stage=stage, minutes=minutes))
     return pets[::-1] if reverse else pets
 
@@ -118,7 +118,9 @@ BROWSER = r"""() => {
     const xs=corners.map(p=>p.x/a.width+.5),ys=corners.map(p=>.5-p.y/a.height);
     return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
   };
-  window.roomQA={find,label,point,visit,residents,rect,art,ui};
+  const positions=()=>residents().map(n=>[n.position.x/ui(art()).width,n.position.y/ui(art()).height]
+    .map(value=>Number(value.toFixed(6))));
+  window.roomQA={find,label,point,visit,residents,rect,art,ui,positions};
 }"""
 
 
@@ -126,6 +128,25 @@ def tap(page, name):
     point = page.evaluate("""name=>{const q=roomQA,n=q.find(name);return n&&q.point(n.worldPosition)}""", name)
     assert point and 0 <= point[0] < page.viewport_size["width"] and 0 <= point[1] < page.viewport_size["height"], (name, point)
     page.touchscreen.tap(*point)
+
+
+def varied(samples):
+    # Sorting coordinates ignores which individual received a point. Simply
+    # shuffling pets among an invariant set of floor slots fails this check.
+    for axis in (0, 1):
+        coordinates = [sorted(p[axis] for p in sample) for sample in samples]
+        if not any(max(values) - min(values) > .015 for values in zip(*coordinates)):
+            return False
+    if len(samples[0]) >= 3:
+        for sample in samples:
+            levels = []
+            for depth in sorted(p[1] for p in sample):
+                if not levels or depth-levels[-1] >= .03:
+                    levels.append(depth)
+            if len(levels) >= 3:
+                return True
+        return False
+    return True
 
 
 def verify(browser, url, pets, width):
@@ -185,12 +206,98 @@ def verify(browser, url, pets, width):
         })""",arg=shown)
         return shown
 
+    def reopen(species, status, sex):
+        tap(page, "Back")
+        page.wait_for_function("()=>!!roomQA.find('RoomLink')")
+        tap(page, "RoomLink")
+        wait_room("rabbit")
+        if species != "rabbit":
+            tap(page, "Tab" + str(list(BREEDS).index(species)))
+            wait_room(species)
+        if status != "全部":
+            select(0, status)
+        if sex != "全部":
+            select(1, sex)
+        return check(species, status, sex)
+
+    def random_entries(species, status, sex, count):
+        shown = check(species, status, sex)
+        assert len(shown) == count
+        samples = [page.evaluate("roomQA.positions()")]
+        for _ in range(5):
+            assert reopen(species, status, sex) == shown
+            samples.append(page.evaluate("roomQA.positions()"))
+            if len(samples) >= 3 and varied(samples):
+                break
+        assert varied(samples), (width, species, count, "fixed floor coordinates", samples)
+        print(width, species, count, "positions varied across", len(samples), "visits", flush=True)
+
+    def stable_during_refresh():
+        # A second client edits the disposable shop. The room's normal poll must
+        # actually redraw the retained badge while preserving the ten floor positions.
+        pet = next(p for p in pets if p["id"].endswith("-rabbit-14"))
+        original = page.evaluate("roomQA.positions()")
+        for retain in (True, False):
+            page.evaluate("window.previousRoomQA = roomQA.art()")
+            snapshot = page.request.post(url+"/api/page", data={"page":"rooms","args":{"species":"rabbit"}})
+            assert snapshot.ok
+            shop = snapshot.json()["shop"]
+            response = page.request.post(url+"/api/action", data={
+                "requestId":f"room-redraw-qa-{width}-{retain}", "profileId":shop["profileId"], "version":shop["version"],
+                "type":"care.retain", "args":{"id":pet["id"], "retained":retain}})
+            assert response.ok, response.text()
+            page.wait_for_function("""([id,retained])=>roomQA.visit()?.data?.rows?.some(r=>
+                r.animal?.id===id && r.animal.retained===retained) &&
+                roomQA.art()!==window.previousRoomQA""", arg=[pet["id"],retain])
+            check("rabbit","全部","全部")
+            assert page.evaluate("roomQA.positions()") == original, (width,"positions changed on poll")
+        # A height change exercises a second, layout-driven redraw of the same visit.
+        height = page.viewport_size["height"]
+        for new_height in (height+40, height):
+            page.evaluate("window.previousRoomQA = roomQA.art()")
+            page.set_viewport_size({"width":width, "height":new_height})
+            page.wait_for_function("()=>roomQA.art() && roomQA.art()!==window.previousRoomQA")
+            check("rabbit","全部","全部")
+            assert page.evaluate("roomQA.positions()") == original, (width,"positions changed on resize")
+
+    def check_movement(species, shown):
+        # Sample movement over actual rendered frames. Static animals must keep position, pose and orientation.
+        page.emulate_media(reduced_motion="no-preference")
+        motion=page.evaluate("""async es=>{
+          const q=roomQA, animals=q.residents(),start=performance.now(), moved=new Set();
+          const origin=animals.map(r=>[r.position.x,r.position.y]);
+          const ground=animals.map((r,i)=>q.rect(r,es[i])[3]), roomHeight=q.ui(q.art()).height;
+          let minGround=1,maxGround=0,maxWidth=0;
+          while(performance.now()-start<8500){
+            for(const [i,r] of animals.entries()){
+              const b=q.rect(r,es[i]),sp=r.getChildByName('Portrait');
+              // During a hop the sprite lifts, while its ground point continues on the floor.
+              const foot=ground[i]-(r.position.y-origin[i][1])/roomHeight;
+              minGround=Math.min(minGround,foot);maxGround=Math.max(maxGround,foot);maxWidth=Math.max(maxWidth,b[2]-b[0]);
+              if(b[0]<0||b[2]>1||b[1]<0||b[3]>1||foot<.52||foot>.98)
+                throw Error('Outside room floor '+JSON.stringify([es[i].id,b,foot]));
+              if(Math.hypot(r.position.x-origin[i][0],r.position.y-origin[i][1])>.1)moved.add(i);
+              if(!es[i].walker && (moved.has(i)||sp.angle!==0||sp.scale.x!==1||
+                sp.getComponent(cc.Sprite).spriteFrame._uuid!==es[i].uuid))throw Error('Static animal moved '+es[i].id);
+            }
+            await new Promise(requestAnimationFrame);
+          }
+          return {moving:[...moved].sort(),minGround,maxGround,maxWidth};
+        }""",shown)
+        assert motion["moving"] == [i for i,e in enumerate(shown) if e["walker"]], (species,width,motion)
+        assert motion["maxWidth"] < .185, (species,width,motion)
+        print(width,species,len(shown),"residents, floor and motions",motion,flush=True)
+        page.emulate_media(reduced_motion="reduce")
+
     screenshot = None
     for species_index, species in enumerate(BREEDS):
         if species_index:
             tap(page,"Tab"+str(species_index))
         shown = check(species,"全部","全部")
         assert len(shown) == 10
+        if species == "rabbit":
+            stable_during_refresh()
+            random_entries(species,"全部","全部",10)
         bounds = page.evaluate("es=>roomQA.residents().map((r,i)=>roomQA.rect(r,es[i]))",shown)
         sizes = page.evaluate("""()=>{const q=roomQA,w=q.ui(q.art()).width;
             return q.residents().map(n=>q.ui(n.getChildByName('Portrait')).width/w)}""")
@@ -213,35 +320,18 @@ def verify(browser, url, pets, width):
                 page.wait_for_function("id=>roomQA.visit()?.data?.presentation?.animal?.id===id",arg=e["id"])
                 tap(page,"Back")
                 check(species,"全部","全部")
-        # Sample movement over actual rendered frames. Static animals must keep position, pose and orientation.
-        page.emulate_media(reduced_motion="no-preference")
-        motion=page.evaluate("""async es=>{
-          const q=roomQA, animals=q.residents(),start=performance.now(), moved=new Set();
-          const origin=animals.map(r=>[r.position.x,r.position.y]);
-          let minTop=1,maxBottom=0,maxWidth=0;
-          while(performance.now()-start<8500){
-            for(const [i,r] of animals.entries()){
-              const b=q.rect(r,es[i]),sp=r.getChildByName('Portrait');
-              minTop=Math.min(minTop,b[1]);maxBottom=Math.max(maxBottom,b[3]);maxWidth=Math.max(maxWidth,b[2]-b[0]);
-              if(b[0]<0||b[2]>1||b[1]<.32||b[3]<.52||b[3]>.98)throw Error('Outside room floor '+JSON.stringify([es[i].id,b]));
-              if(Math.hypot(r.position.x-origin[i][0],r.position.y-origin[i][1])>.1)moved.add(i);
-              if(!es[i].walker && (moved.has(i)||sp.angle!==0||sp.scale.x!==1||
-                sp.getComponent(cc.Sprite).spriteFrame._uuid!==es[i].uuid))throw Error('Static animal moved '+es[i].id);
-            }
-            await new Promise(requestAnimationFrame);
-          }
-          return {moving:[...moved].sort(),minTop,maxBottom,maxWidth};
-        }""",shown)
-        assert motion["moving"] == [i for i,e in enumerate(shown) if e["walker"]], (species,width,motion)
-        assert motion["maxWidth"] < .185, (species,width,motion)
-        print(width,species,"ten residents, floor and motions",motion,flush=True)
-        page.emulate_media(reduced_motion="reduce")
+        check_movement(species, shown)
         if species=="rabbit":
             for status in STATUSES:
                 select(0,status)
                 for sex in SEXES:
                     select(1,sex)
                     check(species,status,sex)
+        elif species=="cat":
+            select(0,"种源")
+            select(1,"公")
+            random_entries(species,"种源","公",1)
+            check_movement(species,check(species,"种源","公"))
     assert not errors,errors
     page.close()
     return screenshot

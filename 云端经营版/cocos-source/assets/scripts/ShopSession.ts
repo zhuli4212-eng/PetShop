@@ -3,8 +3,9 @@ import { api, connectShop, requestId, ServerError, type Args, type Choice, type 
 import { drawLedger, confirmBox, ledgerModal } from './ShopEntranceView';
 import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
 import { accessFeature, featureFor, GameBrowserBack } from './ShopNavigation';
+import { RoomFloor } from './RoomFloor';
 
-interface Visit { key:string; args:Args; selected:Set<string>; offset:number; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; }
+interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
 interface ResponseReceipt { message:string; requestId:string; }
 interface Host {
@@ -115,6 +116,11 @@ export class ShopSession {
             const existing=this.feature;
             const same=existing&&existing.key===key&&JSON.stringify(existing.args)===JSON.stringify(args);
             this.feature=same?existing:visit;
+            if(key==='rooms' && !this.feature.roomFloor){
+                const species=args.species||'rabbit';
+                this.feature.roomFloor=existing?.key==='rooms' && (existing.args.species||'rabbit')===species
+                    ? existing.roomFloor : new RoomFloor(species==='rabbit');
+            }
             this.owner=dest;this.panel=undefined;this.editDraft=undefined;
         }else{
             if(!this.feature)throw new Error('请先进入相应的店铺功能。');
@@ -245,7 +251,7 @@ export class ShopSession {
             const scroll=drawLedger(this.host.layer,view.data,this.host.height(),this.host.wallet().coins,{
                 back:()=>this.back(),choose:a=>this.choose(a),openFilter:(fields,index)=>this.showFilter(fields,index),
                 bindBirthCountdown:(label,endsAt)=>this.bindBirthCountdown(view,label,endsAt),
-                selected:view.selected,offset:view.offset,
+                selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,
                 detailPage:view.detailPage||0,turnPage:index=>{
                     if(view!==this.current||this.confirm)return;
                     view.detailPage=index;this.render(false);

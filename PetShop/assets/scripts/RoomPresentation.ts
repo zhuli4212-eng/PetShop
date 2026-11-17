@@ -18,25 +18,6 @@ const ink='#493A27', green='#29483E', muted='#725C42';
 function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:number,h:number):Node {
     return picture(parent,'Portrait',a.art,x,y,w,h,a.stage);
 }
-function rosterSpot(width:number,height:number,count:number,index:number) {
-    const backCount=count>2?Math.floor(count/2):0;
-    const front=index>=backCount;
-    const columns=front?count-backCount:backCount;
-    const column=front?index-backCount:index;
-    const cellWidth=width*.90/columns;
-    const stagger=backCount ? (front ? .013 : -.013)*width : 0;
-    const x=(column+.5-columns/2)*cellWidth+stagger;
-    const rowDepth=(front ? .907 : .621)+(column%2 ? .006 : -.006);
-    const singleRowDepth=count===1 ? .78 : (column===0 ? .74 : .83);
-    const depth=backCount ? rowDepth : singleRowDepth;
-    const size=width*.128;
-    const hit=Math.max(size,Math.min(44,width*.14));
-    const feet=-hit/2+width*.006;
-    const y=(.5-depth)*height-feet;
-    // Neighbours keep separate touch areas even at the far ends of their patrols.
-    const patrol={x:Math.max(0,(cellWidth-hit)/2-width*.009),y:height*(backCount ? .009 : .035)};
-    return {x,y,size,hit,feet,patrol};
-}
 function floorArt(parent:Node,a:Animal,size:number,feet:number):Node {
     // All live canvases are 96×96; the resting canvases are 96×64.
     const centerToFeet=a.stage==='已故'?(58-32)/96:(90-48)/96;
@@ -103,8 +84,9 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
     }
     const inRoster=c.key==='rooms'||c.key==='roomRoster';
     const visible=animals.slice(0,inRoster?10:3);
+    const spots=inRoster ? c.ui.roomFloor!.positions(visible.map(a=>a.id),c.width,h) : [];
     visible.forEach((a,i)=>{
-        const spot=inRoster?rosterSpot(c.width,h,visible.length,i):undefined;
+        const spot=spots[i];
         const w=spot?.hit??c.width*.22,sh=spot?.hit??h*.36;
         const x=spot?.x??c.width*([.26,.67,.47][i]-.5);
         const y=spot?.y??h*(.5-[.79,.84,.94][i])+sh/2;

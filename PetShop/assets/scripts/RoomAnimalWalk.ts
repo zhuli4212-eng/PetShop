@@ -102,7 +102,8 @@ export class RoomAnimalWalk extends Component {
         const { x, y } = this.node.position;
         const dx = this.originX + this.mirrorRoute * xp / 100 * this.floorWidth - x;
         const dy = this.originY - yp / 100 * this.floorHeight - y;
-        const duration = Math.max(.8, Math.hypot(dx,dy) / (this.patrol.speed / 100 * this.floorWidth));
+        const speed = Math.max(1, this.patrol.speed / 100 * Math.max(this.floorWidth,this.floorHeight));
+        const duration = Math.max(.8, Math.hypot(dx,dy) / speed);
         this.sprite.node.setScale(dx > 0 ? -1 : 1, 1, 1);
         return { x, y, dx, dy, duration, cycles: Math.max(2, Math.round(duration * this.patrol.cyclesPerSecond)), elapsed: 0 };
     }

@@ -32,13 +32,16 @@ server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
 """
 
 OBSERVE = """async expected=>{
- const walkers=window.shop.session.host.layer.getComponentsInChildren(cc.Component)
+ const currentWalkers=()=>window.shop.session.host.layer.getComponentsInChildren(cc.Component)
    .filter(c=>c.sprite && c.patrol && Array.isArray(c.frames) && typeof c.path==='string');
- if(walkers.length!==expected.length) throw Error('Unexpected room size '+walkers.length);
- const seen=walkers.map(()=>new Set()), moved=walkers.map(()=>false), stopped=walkers.map(()=>false);
- const extraLift=walkers.map(()=>false);
+ const seen=expected.map(()=>new Set()), moved=expected.map(()=>false), stopped=expected.map(()=>false);
+ const extraLift=expected.map(()=>false);
  const start=performance.now();
- while(performance.now()-start<20000){
+ let walkers=currentWalkers();
+ while(performance.now()-start<30000){
+  // Polling or viewport changes may replace the scene nodes while the observation is running.
+  if(walkers.length!==expected.length || walkers.some(w=>!cc.isValid(w,true))) walkers=currentWalkers();
+  if(walkers.length!==expected.length) {await new Promise(requestAnimationFrame);continue;}
   for(const [i,w] of walkers.entries()){
    const e=expected[i], frame=w.sprite.spriteFrame;
    if(w.path!==e.key+'/texture') throw Error('Unexpected texture slot '+w.path+' for '+e.key);
@@ -54,7 +57,9 @@ OBSERVE = """async expected=>{
   }
   await new Promise(requestAnimationFrame);
  }
- throw Error(JSON.stringify({slots:expected.map(e=>e.key),frames:seen.map(s=>[...s]),moved,stopped}));
+ throw Error(JSON.stringify({slots:expected.map(e=>e.key),frames:seen.map(s=>[...s]),moved,stopped,
+   state:walkers.map(w=>({valid:cc.isValid(w,true),frames:w.frames.length,hidden:w.hidden,rest:w.rest,
+                          duration:w.leg?.duration,elapsed:w.leg?.elapsed}))}));
 }"""
 
 
