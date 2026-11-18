@@ -7,7 +7,7 @@ import { guideDialog, guideEntrance, guideFocus, guideNote, guideTarget } from '
 
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean =>
-    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','onboarding'].includes(key);
+    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','onboarding','audioSettings'].includes(key);
 
 function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toTasks=false, fixed=false): void {
     const h = modal ? 54 : 64;
@@ -128,6 +128,10 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
 
 function account(ctx: PageCanvas): boolean {
     const {key,p,body,inner,slot,ui}=ctx;
+    if(key==='audioSettings'){
+        ctx.actions(p.actions||[],1);
+        return true;
+    }
     if(key==='login') {
         const bannerHeight=Math.round(inner*.76);
         const banner=box(body,'Shopfront',0,slot(bannerHeight),inner,bannerHeight);
@@ -140,6 +144,7 @@ function account(ctx: PageCanvas): boolean {
         caption(card,'Title',p.subtitle||'本机经营档',0,34,inner-22,25,15,paper.ink).isBold=true;
         caption(card,'Balance',assets?.text||'',0,7,inner-22,25,14,paper.ink);
         caption(card,'Identity','店主编号 '+(id?.text||''),0,-26,inner-22,40,12,paper.muted);
+        ctx.row({title:'声音设置',text:'背景音乐与游戏音效',link:{page:'audioSettings'}},-2);
         rows.filter(r=>r!==id&&r!==assets).forEach(ctx.row);
         ctx.startFooter();ctx.actions(p.actions||[]);
         return true;

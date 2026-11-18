@@ -87,20 +87,21 @@ export function onboardingPage(s,key,args,now) {
     return {title:'交接信',art:'onboarding/handover-envelope',visual:{guideDialog:1},
       actions:[{label:'返回',type:'ui.back'}]};
   }
-  if(!g)return;
-  if(key==='onboarding'){
-    if(g.step===0)return {title:'欢迎来到你的小店',visual:{guideDialog:0},
+  if(key==='onboarding'&&s.onboarding){
+    if(g?.step===0)return {title:'欢迎来到你的小店',visual:{guideDialog:0},
       actions:[action('进入店铺','onboarding.enter',{},'onboarding')]};
-    if(g.step===1)return {title:'交接信',art:'onboarding/handover-envelope',visual:{guideDialog:1},
+    if(g?.step===1)return {title:'交接信',art:'onboarding/handover-envelope',visual:{guideDialog:1},
       actions:[action('跳过','onboarding.proceed',{},'home'),action('继续','onboarding.proceed',{},'home')]};
-    if(g.step===17){
+    if(g?.step===17){
       const room=s.rooms.rabbit;
       return {title:'引导完成',subtitle:'小店交给你了，接下来由你决定留种、出售和培育方向。',
         rows:room.job?[{title:'正在培育',text:room.job.mother.name+' × '+room.job.father.name}]:
           room.lastLitter?[{title:'最近出生的一窝',text:room.lastLitter.ids.length+' 只'}]:[],
         visual:{guideDialog:17},actions:[action('继续经营','onboarding.finish',{},'home')]};
     }
+    return {title:'店铺',visual:{returnHome:true},actions:[{label:'返回店铺',type:'ui.back'}]};
   }
+  if(!g)return;
   if(g.step===3&&key==='roomNutrition'&&(args.species??'rabbit')==='rabbit'){
     return {title:'选择兔兔营养餐',art:mealArt,visual:{tutorialMeal:true},
       subtitle:'本次免费，仅限这一次。日常营养餐按档位加速整间兔房的未成年动物成长。',

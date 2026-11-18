@@ -6,6 +6,7 @@ import { ShopHomeFeatures } from './ShopHomeFeatures';
 import { ShopSession } from './ShopSession';
 import { ShopkeeperWalk } from './ShopkeeperWalk';
 import { frame, rect, tap } from './LedgerCanvas';
+import { ShopAudio } from './ShopAudio';
 
 const { ccclass, property } = _decorator;
 const ROOM_WIDTH = 390;
@@ -33,6 +34,7 @@ export class ShopMain extends Component {
     private layer!: Node;
     private state: 'connecting' | 'offline' | 'open' = 'connecting';
     private session!:ShopSession;
+    private audio!:ShopAudio;
     private shop!:ShopSnapshot;
     private clientId=requestId();
     private foreground=true;
@@ -57,7 +59,8 @@ export class ShopMain extends Component {
         this.header = this.home.getChildByName('Header')!;
         this.footer = this.home.getChildByName('Footer')!;
         this.layer = this.node.getChildByName('ModuleLayer')!;
-        this.session=new ShopSession({layer:this.layer,origin:this.serverOrigin,height:()=>this.pageHeight,
+        this.audio=new ShopAudio(this.node);
+        this.session=new ShopSession({layer:this.layer,audio:this.audio,origin:this.serverOrigin,height:()=>this.pageHeight,
             wallet:()=>this.shop,update:shop=>this.applyShop(shop),activate:(open,keepHome)=>{
                 this.home.active=!open||!!keepHome;this.layer.active=open;
                 if(open){this.closeGuestPopup();this.closeKeeperNote();}
@@ -68,7 +71,7 @@ export class ShopMain extends Component {
         this.features=new ShopHomeFeatures(this.room,(key,args)=>{
             if(this.state!=='open'||this.session.active)return;
             const guide=this.shop.onboarding;
-            if(guide){
+            if(guide&&key!=='login'){
                 if(key===guide.entrance&&guide.choice.page)void this.session.open(guide.choice.page,guide.choice.args);
                 return;
             }
@@ -131,7 +134,7 @@ export class ShopMain extends Component {
         void this.pulse();
     }
 
-    onDestroy():void {this.session?.dispose();}
+    onDestroy():void {this.session?.dispose();this.audio?.dispose();}
     private notify(message:string):void {
         if(!message||!this.node.isValid)return;
         if(this.toast){this.toast.removeFromParent();this.toast.destroy();}
@@ -293,6 +296,7 @@ export class ShopMain extends Component {
         this.showHomeNotes();
     }
     private hideGame():void {
+        this.audio?.setForeground(false);
         this.foreground=false;if(this.state==='open')void this.readerHeartbeat(false).catch(()=>{});
     }
     private pageExit=():void=>{
@@ -303,6 +307,7 @@ export class ShopMain extends Component {
             reader:{profileId,seq:++this.readerSeq,read:this.readIds(profileId)}});
     };
     private showGame():void {
+        this.audio?.setForeground(true);
         this.foreground=true;void this.pulse();
         if(this.session?.active&&this.state==='open')void this.session.refresh(true);
         else void this.poll();

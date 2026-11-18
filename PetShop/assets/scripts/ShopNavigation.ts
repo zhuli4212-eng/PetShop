@@ -21,7 +21,7 @@ export function accessFeature(key:string,args:Args):string {
     if(['litter','litterKeep','litterSale'].includes(key))return 'breed';
     if(['offer','review','researchNode','researchTable','nutritionShop'].includes(key))return 'lab';
     if(['orderDesk','credits'].includes(key))return 'orders';
-    if(key==='lastVisit'||key==='openingGuide')return 'login';
+    if(key==='lastVisit'||key==='openingGuide'||key==='audioSettings')return 'login';
     if(key.startsWith('show.'))return 'show';
     return sections[key]||key;
 }

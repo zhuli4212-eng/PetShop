@@ -46,6 +46,15 @@ def verify(browser, url, proc, width, output):
         page.reload() if reload else page.goto(url)
         page.wait_for_function("()=>!!" + MAIN + "?.shop?.profileId", timeout=90000)
         page.evaluate(QA.LOCATORS)
+        main("""
+            const source=m.audio.effects;
+            const play=source.playOneShot;
+            window.guideSounds=[];
+            source.playOneShot=function(clip,volume){
+                guideSounds.push(clip.name);
+                play.call(this,clip,volume);
+            };
+        """)
 
     def ready(key):
         touch.wait("key=>pairQA.ready()&&pairQA.visit()?.key===key", key)
@@ -72,6 +81,18 @@ def verify(browser, url, proc, width, output):
 
     def back():
         tap("Back")
+
+    def sound(name):
+        touch.wait("name=>window.guideSounds.includes(name)", name)
+
+    def audio_settings():
+        tap("Sign", scope="Hotspot_login")
+        ready("login")
+        tap(text="声音设置")
+        ready("audioSettings")
+
+    def music_playing(playing=True):
+        touch.wait("playing=>"+MAIN+".audio.music.playing===playing", playing)
 
     def pairing(first):
         touch.kind("pair")
@@ -102,13 +123,63 @@ def verify(browser, url, proc, width, output):
     open_page()
     ready("onboarding")
     step(0)
+    touch.wait("()=>!!"+MAIN+".audio.music.clip")
+    assert not main("return m.audio.music.playing")
     action("onboarding.enter", "Action0")
     step(1)
+    music_playing()
     touch.wait("()=>!!pairQA.find('HandoverEnvelope')?.getComponent(cc.Sprite)?.spriteFrame")
     focus("Action1")
     snap("01-交接信")
-    action("onboarding.proceed", "Action0")
+    page.evaluate(r"""() => {
+        const open=XMLHttpRequest.prototype.open,send=XMLHttpRequest.prototype.send;
+        window.staleGuideRequests=0;
+        XMLHttpRequest.prototype.open=function(method,url,...rest){
+            this.delayGuide=/\/api\/(shop|heartbeat)$/.test(url);
+            this.guidePage=/\/api\/page$/.test(url);
+            open.call(this,method,url,...rest);
+        };
+        XMLHttpRequest.prototype.send=function(...args){
+            if(this.guidePage&&JSON.parse(args[0]).page==='onboarding')staleGuideRequests++;
+            if(this.delayGuide)setTimeout(()=>send.apply(this,args),900);
+            else send.apply(this,args);
+        };
+        window.restoreGuideRequests=()=>{
+            XMLHttpRequest.prototype.open=open;
+            XMLHttpRequest.prototype.send=send;
+        };
+    }""")
+    action("onboarding.proceed", "Action1" if width == 390 else "Action0")
     step(2)
+    touch.wait("()=>!pairQA.visit()")
+    assert page.evaluate("staleGuideRequests") == 0
+    page.evaluate("restoreGuideRequests()")
+    main("return m.session.open('onboarding')")
+    assert page.evaluate("!pairQA.visit()")
+    if width == 390:
+        audio_settings()
+        tap("Action0")
+        music_playing(False)
+        tap("Action1")
+        assert page.evaluate("""() => ['music','effects'].every(
+          key=>localStorage.getItem('petshop.audio.'+key)==='off')""")
+        count = page.evaluate("guideSounds.length")
+        back()
+        ready("login")
+        assert page.evaluate("guideSounds.length") == count
+        open_page(reload=True)
+        audio_settings()
+        assert main("return m.session.current.data.actions.every(a=>a.label.includes('已关闭'))")
+        tap("Action0")
+        tap("Action1")
+        music_playing()
+        main("m.hideGame()")
+        music_playing(False)
+        main("m.showGame()")
+        music_playing()
+        back()
+        ready("login")
+        back()
     tap("Sign", scope="Hotspot_rooms")
     ready("rooms")
     focus("Action0")
@@ -127,6 +198,7 @@ def verify(browser, url, proc, width, output):
     action("onboarding.feed", "Action1")
     step(4)
     ready("rooms")
+    sound("growth")
     touch.wait("()=>!!pairQA.find('GrowthSpark')?.getComponent(cc.Sprite)?.spriteFrame")
     assert main("return m.session.current.data.presentation.nutrition??null") is None
     snap("03-首对成年")
@@ -135,6 +207,7 @@ def verify(browser, url, proc, width, output):
     pairing(True)
     step(5)
     step(6)
+    sound("hatch")
     tap("GuideNext")
     ready("litter")
     step(7)
@@ -155,6 +228,7 @@ def verify(browser, url, proc, width, output):
     sale("market")
     ready("pet")
     step(10)
+    sound("coins")
     assert main("return m.session.current.data.presentation.animal.stage") == "成年"
 
     proc.stdin.write("expired-fixture\n")
@@ -200,6 +274,7 @@ def verify(browser, url, proc, width, output):
     snap("15-奖励领取")
     action("onboarding.claim", "ClaimTasks")
     step(16)
+    sound("reward")
     tap("Sign", scope="Hotspot_orders")
     ready("orders")
     assert main("return m.session.current.data.rows.length") == 3

@@ -30,6 +30,7 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   act('onboarding.enter');reopen();
   assert.equal(page('onboarding').art,'onboarding/handover-envelope');
   act('onboarding.proceed');
+  assert.equal(page('onboarding').visual.returnHome,true);
   const open=command('onboarding.openRoom');
   const receipt=store.act(open);
   reopen();
@@ -135,6 +136,7 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.equal(page('onboarding').rows[0].title,'正在培育');
   act('onboarding.finish');reopen();
   assert.equal(step(),undefined);
+  assert.equal(page('onboarding').visual.returnHome,true);
   assert.equal(page('tasks').actions[0].label,'已领取');
   assert.throws(()=>act('onboarding.claim'),/未识别/);
   assert.equal(store.state.rooms.rabbit.nutritionStock.premium,2);

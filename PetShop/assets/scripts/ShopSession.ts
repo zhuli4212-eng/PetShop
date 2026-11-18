@@ -5,6 +5,7 @@ import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanva
 import { accessFeature, featureFor, GameBrowserBack } from './ShopNavigation';
 import { RoomFloor } from './RoomFloor';
 import { drawBreedingBonus } from './RoomPresentation';
+import type { AudioSetting, ShopAudio } from './ShopAudio';
 
 interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
@@ -12,6 +13,7 @@ interface ResponseReceipt { message:string; requestId:string; }
 interface StageClock {label:Label;endsAt:number;shown:number;progress?:(seconds:number)=>void;}
 interface Host {
     layer:Node; origin:string; height:()=>number; wallet:()=>ShopSnapshot;
+    audio:ShopAudio;
     update:(shop:ShopSnapshot)=>void; activate:(open:boolean,keepHome?:boolean)=>void; notice:(message:string)=>void;
     readNotes:(profile:string,ids:string[])=>void;
 }
@@ -72,7 +74,7 @@ export class ShopSession {
     private dropdown:Node|null=null;
     private serial=0;
     private busy=false;
-    private receiptRoute?:{id:string;apply:()=>void};
+    private receiptRoute?:{id:string;apply:()=>void|Promise<void>};
     private reading=false;
     private online=true;
     private paymentStage='start';
@@ -227,7 +229,7 @@ export class ShopSession {
         void this.read();
     }
     async refresh(force=false):Promise<void>{
-        if(this.current&&this.current.key!=='visitBook'&&!this.busy&&!this.reading&&!this.confirm&&!this.dropdown&&(force||Date.now()-this.lastRead>=4500))await this.read(true);
+        if(this.current&&!['visitBook','audioSettings'].includes(this.current.key)&&!this.busy&&!this.reading&&!this.confirm&&!this.dropdown&&(force||Date.now()-this.lastRead>=4500))await this.read(true);
     }
     private canRefreshDeadline(visit:Visit):boolean {
         return this.current===visit&&this.online&&!this.closed&&!this.reading&&!this.busy&&!this.confirm&&!this.dropdown;
@@ -279,8 +281,14 @@ export class ShopSession {
         if(!quiet) {if(!visit.data)visit.data={title:'店铺',rows:[{title:'正在翻开账簿…'}]};this.render();}
         try {
             if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
+            if(visit.key==='audioSettings'){this.showAudioSettings(visit);return;}
             const result=await api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
             if(this.closed||serial!==this.serial)return;
+            if(visit.key==='onboarding'&&result.page.visual?.returnHome){
+                this.host.update(result.shop);
+                this.toHome();
+                return;
+            }
             // The server holds only the latest litter. A dossier opened from an older
             // one returns to that litter's cached birth record until the player leaves.
             if(visit.litterBirth!==undefined&&visit.data?.presentation?.bornAt===visit.litterBirth
@@ -297,6 +305,11 @@ export class ShopSession {
             updateSaleNotice(visit,result.page);
             const redraw=!quiet||!this.online||JSON.stringify(renderState(visit.data))!==JSON.stringify(renderState(result.page))||result.shop.coins!==this.host.wallet().coins;
             this.online=true;this.host.update(result.shop);
+            const previous=visit.data?.presentation;
+            if(visit.key==='breed'&&previous?.kind==='breeding'&&previous.endsAt!==undefined&&
+                result.page.presentation?.kind!=='breeding'&&result.shop.now>=previous.endsAt){
+                this.host.audio.play('hatch');
+            }
             const ids=new Set((result.page.rows||[]).map(r=>r.select).filter(Boolean));
             if(visit.version===undefined)for(const id of result.page.initialSelection||[]){if(ids.has(id))visit.selected.add(id);}
             visit.selected.forEach(id=>{if(!ids.has(id))visit.selected.delete(id);});
@@ -417,6 +430,17 @@ export class ShopSession {
             },()=>this.back());
         }
     }
+    private showAudioSettings(visit:Visit):void{
+        visit.version=this.host.wallet().version;
+        const settings:{name:string;key:AudioSetting}[]=[
+            {name:'背景音乐',key:'music'},{name:'游戏音效',key:'effects'},
+        ];
+        visit.data={title:'声音设置',actions:settings.map(({name,key})=>({
+            label:name+' · '+(this.host.audio.enabled(key)?'已开启':'已关闭'),
+            type:'ui.audio',args:{key},
+        }))};
+        this.render(false);
+    }
     private choose(a:Choice):void {
         const v=this.current;if(!v||this.confirm)return;
         if(a.type==='ui.retry'){void this.read();return;}
@@ -426,6 +450,14 @@ export class ShopSession {
         const args={...(a.args||{})};if(a.useSelection)args.ids=Array.from(v.selected);
         if(a.page){void this.open(a.page,args);return;}
         if(this.busy)return;
+        if(a.type==='ui.audio'&&v.key==='audioSettings'){
+            const key=a.args?.key;
+            if(key==='music'||key==='effects'){
+                this.host.audio.toggle(key);
+                this.showAudioSettings(v);
+            }
+            return;
+        }
         if(a.type==='ui.receipt'){void this.checkReceipt();return;}
         if(a.type==='ui.payment'){this.paymentStage=a.args!.stage;v.data=payment(this.paymentStage);this.render();return;}
         if(a.type==='ui.selectAll'){
@@ -468,24 +500,24 @@ export class ShopSession {
             const raw=storage.getItem(k);if(!raw)continue;
             let cmd:Command;try{cmd=JSON.parse(raw);}catch{continue;}
             if(cmd.profileId!==this.host.wallet().profileId)continue;
-            try {
-                const receipt=await api<ResponseReceipt>(this.host.origin,'receipts/'+encodeURIComponent(cmd.requestId));
-                message=receipt.message;storage.removeItem(k);this.finishReceipt(cmd.requestId,true);
-            }
+            let receipt:ResponseReceipt;
+            try {receipt=await api<ResponseReceipt>(this.host.origin,'receipts/'+encodeURIComponent(cmd.requestId));}
             catch(err){if(!(err instanceof ServerError)||err.status!==404)throw err;
-                try{message=(await this.send(cmd)).message;this.finishReceipt(cmd.requestId,true);}
+                try{receipt=await this.send(cmd);}
                 catch(replay){
                     if(!(replay instanceof ServerError)||replay.status===0||replay.status>=500)throw replay;
-                    message=replay.message;this.finishReceipt(cmd.requestId,false);
+                    message=replay.message;await this.finishReceipt(cmd.requestId,false);
+                    continue;
                 }
             }
+            message=receipt.message;storage.removeItem(k);await this.finishReceipt(cmd.requestId,true);
         }
         return message;
     }
-    private finishReceipt(id:string,success:boolean):void {
+    private async finishReceipt(id:string,success:boolean):Promise<void> {
         const route=this.receiptRoute;if(route?.id!==id)return;
         this.receiptRoute=undefined;
-        if(success&&!this.closed)route.apply();
+        if(success&&!this.closed)await route.apply();
     }
     private async commit(a:Choice,args:Args,version:number):Promise<void>{
         if(this.busy)return;
@@ -499,8 +531,16 @@ export class ShopSession {
             else {
                 // The same landing applies to an immediate response and a receipt
                 // recovered after a timeout, provided the player is still here.
-                this.receiptRoute={id:command.requestId,apply:()=>{
+                this.receiptRoute={id:command.requestId,apply:async()=>{
                     if(origin!==this.navigation)return;
+                    this.host.audio.transaction(command.type);
+                    if(a.go==='home'){
+                        const shop=await connectShop(this.host.origin);
+                        if(this.closed||origin!==this.navigation)return;
+                        this.host.update(shop);
+                        this.toHome();
+                        return;
+                    }
                     if(a.type==='sale.commit'||a.type==='care.keepLitter'){
                         const parent=this.panel?.returnPanel;
                         const recycle=parent?.key==='recycle'?parent:undefined;
@@ -519,12 +559,12 @@ export class ShopSession {
                 }};
                 feedback=(await this.send(command)).message;
                 if(['onboarding.enter','onboarding.proceed','onboarding.feed'].includes(command.type))feedback='';
-                this.finishReceipt(command.requestId,true);
+                await this.finishReceipt(command.requestId,true);
             }
         } catch(e){
             feedback=(e as Error).message;
             if(e instanceof ServerError&&e.status>0&&e.status<500){
-                this.finishReceipt(command.requestId,false);
+                await this.finishReceipt(command.requestId,false);
                 if(a.type==='sale.commit'&&origin===this.navigation&&this.current)this.current.quoteNotice=feedback;
             }
         }

@@ -1,6 +1,7 @@
 import { BlockInputEvents, Color, EventTouch, Graphics, isValid, Label, Node, resources, Sprite, SpriteFrame, UITransform, Vec3 } from 'cc';
 import type { Animal, Args, Choice, LedgerPage, LedgerRow } from './ShopConnection';
 import type { RoomFloor } from './RoomFloor';
+import { playTap } from './ShopAudio';
 
 export const paper = {
     ink: '#443A29', muted: '#6C5E46', page: '#F6E9CB', card: '#FFF1D2',
@@ -116,6 +117,7 @@ export function tap(n: Node, fn: () => void): void {
         const a = e.getUIStartLocation(), b = e.getUILocation();
         if (Math.hypot(a.x-b.x, a.y-b.y) > 14) return;
         e.propagationStopped = true;
+        playTap();
         fn();
     });
 }
