@@ -28,6 +28,8 @@ export function occupiedPetNames(s, excludedOffers = []) {
     for (const p of room.shelf?.offers ?? []) {
       if (p && !excludedOffers.includes(p)) used.add(p.name);
     }
+    const reserved=room.reservedSeed?.offer;
+    if(reserved&&!excludedOffers.includes(reserved))used.add(reserved.name);
     for (const p of room.job?.offspring ?? []) used.add(p.name);
   }
   return used;

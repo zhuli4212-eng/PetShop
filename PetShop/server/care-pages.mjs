@@ -1,6 +1,6 @@
 import {
   SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
-  lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview, specimen,
+  lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview, specimen, nextCheckinBreed,
 } from './care.mjs';
 import { rabbitWaitingForOpening } from './onboarding.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
@@ -28,11 +28,12 @@ function closedRoom(s,species,page,now) {
       actions:page==='rooms'?[act('免费开放兔房','onboarding.openRoom',{},undefined,'rooms',{species})]:
         [go('查看兔房','rooms',{species})]};
   }
-  const c=SPECIES[species],cost=purchasePrice(s,c.roomCost),breed=BREEDS[c.breeds[0]].name;
-  const estimate=beijingTime(lifeDates({species,bornAt:now}).adultAt).slice(0,16);
+  const c=SPECIES[species],cost=purchasePrice(s,c.roomCost), firstBreed=BREEDS[c.breeds[0]];
+  const {name:breed,maturityMinutes:maturity}=firstBreed;
+  const estimate=beijingTime(now+maturity*60_000).slice(0,16);
   const balance=s.coins-cost;
   return {title:c.name+'房 · 待开放',art:'rooms/unfinished-room',subtitle:'新房套餐',
-    presentation:{kind:'locked',species:c.name,youngArt:'pets/'+c.breeds[0]+'-coat01_female',maturity:c.young+c.growth,estimate,breed,price:cost,coins:s.coins},
+    presentation:{kind:'locked',species:c.name,youngArt:'pets/'+c.breeds[0]+'-coat01_female',maturity,estimate,breed,price:cost,coins:s.coins},
     rows:[{title:breed+'幼体一对',text:'公母各一只，六维 B，入住房间后开始成长。'},
       {title:'房间及两只种源',text:'基准 '+c.roomCost+' 金币 · 实付 '+cost+' 金币 · 余额 '+s.coins}],
     tabs:options(s,page,species),actions:page==='rooms'
@@ -82,10 +83,12 @@ function roster(s,a,now) {
 }
 function checkin(s,now) {
   const signed=s.care.signedDay===dayAt(now);
-  const rows=[{title:'今日后备种源',text:'原色幼兔一公一母，栗野花色，六维均为 B。每天北京时间零点更新。'}];
+  const breedKey=signed?s.care.claimAnimals?.[0]?.breedKey??'domestic':nextCheckinBreed(s);
+  const {name:breed,coats,maturityMinutes:maturity}=BREEDS[breedKey];
+  const rows=[{title:'今日后备种源',text:breed+'幼体一公一母，'+coats[0]+'花色，六维均为 B。每天北京时间零点更新。'}];
   if(signed) rows.push(...s.pets.filter(p=>s.care.claimIds.includes(p.id)).map(p=>petRow(s,p,now)));
   return {title:'每日签到',art:'shop-modules/checkin',subtitle:signed?'今日已领取':'今日可领取',rows,
-    presentation:{kind:'checkin',date:dayAt(now),signed},
+    presentation:{kind:'checkin',date:dayAt(now),signed,breed,youngArt:'pets/'+breedKey+'-coat01_female',maturity},
     actions:[...(signed?[]:[act('领养两只幼兔','care.checkin',{},undefined,'profile')]),go('查看兔房名册','rooms',{species:'rabbit'})]};
 }
 function checkinReceipt(s) {
@@ -282,7 +285,7 @@ function labCatalog(s,args,now) {
   const page={title:'培育中心',art:'shop-modules/lab'};
   if(args.tab==='nutrition') {
     const menus=species.map(key=>nutritionPage(s,'nutritionShop',key,undefined,now).rows);
-    return {...page,subtitle:'本地测试价',rows:[0,1,2].flatMap(i=>menus.map(rows=>rows[i]))};
+    return {...page,subtitle:'营养餐',rows:[0,1,2].flatMap(i=>menus.map(rows=>rows[i]))};
   }
   if(args.tab==='services') {
     const menus=species.map(key=>services(s,{species:key},now));
@@ -295,7 +298,8 @@ function labCatalog(s,args,now) {
   }
   const stock=species.map(key=>({key,offers:s.rooms[key].shelf.offers}));
   return {...page,subtitle:'每 30 分钟换批',empty:'本批种源已售完，请等下一批上架。',
-    rows:[0,1].flatMap(i=>stock.flatMap(({key,offers})=>offers[i]?[shelfRow(s,offers[i],key,now)]:[]))};
+    rows:[0,1].flatMap(i=>stock.flatMap(({key,offers})=>offers[i]?[shelfRow(s,offers[i],key,now)]:[])),
+    actions:species.some(key=>key!=='rabbit')?[go('定向种源预约','seedReservation'),go('品种培育课题','breedingCourses')]:[]};
 }
 function offerPage(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],p=room?.shelf.offers.find(x=>x?.id===a.id);

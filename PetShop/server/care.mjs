@@ -20,9 +20,16 @@ const catalog = {
   shiba:['柴犬','赤色 黑褐 奶油白 赤胡麻 黑胡麻 白底赤斑'], corgi:['柯基犬','黄白 赤白 貂色 黑头三色 虎斑白 蓝陨石'],
   poodle:['贵宾犬','黑色 白色 杏色 巧克力 银灰 黑白花'], dachshund:['腊肠犬','赤棕 黑褐 巧克力褐 银灰陨石 虎斑 红白花'],
 };
+// Default minutes from birth to adulthood for newly created animals.
+const breedMaturity = {
+  domestic:5, lop:15, angora:30, lionhead:45,
+  british:90, american:105, persian:120, maine:150,
+  shiba:240, corgi:300, poodle:360, dachshund:480,
+};
 for (const [species, config] of Object.entries(SPECIES)) {
   config.breeds.forEach((key,index) => {
-    BREEDS[key] = { species, name:catalog[key][0], coats:catalog[key][1].split(' '), tier:index+1 };
+    BREEDS[key] = { species, name:catalog[key][0], coats:catalog[key][1].split(' '), tier:index+1,
+      maturityMinutes:breedMaturity[key] };
   });
 }
 export const TRAITS = [
@@ -38,6 +45,9 @@ export { GRADES };
 const rarities = ['普通','少见','稀有'];
 const coatWeights = [25,25,18,14,10,8];
 const dayAt = t => new Date(t+8*60*MINUTE).toISOString().slice(0,10);
+const checkinBreeds=['angora','domestic','lop','lionhead'];
+const checkinCount=s=>s.care.checkinCount??Number(s.care.signedDay!=null);
+export const nextCheckinBreed=s=>checkinBreeds[checkinCount(s)%checkinBreeds.length];
 const itemName = { review:'特征复评单', guide:'选育指导单' };
 const sample = (list,rnd=Math.random) => list[Math.floor(rnd()*list.length)];
 function weighted(weights,rnd=Math.random) {
@@ -65,7 +75,10 @@ function roomOf(s, species) {
 export const stageNames = ['幼年','成长','成年','老年','已故'];
 export function lifeDates(p) {
   const cfg=SPECIES[p.species];
-  const naturalGrowth=p.bornAt+cfg.young*MINUTE, naturalAdult=naturalGrowth+cfg.growth*MINUTE;
+  const speciesMaturity=cfg.young+cfg.growth;
+  const maturity=p.breedGrowth===true?BREEDS[p.breedKey]?.maturityMinutes??speciesMaturity:speciesMaturity;
+  const naturalGrowth=p.bornAt+Math.round(maturity*cfg.young/speciesMaturity)*MINUTE;
+  const naturalAdult=p.bornAt+maturity*MINUTE;
   const oldAt=naturalAdult+cfg.adult*DAY;
   const deathAt=p.tutorialDeathAt??(p.tutorialLifeGuard?Infinity:oldAt+cfg.old*DAY);
   return {growthAt:p.maturation?.growthAt??naturalGrowth,adultAt:p.maturation?.adultAt??naturalAdult,
@@ -131,7 +144,7 @@ function fixedTraits(first='温顺') {
 export function makePet(usedNames,species,breedKey,sex,now,source,data={}) {
   const name=takePetName(usedNames,Math.random(),data.name);
   return {id:randomUUID(),species,breedKey,sex,bornAt:now,source,coatIndex:1,mixed:false,
-    bred:false,traits:fixedTraits(),honor:0,reviews:0,motherId:null,fatherId:null,...data,name};
+    breedGrowth:true,bred:false,traits:fixedTraits(),honor:0,reviews:0,motherId:null,fatherId:null,...data,name};
 }
 function newRoom(now) {
   return { openedAt:now,job:null,lastLitter:null,shelf:null,items:{review:0,guide:0},mutationEnabled:true };
@@ -139,10 +152,10 @@ function newRoom(now) {
 function rolledTrait(i,rarity,grade,rnd) {
   return {type:fields[i],label:sample(TRAITS[i][rarity],rnd),rarity:rarities[rarity],grade};
 }
-function shelfBatch(s,species,number,usedNames) {
+function shelfBatch(s,species,number,usedNames,reservation) {
   const seed=s.care.seed+':stock-v1:'+species+':'+number;
-  const breedKey=SPECIES[species].breeds[weighted([40,30,20,10],deterministic(seed+':breed'))];
-  const offers=['公','母'].map((sex,slot)=>{
+  const breedKey=reservation?.breedKey??SPECIES[species].breeds[weighted([40,30,20,10],deterministic(seed+':breed'))];
+  const offers=(reservation?[reservation.sex]:['公','母']).map((sex,slot)=>{
     const rnd=field=>deterministic(seed+':'+slot+':'+field);
     const rare=rnd('rare')()<0.10?Math.floor(rnd('rare-slot')()*5):-1;
     const traits=breedingFields.map((_,i)=>{
@@ -153,6 +166,17 @@ function shelfBatch(s,species,number,usedNames) {
     return { id,name:takePetName(usedNames,rnd('name')()),species,sex,breedKey,mixed:false,coatIndex:1+weighted(coatWeights,rnd('coat')),traits };
   });
   return {number,offers};
+}
+
+export function makeReservationOffer(s,species,day,breedKey,sex) {
+  return shelfBatch(s,species,'reservation-'+day,occupiedPetNames(s),{breedKey,sex}).offers[0];
+}
+
+export function admitPurchasedPet(s,room,offer,now) {
+  const pet=makePet(occupiedPetNames(s,[offer]),offer.species,offer.breedKey,offer.sex,now,'研究所采购',offer);
+  accelerateMaturation(pet,activeNutrition(room,now),now);
+  s.pets.push(pet);
+  return pet;
 }
 export function initCare(s,now,{onboarding=false}={}) {
   if (s.care) return;
@@ -241,6 +265,7 @@ export function tickCare(s,now) {
   }
   const refreshes=[];
   for (const [species,room] of Object.entries(s.rooms)) {
+    if(room.reservedSeed&&now>=room.reservedSeed.expiresAt){delete room.reservedSeed;changed=true;}
     const number=Math.max(0,Math.floor((now-room.openedAt)/BATCH));
     if (!room.shelf || number>room.shelf.number) refreshes.push({species,room,number});
     const job=room.job;
@@ -254,7 +279,8 @@ export function tickCare(s,now) {
       for(const p of job.offspring)accelerateMaturation(p,effect,job.endsAt);
       s.pets.push(...job.offspring);
       room.lastLitter={ids:job.offspring.map(p=>p.id),children:job.offspring.map(birthIdentity),bornAt:job.endsAt,mother:job.mother.name,father:job.father.name,
-        parents:[job.mother,job.father].map(({id,name,sex,bornAt,maturation})=>({id,name,sex,bornAt,species,...(maturation&&{maturation})}))};
+        parents:[job.mother,job.father].map(({id,name,sex,bornAt,breedKey,breedGrowth,maturation})=>
+          ({id,name,sex,bornAt,species,breedKey,...(breedGrowth&&{breedGrowth}),...(maturation&&{maturation})}))};
       room.job=null;changed=true;
     } else if(room.lastLitter && !room.lastLitter.children) {
       // Preserve the identities still available when opening an older save, before another sale.
@@ -340,7 +366,7 @@ export function startLitter(s,args,now,{waitMs,plannedSexes}={}) {
 function charge(s,expected,base) {
   chargeQuoted(s,expected,purchasePrice(s,base));
 }
-function chargeQuoted(s,expected,amount) {
+export function chargeQuoted(s,expected,amount) {
   requireValue(expected===amount,'报价有变化，请返回重新核对。');
   requireValue(s.coins>=amount,'金币不足。需要 '+amount+' 金币。');
   s.coins-=amount;
@@ -381,12 +407,13 @@ export function careAction(s,type,args,now) {
     requireValue(s.care.signedDay!==today,'今天的两只幼兔已领取。');
     const usedNames=occupiedPetNames(s);
     const firstNames=s.care.signedDay==null ? ['谷穗','小麦'] : [];
-    const pair=['母','公'].map((sex,i)=>makePet(usedNames,'rabbit','domestic',sex,now,'每日签到',{name:firstNames[i]}));
+    const breedKey=nextCheckinBreed(s);
+    const pair=['母','公'].map((sex,i)=>makePet(usedNames,'rabbit',breedKey,sex,now,'每日签到',{name:firstNames[i]}));
     const effect=activeNutrition(s.rooms.rabbit,now);
     for(const p of pair)accelerateMaturation(p,effect,now);
-    s.pets.push(...pair);s.care.signedDay=today;s.care.claimIds=pair.map(p=>p.id);
+    s.pets.push(...pair);s.care.checkinCount=checkinCount(s)+1;s.care.signedDay=today;s.care.claimIds=pair.map(p=>p.id);
     s.care.claimAnimals=pair.map(birthIdentity);
-    return '已领取两只基础原色幼兔，一公一母。';
+    return '已领取两只'+BREEDS[breedKey].name+'幼体，一公一母。';
   }
   if(type==='care.breed') return startLitter(s,args,now);
   const species=speciesOf(args.species), cfg=SPECIES[species];
@@ -429,9 +456,7 @@ export function careAction(s,type,args,now) {
     requireValue(index>=0 && room.shelf.number===args.batch,'货位已售空或批次已更新。');
     const offer=room.shelf.offers[index];
     charge(s,args.price,youngPurchaseBase(offer));
-    const pet=makePet(occupiedPetNames(s,[offer]),species,offer.breedKey,offer.sex,now,'研究所采购',offer);
-    accelerateMaturation(pet,activeNutrition(room,now),now);
-    s.pets.push(pet);
+    const pet=admitPurchasedPet(s,room,offer,now);
     room.shelf.offers[index]=null;
     if (pet.name!==offer.name) return '原货架名“'+offer.name+'”已被占用，已取名“'+pet.name+'”入住'+cfg.name+'房。';
     return pet.name+'已入住'+cfg.name+'房。';

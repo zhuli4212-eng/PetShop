@@ -240,7 +240,7 @@ function tutorialTaskPage(s) {
 
 export function onboardingPage(s,key,args,now) {
   const g=active(s);
-  if(key==='tasks'&&s.onboarding)return tutorialTaskPage(s);
+  if(key==='tasks'&&g)return tutorialTaskPage(s);
   if(key==='openingGuide'&&s.onboarding){
     return {title:'交接信',subtitle:openingLetter,visual:{guideDialog:1,letterOpened:true},
       actions:[{label:'返回',type:'ui.back'}]};
@@ -420,7 +420,8 @@ export function decorateGuidePage(s,key,args,view,now) {
       {...row,visual:{...row.visual,choices:row.visual.choices.slice(0,1)}}:
       {title:row.title,text:row.text});
     view.actions=[];
-    teach('点击第一单的「选择交付」，挑一只首窝原色兔。','Deliver');
+    const reward=g.claimedAt===undefined?'':'已领 40 金币和 2 份臻选兔兔营养餐，营养餐已放入兔房。';
+    teach(reward+'点击第一单的「选择交付」。','Deliver');
   }
   if(key==='orderDesk'&&g.step===16&&args.id===g.orderId){
     view.actions=view.actions.slice(0,1);

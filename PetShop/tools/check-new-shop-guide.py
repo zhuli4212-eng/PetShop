@@ -306,6 +306,7 @@ def verify(browser, url, width, output, scenario=None, login=None):
     tap("Sign", scope="Hotspot_orders")
     ready("orders")
     assert main("return m.session.current.data.rows.length") == 3
+    assert "2 份臻选兔兔营养餐" in main("return m.session.current.data.guide.text")
     tap("Deliver", scope="Order0")
     ready("sale")
     assert main("return m.session.current.data.rows.length") == 1
@@ -316,6 +317,31 @@ def verify(browser, url, width, output, scenario=None, login=None):
     action("onboarding.finish", "Action0")
     step(None)
     assert not page.evaluate("!!pairQA.find('GuideSpotlight')")
+    touch.wait("()=>!pairQA.visit()||pairQA.ready()&&pairQA.visit().key==='visitBook'")
+    if main("return m.session.current?.key==='visitBook'"):
+        tap(text="合上账簿")
+    touch.wait("()=>!pairQA.visit()")
+    tap("Sign", scope="Hotspot_tasks")
+    ready("tasks")
+    assert "安置兔房 · 0 / 4 已完成" == main("return m.session.current.data.subtitle")
+    snap("18-安置兔房")
+    tap("TaskRow1")
+    ready("roomNutrition")
+    assert main("return m.session.current.data.rows.map(row=>row.visual.stock)") == [0, 0, 2]
+    assert page.evaluate("pairQA.find('NutritionRow2').getChildByName('Growth').getComponent(cc.Label).string.includes('已拥有 2 份')")
+    assert main("return m.session.current.data.actions[0].args.tier") == "premium"
+    snap("19-任务奖励库存")
+    action("care.feed", "FeedMeal")
+    ready("tasks")
+    assert main("return m.session.current.data.rows[1].done")
+    tap("TaskRow1")
+    ready("roomNutrition")
+    assert page.evaluate("pairQA.find('NutritionRow2').getChildByName('Growth').getComponent(cc.Label).string.includes('已拥有 1 份')")
+    assert main("return m.session.current.data.actions[0].disabled")
+    snap("20-投喂后的库存")
+    back()
+    ready("tasks")
+    back()
     if width == 390 and scenario is None:
         audio_settings()
         tap("Action0")

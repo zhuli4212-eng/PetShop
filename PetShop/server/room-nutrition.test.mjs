@@ -24,38 +24,48 @@ test('按物种与档次展示库存、图标和倍率，现有存档默认无�
   const g=fixture().make();
   const old=g.page('roomNutrition',{species:'rabbit'}).page;
   assert.equal(old.actions[0].disabled,true);
-  assert.match(old.visual.hint,/库存 0 份/);
+  assert.match(old.visual.hint,/暂无营养餐/);
+  assert.deepEqual(old.rows.map(r=>r.visual.stock),[0,0,0]);
   assert.equal(roomPage(g,'rabbit').presentation.nutrition,undefined);
   g.state.shopXp=36;
+  g.state.coins=10_000;
   g.state.rooms.cat=structuredClone(g.state.rooms.rabbit);
   g.state.rooms.dog=structuredClone(g.state.rooms.rabbit);
-  for(const [species,name,prices] of [['rabbit','兔兔',[8,9,10]],['cat','猫猫',[32,36,40]],['dog','狗狗',[80,90,100]]]){
+  for(const [species,name,prices] of [['rabbit','兔兔',[80,90,100]],['cat','猫猫',[320,360,400]],['dog','狗狗',[800,900,1000]]]){
     g.state.rooms[species].nutritionStock={select:2};
     const page=g.page('roomNutrition',{species,tier:'select'}).page;
     assert.deepEqual(page.rows.map(r=>r.visual.rate),[1.5,1.8,2]);
+    assert.deepEqual(page.rows.map(r=>r.visual.stock),[0,2,0]);
     assert.deepEqual(page.rows.map(r=>r.art),['quality','select','premium'].map(t=>`rooms/${species}-nutrition-${t}`));
     assert.equal(page.rows.filter(r=>r.visual.selected)[0].title,'精选'+name+'营养餐');
     assert.equal(page.actions[0].disabled,false);
     const detail=g.page('nutritionDetail',{species,tier:'select'}).page;
     assert.equal(detail.rows.find(r=>r.title==='库存').text,'2 份');
-    assert.equal(detail.rows.find(r=>r.title==='价格').text,prices[1]+' 金币（测试价）');
+    assert.equal(detail.rows.find(r=>r.title==='价格').text,prices[1]+' 金币');
     const shop=g.page('nutritionShop',{species,tier:'select'}).page;
     assert.deepEqual(shop.rows.map(r=>r.visual.price),prices);
     assert.deepEqual(shop.rows.map(r=>r.visual.stock),[0,2,0]);
     assert.equal(shop.rows[1].current,true);
-    assert.deepEqual(shop.rows[1].action.args,{species,tier:'select',price:prices[1]});
+    for(const [index,row] of shop.rows.entries()){
+      const {type,args,confirm}=row.action, price=prices[index], before=g.state.coins;
+      assert.deepEqual(args,{species,tier:['quality','select','premium'][index],price});
+      assert.match(confirm,new RegExp('花费 '+price+' 金币'));
+      g.act(request(g,type,args));
+      assert.equal(g.state.coins,before-price);
+      assert.equal(g.state.rooms[species].nutritionStock[args.tier],index===1?3:1);
+    }
   }
 });
 
 test('购买营养餐按已确认的单价扣款入库存，重试、拒绝与投喂各自独立',()=>{
   const clock=fixture(),g=clock.make();
-  const args={species:'rabbit',tier:'premium',price:10};
+  const args={species:'rabbit',tier:'premium',price:100};
   assert.throws(()=>g.act(request(g,'care.buyNutrition',args)),/培育中心/);
   g.state.shopXp=36;
   const locked=g.page('nutritionShop',{species:'cat'}).page.rows[2].action;
   assert.equal(locked.disabled,true);
   assert.throws(()=>g.act(request(g,'care.buyNutrition',locked.args)),/请先开放/);
-  assert.throws(()=>g.act(request(g,'care.buyNutrition',{...args,price:1})),/报价有变化/);
+  assert.throws(()=>g.act(request(g,'care.buyNutrition',{...args,price:10})),/报价有变化/);
   assert.throws(()=>g.act(request(g,'care.buyNutrition',{...args,tier:'invalid'})),/档次/);
   assert.equal(g.state.coins,680);
   assert.equal(g.state.rooms.rabbit.nutritionStock,undefined);
@@ -63,7 +73,7 @@ test('购买营养餐按已确认的单价扣款入库存，重试、拒绝与�
   const purchase=request(g,'care.buyNutrition',args);
   const applied=g.act(purchase);
   assert.deepEqual(g.act(purchase),applied);
-  assert.equal(g.state.coins,670);
+  assert.equal(g.state.coins,580);
   assert.deepEqual(g.state.rooms.rabbit.nutritionStock,{premium:1});
   assert.equal(g.state.rooms.rabbit.nutrition,undefined);
 
@@ -71,15 +81,15 @@ test('购买营养餐按已确认的单价扣款入库存，重试、拒绝与�
   const effect=structuredClone(g.state.rooms.rabbit.nutrition);
   g.act(request(g,'care.buyNutrition',args));
   const reopened=clock.make(g.snapshot());
-  assert.equal(reopened.state.coins,660);
+  assert.equal(reopened.state.coins,480);
   assert.deepEqual(reopened.state.rooms.rabbit.nutritionStock,{premium:1});
   assert.deepEqual(reopened.state.rooms.rabbit.nutrition,effect);
 
-  reopened.state.coins=9;
+  reopened.state.coins=99;
   const unaffordable=reopened.page('nutritionShop',{species:'rabbit'}).page.rows[2].action;
   assert.equal(unaffordable.disabled,true);
   assert.throws(()=>reopened.act(request(reopened,'care.buyNutrition',unaffordable.args)),/金币不足/);
-  assert.equal(reopened.state.coins,9);
+  assert.equal(reopened.state.coins,99);
   assert.equal(reopened.state.rooms.rabbit.nutritionStock.premium,1);
 });
 
@@ -91,6 +101,7 @@ test('培育中心混排已开房间的在售种源、营养餐和服务单',()=
   const read=tab=>g.page('lab',{tab}).page.rows;
   assert.deepEqual(read('seed').map(r=>r.link.args.species),['rabbit','cat','rabbit','cat']);
   assert.deepEqual(read('nutrition').map(r=>r.action.args.species),['rabbit','cat','rabbit','cat','rabbit','cat']);
+  assert.deepEqual(read('nutrition').map(r=>r.visual.price),[80,320,90,360,100,400]);
   assert.deepEqual(read('services').map(r=>r.action.args.species),['rabbit','cat','rabbit','cat']);
   const cat=read('seed').find(r=>r.link.args.species==='cat');
   assert.equal(cat.animal.stage,'幼年');

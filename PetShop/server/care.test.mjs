@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initCare, tickCare, careAction, carePage, stageOf, stageEnd, isBusy, petArt, GRADES, SPECIES, lifeDates, beijingTime } from './care.mjs';
+import { initCare, tickCare, careAction, carePage, makePet, stageOf, stageEnd, isBusy, petArt, GRADES, SPECIES, lifeDates, beijingTime } from './care.mjs';
 import { businessAction, businessPage, initBusiness, purchasePrice, youngPurchaseBase, salePrice } from './business.mjs';
 
 const T=Date.UTC(2026,10,16,15,55), M=60000, D=86400000;
@@ -60,7 +60,7 @@ test('签到回执按实际领取记录显示原始幼兔基础信息',()=>{
   const ids=s.care.claimIds;
   const rows=carePage(s,'checkinReceipt',{},T).rows;
   assert.deepEqual(rows.map(r=>r.title),['谷穗 · 母','小麦 · 公']);
-  assert.ok(rows.every(r=>r.text==='原色兔 · 栗野 · 幼年'&&r.art.startsWith('pets/domestic-coat01_')));
+  assert.ok(rows.every(r=>r.text==='安哥拉兔 · 雪白 · 幼年'&&r.art.startsWith('pets/angora-coat01_')));
   s.pets=s.pets.filter(p=>!ids.includes(p.id));
   assert.deepEqual(carePage(s,'checkinReceipt',{},T+30*M).rows,rows);
   assert.throws(()=>careAction(s,'care.checkin',{},T),/已领取/);
@@ -71,7 +71,7 @@ test('繁育候选优先显示各房仍可配对的种源，同组维持名册�
   for(const [species,breedKey] of [['rabbit','angora'],['cat','british'],['dog','shiba']]){
     s.rooms[species]??=structuredClone(s.rooms.rabbit);
     const parents=Array.from({length:5},(_,i)=>({...structuredClone(s.pets[0]),id:species+'-'+i,species,breedKey,
-      name:'候选'+i,bornAt:T-120*M,retained:[1,3,4].includes(i),bred:i===4}));
+      name:'候选'+i,bornAt:T-240*M,retained:[1,3,4].includes(i),bred:i===4}));
     s.pets=parents;
     const candidates=carePage(s,'breed',{species},T).presentation.candidates;
     assert.deepEqual(candidates.map(p=>p.name),['候选1','候选3','候选0','候选2']);
@@ -301,7 +301,7 @@ test('兔猫狗房间名册逐只给出生长阶段的截止毫秒，临界时�
   careAction(s,'care.checkin',{},T);
   for(const species of ['cat','dog'])careAction(s,'care.unlock',{species,price:SPECIES[species].roomCost},T);
   const phases=['幼年','成长','成年','老年','已故'];
-  const deadlines={rabbit:[12*M,30*M,30*M+3*D,30*M+4*D],cat:[30*M,90*M,90*M+4*D,90*M+6*D],dog:[40*M,120*M,120*M+5*D,120*M+7*D]};
+  const deadlines={rabbit:[12*M,30*M,30*M+3*D,30*M+4*D],cat:[30*M,90*M,90*M+4*D,90*M+6*D],dog:[80*M,240*M,240*M+5*D,240*M+7*D]};
   for(const [species,offsets] of Object.entries(deadlines)){
     const p=s.pets.find(p=>p.species===species&&p.bornAt===T),ends=offsets.map(offset=>T+offset);
     const check=(now,phase,end)=>{
@@ -462,7 +462,30 @@ test('开店种兔、每日单独领取、北京零点和成长精确边界',()=
   assert.equal(stageEnd(p,T),T+12*M);
   assert.equal(stageEnd(p,T+30*M+4*D),null);
   careAction(s,'care.checkin',{},T+5*M);assert.equal(s.pets.length,6);
-  assert.equal(petArt(p),'pets/domestic-coat01_female');
+  assert.equal(petArt(p),'pets/angora-coat01_female');
+  assert.equal(s.pets[4].breedKey,'domestic');
+  assert.equal(lifeDates(s.pets[4]).adultAt,T+10*M);
+  for(const [offset,key] of [[1,'lop'],[2,'lionhead'],[3,'angora']]){
+    careAction(s,'care.checkin',{},T+offset*D+5*M);
+    assert.equal(s.pets.at(-1).breedKey,key);
+  }
+});
+
+test('每个物种按品种成长，旧档沿用原来的成长时点',()=>{
+  const durations={rabbit:[5,15,30,45],cat:[90,105,120,150],dog:[240,300,360,480]};
+  const used=new Set();
+  for(const [species,minutes] of Object.entries(durations)){
+    const cfg=SPECIES[species];
+    cfg.breeds.forEach((breedKey,index)=>{
+      const pet=makePet(used,species,breedKey,'母',T,'测试');
+      const adultAt=T+minutes[index]*M;
+      assert.equal(lifeDates(pet).adultAt,adultAt);
+      assert.equal(stageOf(pet,adultAt-1),'成长');
+      assert.equal(stageOf(pet,adultAt),'成年');
+      delete pet.breedGrowth;
+      assert.equal(lifeDates(pet).adultAt,T+(cfg.young+cfg.growth)*M);
+    });
+  }
 });
 
 test('一生一窝、等待跨寿终和重启离线补生，幼体从计划出生时点计龄',()=>{
@@ -508,7 +531,7 @@ test('三物种独立房间、幼体成熟时间、双亲快照与指导',()=>{
     assert.deepEqual(pair.map(p=>p.sex),['公','母']);assert.ok(pair.every(p=>p.breedKey===cfg.breeds[0]&&stageOf(p,T)==='幼年'&&p.traits.every(t=>t.grade==='B')));
     assert.throws(()=>careAction(s,'care.unlock',args,T),/已经开放/);assert.equal(s.coins,before-args.price);
     const [father,mother]=pair;const mating={species,mother:mother.id,father:father.id,guide:1};
-    const start=T+(cfg.young+cfg.growth)*M;
+    const start=lifeDates(father).adultAt;
     assert.throws(()=>careAction(s,'care.breed',mating,start-1),/可繁育/);
     careAction(s,'care.buyItem',{species,item:'guide',price:purchasePrice(s,cfg.guide)},start);
     assert.throws(()=>careAction(s,'care.breed',mating,start),/评分相同/);

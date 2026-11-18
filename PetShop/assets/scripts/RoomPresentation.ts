@@ -237,11 +237,12 @@ function checkIn(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     caption(card,'BookName','兔房收养记录',-w/4,124,w/2,24,13,'#826645');
     const date=m.date!.split('-');heading(card,'Date',Number(date[1])+'月'+Number(date[2])+'日',w/4,124,w/2,24,14,'#3F5B49').horizontalAlign=2;
     rule(card,w,108);heading(card,'Title','每日签到簿',0,82,w,29,20,green);
-    caption(card,'Note','今日可领一对基础原色幼兔。',0,51,w,25,15,ink);
+    const breed=m.breed||'原色兔',youngArt=m.youngArt||'pets/domestic-coat01_female';
+    caption(card,'Note',(m.signed?'今日已领取一对':'今日可领取一对')+breed+'幼体。',0,51,w,25,15,ink);
     ['male','female'].forEach((sex,i)=>{
         const x=(i-.5)*104;
-        animalArt(card,{art:'pets/domestic-coat01_'+sex,stage:'幼年'},x,-8,79,80);
-        heading(card,'Sex'+i,'原色幼兔 · '+(i?'母':'公'),x,-53,100,23,14,ink,true);
+        animalArt(card,{art:youngArt.replace(/_female$/,'_'+sex),stage:'幼年'},x,-8,79,80);
+        heading(card,'Sex'+i,breed+' · '+(i?'母':'公'),x,-53,100,23,14,ink,true);
     });
     const claim=c.p.actions?.find(a=>a.type==='care.checkin');
     if(claim)press(card,'Claim',claim.label||'',0,-109,w,()=>c.ui.choose(claim),true);
@@ -253,7 +254,7 @@ function checkIn(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     if(m.signed) {
         section(c,'今日领养','已登记');
         rows.filter(r=>r.animal).forEach((r,i)=>petLine(c,r.animal!,i,openPet(c,r.animal!)));
-    } else note(c,'幼兔约 30 分钟后成年。领养后入住兔房。');
+    } else note(c,'领养后入住兔房，自然成长约 '+(m.maturity??30)+' 分钟成年。');
     const room=c.p.actions?.find(a=>a.page==='rooms');
     c.startFooter();
     if(room)press(c.body,'RoomRoster',room.label||'',0,c.slot(48),c.inner,()=>c.ui.choose(room));

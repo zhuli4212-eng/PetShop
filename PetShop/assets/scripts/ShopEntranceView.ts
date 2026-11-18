@@ -7,7 +7,7 @@ import { guideDialog, guideEntrance, guideNote, guideTarget, revealGuideTarget, 
 
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean =>
-    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','onboarding','audioSettings'].includes(key);
+    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','onboarding','audioSettings','seedReservation','breedingCourses'].includes(key);
 
 function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toTasks=false, fixed=false): void {
     const h = modal ? 54 : 64;
@@ -197,7 +197,7 @@ function taskList(c:PageCanvas):boolean {
 }
 
 interface NutritionRow extends LedgerRow {
-    visual: { rate:number; selected:boolean; pick:Choice; detail:Choice; };
+    visual: { rate:number; stock?:number; selected:boolean; pick:Choice; detail:Choice; };
 }
 function nutrition(c:PageCanvas):boolean {
     if(c.key==='nutritionShop'&&c.p.rows?.some(r=>r.action?.type==='care.buyNutrition')){
@@ -223,13 +223,17 @@ function nutrition(c:PageCanvas):boolean {
             if(r.art)picture(entry,'MealArt',r.art,-w/2+43,0,29,39);
             const left=-w/2+65, labelWidth=w-138;
             heading(entry,'MealName',r.title,left+labelWidth/2,11,labelWidth,21,15,paper.green);
-            caption(entry,'Growth',rise(v.rate),left+48,-12,96,22,12,paper.ink);
+            const stock=v.stock===undefined?'':' · 已拥有 '+v.stock+' 份';
+            caption(entry,'Growth',rise(v.rate)+stock,left+labelWidth/2,-12,labelWidth,22,12,paper.ink);
             const details=box(entry,'NutritionDetail'+i,w/2-39,0,68,44);
             caption(details,'Caption','查看详情',0,0,65,36,12,paper.green,true).isBold=true;
             tap(details,()=>c.ui.choose(v.detail));
         });
-        const hint=frame(c.body,'NutritionHint',0,c.slot(38,7),w,38,'#F0DEB7',paper.brass,false);
-        caption(hint,'Caption',c.p.visual?.hint||'',0,0,w-20,32,13,paper.muted);
+        const status=c.p.visual?.hint;
+        if(status){
+            const hint=frame(c.body,'NutritionHint',0,c.slot(38,7),w,38,'#F0DEB7',paper.brass,false);
+            caption(hint,'Caption',status,0,0,w-20,32,13,paper.muted);
+        }
         const action=c.p.actions?.[0];
         if(action){
             c.startFooter();

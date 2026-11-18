@@ -218,6 +218,7 @@ function lab(c:PageCanvas):void {
     if(tab==='services')rows(c).forEach((r,i)=>catalogService(c,r,i));
     else rows(c).forEach((r,i)=>seedRow(c,r,i));
     if(!rows(c).length)c.empty();
+    if(tab==='seed'&&c.p.actions?.length){c.startFooter();c.actions(c.p.actions);}
 }
 function seedRow(c:PageCanvas,r:DisplayRow,i:number):void {
     if(!r.animal||typeof r.visual?.price!=='number'){info(c,r,i);return;}

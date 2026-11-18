@@ -8,11 +8,12 @@ import { initVisitBook, recordMilestone, seedRecoveryRows, unreadLetter, updateV
 import { initTasks, recordTaskAction, recordTaskVisit, taskAction, taskShortcut, tasksPage } from './shop-tasks.mjs';
 import { initOnboarding, onboardingSnapshot, guideAccess, rabbitWaitingForOpening, settleOnboarding,
   onboardingPage, decorateGuidePage, guideAction, recordGuideAction } from './onboarding.mjs';
+import { breedingProgramPage, breedingProgramAction, certificateRows } from './breeding-programs.mjs';
 
 export { shopRules };
 const legacyEntrances = Object.keys(featureNames).filter(key=>key!=='collection');
-const pageHandlers = [carePage, businessPage, showPage];
-const actionHandlers = [careAction, businessAction, showAction, taskAction];
+const pageHandlers = [carePage, businessPage, showPage, breedingProgramPage];
+const actionHandlers = [careAction, businessAction, showAction, taskAction, breedingProgramAction];
 const minute = 60_000;
 export class GameError extends Error {
   constructor(message, status = 409) { super(message); this.status = status; }
@@ -58,7 +59,7 @@ function publicShop(s,now,rules) {
     featureAccess:access, entrances:legacyEntrances.filter(key=>access[key].unlocked),
     ...(guest&&!onboarding&&{guest:{id:guest.id,endsAt:guest.endsAt}}),
     now, hints:onboarding?[]:hints, dayClaimed, onboarding,
-    taskShortcut:s.onboarding?{completed:4,total:4,choice:{page:'tasks',label:'查看开店任务'}}:taskShortcut(s,access),
+    taskShortcut:taskShortcut(s,access),
     decor:Object.keys(s.decor || {}).filter(k=>s.decor[k]?.placed),
     rooms:Object.keys(s.rooms || {}).filter(k=>s.rooms[k]&&!(k==='rabbit'&&rabbitWaitingForOpening(s))),
     notice:s.journal.at(-1) ?? null };
@@ -71,6 +72,7 @@ function accountPage(s,now,access) {
     {title:'开店交接',text:'重读旧店主留下的第一页。',link:{page:'openingGuide'}},
     ...(s.visitBook.lastReport?[{title:'上次回店摘要',text:'查看离开期间已结算的事项。',link:{page:'lastVisit'}}]:[]),
     ...seedRecoveryRows(s,now,access),
+    ...certificateRows(s),
     {title:'设备时间',text:'请保持设备时间准确。向前调时会立即推进成长和比赛，可能让动物自然寿终。调回时钟无法撤销已经结算的事件。'},
     ...(s.clockEvent?[{title:'校时记录',text:s.clockEvent.text}]:[]),
     ...(s.recoveredFrom?[{title:'存档恢复',text:'最近一次从备份 '+s.recoveredFrom+' 恢复。'}]:[]),
@@ -185,7 +187,7 @@ export class ShopEngine {
       view.visual={...view.visual,saleExperience:xp};
       if(xp)view.subtitle+=' · 店铺经验 +'+xp;
     }
-    const viewed=s.onboarding?s:recordTaskVisit(s,page);
+    const viewed=recordTaskVisit(s,page,args);
     if(viewed!==s){viewed.clock=now;this.save(viewed);}
     return {shop:publicShop(viewed,now,this.rules),page:view};
   }
@@ -234,7 +236,7 @@ export class ShopEngine {
     }
     recordMilestone(s,type,args,now);
     if(s.onboarding)recordGuideAction(s,type,args,now);
-    else recordTaskAction(s,type,args);
+    recordTaskAction(s,type,args);
     s.clock=now;s.version++;
     const result={requestId,message,version:s.version,...(awarded!==undefined&&{saleExperience:awarded}),...(levelUp&&{levelUp})};
     s.receipts[requestId]={key,result};
