@@ -68,7 +68,6 @@ export class ShopMain extends Component {
         this.features=new ShopHomeFeatures(this.room,this.footer,(key,args)=>{
             if(this.state!=='open'||this.session.active)return;
             if(key==='profile')this.session.claimDailyGift();
-            else if(key==='tasks')void this.session.open('tutorial',{fromTasks:true});
             else void this.session.open(key,args);
         });
         this.levelProgress=caption(this.header,'LevelProgress','',0,-12,178,20,12,'#E8D9B2');

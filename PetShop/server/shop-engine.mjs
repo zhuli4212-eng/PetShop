@@ -5,11 +5,12 @@ import { initShow, tickShow, showPage, showAction } from './show.mjs';
 import { shopProgress, saleExperience, shopRaceAccess } from './shop-progression.mjs';
 import { featureNames, featureAccess, operationFeature, shopRules } from './shop-features.mjs';
 import { initVisitBook, recordMilestone, seedRecoveryRows, tutorialAccess, tutorialStatus, unreadLetter, updateVisit, visitHistoryPage, visitTutorialDestination } from './visit-book.mjs';
+import { initTasks, recordTaskAction, taskAction, tasksPage } from './shop-tasks.mjs';
 
 export { shopRules };
 const legacyEntrances = Object.keys(featureNames).filter(key=>key!=='collection');
 const pageHandlers = [carePage, businessPage, showPage];
-const actionHandlers = [careAction, businessAction, showAction];
+const actionHandlers = [careAction, businessAction, showAction, taskAction];
 const minute = 60_000;
 export class GameError extends Error {
   constructor(message, status = 409) { super(message); this.status = status; }
@@ -95,6 +96,7 @@ export class ShopEngine {
       s.care.parentRetentionChecked=true;
     }
     const needsVisitBook=initVisitBook(s,!!restored);
+    const needsTasks=initTasks(s);
     const needsOpening=!Number.isFinite(s.createdAt);
     if(needsOpening)s.createdAt=Number.isFinite(s.rooms.rabbit.openedAt)?s.rooms.rabbit.openedAt:s.clock;
     const needsXp=s.shopXp===undefined;
@@ -104,7 +106,7 @@ export class ShopEngine {
     if(restored && this.wall()<s.clock) s.clockEvent={at:s.clock,text:'检测到设备时钟回拨，经营时间从上次存档继续。'};
     this.anchor=Math.max(s.clock,this.wall()); this.mark=this.monotonic();
     this.savedAt=s.clock;
-    if(!restored || checkParents || needsXp || needsOpening || needsVisitBook || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
+    if(!restored || checkParents || needsXp || needsOpening || needsVisitBook || needsTasks || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
     this.state=s;
   }
   now() {
@@ -148,6 +150,7 @@ export class ShopEngine {
     const data=structuredClone(s);
     const access=featureAccess(this.rules,level);
     let view=page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access);
+    if(page==='tasks')view=tasksPage(data,access);
     for(const get of pageHandlers) {if(view) break;view=get(data,page,args,now,this.rules);}
     if(!view) throw new GameError('这个页面暂不可用，请返回店铺。',404);
     if(page==='orders'||page==='guest'){
@@ -157,7 +160,6 @@ export class ShopEngine {
           page:'guest',active:page==='guest',disabled:!access.guest.unlocked},
       ];
     }
-    if(page==='tutorial'&&args?.fromTasks)view.title='任务';
     if(!access.lab.unlocked&&s.visitBook.tutorial?.bought&&['shelf','offer'].includes(page)){
       view.actions=[{label:'返回新手引导',page:'tutorial'}];
       view.subtitle=(view.subtitle?view.subtitle+' · ':'')+'本次引导采购已完成，再次采购需店铺 '+access.lab.requiredLevel+' 级。';
@@ -229,6 +231,7 @@ export class ShopEngine {
       }
     }
     recordMilestone(s,type,args,now);
+    recordTaskAction(s,type,args);
     s.clock=now;s.version++;
     const result={requestId,message,version:s.version,...(awarded!==undefined&&{saleExperience:awarded}),...(levelUp&&{levelUp})};
     s.receipts[requestId]={key,result};
