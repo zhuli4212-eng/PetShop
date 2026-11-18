@@ -8,6 +8,7 @@ interface Animal {
     id:string; number:string; name:string; breed:string; coat:string; sex:string; stage:string; status:string; art:string;
     retained?:boolean; stageEndsAt?:number|null;
 }
+interface ParentTrait { grade:string; label:string; }
 interface RoomPage {
     kind:string; species?:string; count?:number; matchedCount?:number; residents?:Animal[]; wait?:number; remaining?:number;
     maturity?:number; estimate?:string; youngArt?:string; price?:number; breed?:string; coins?:number; signed?:boolean; date?:string;
@@ -15,8 +16,9 @@ interface RoomPage {
     guide?:{count:number;index:number};
     nutrition?:NutritionEffect;
     traits?:{type:string;label:string;rarity:string;grade:string}[];
+    parentTraits?:{name:string;mother:ParentTrait;father:ParentTrait}[];
 }
-type AnimalRow=LedgerRow & {animal?:Animal;litterMember?:boolean;rateSummary?:boolean};
+type AnimalRow=LedgerRow & {animal?:Animal;litterMember?:boolean};
 const ink='#493A27', green='#29483E', muted='#725C42';
 const nextStage:Record<string,string>={幼年:'成长',成长:'成年',成年:'老年',老年:'寿终'};
 function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:number,h:number):Node {
@@ -279,43 +281,62 @@ function detail(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         caption(line,'Key',title,(-c.inner+labelW)/2+8,0,labelW,24,13,muted);
         caption(line,'Value',value,(labelW+2)/2,0,c.inner-labelW-18,h-4,13,ink);
     }
-    if(a.retained)note(c,a.stage==='已故'?'取消留种后可送往研究所回收。':'种源不可出售，可在这里取消留种。');
+    if(a.retained)note(c,a.stage==='已故'?'取消留种后可前往动物回收。':'种源不可出售，可在这里取消留种。');
     c.startFooter();
     c.actions(c.p.actions||[]);
 }
+function compareParents(c:PageCanvas,traits:NonNullable<RoomPage['parentTraits']>):void {
+    const gap=7,w=(c.inner-gap)/2,rowH=31,h=35+traits.length*rowH,y=c.slot(h,8);
+    (['mother','father'] as const).forEach((side,index)=>{
+        const column=frame(c.body,index?'FatherTraits':'MotherTraits',(index?1:-1)*(w+gap)/2,y,w,h,paper.card,paper.brass,false);
+        heading(column,'ColumnTitle',index?'父本':'母本',0,h/2-16,w-14,23,15,green,true);
+        traits.forEach((trait,i)=>{
+            const item=trait[side],py=h/2-33-rowH*(i+.5);
+            const row=box(column,'Trait'+i,0,py,w,rowH);
+            box(row,'Rule',0,rowH/2,w-12,1,'#E2CCA4');
+            const typeW=30,gradeW=27,labelW=w-typeW-gradeW-14;
+            caption(row,'Type',trait.name,-w/2+7+typeW/2,0,typeW,rowH-4,12,muted);
+            caption(row,'Tag',item.label,-w/2+7+typeW+labelW/2,0,labelW,rowH-4,13,ink);
+            heading(row,'Grade',item.grade,w/2-7-gradeW/2,0,gradeW,rowH-4,15,
+                trait.mother.grade===trait.father.grade?green:'#A53928',true);
+        });
+    });
+}
 function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
-    const hasConfirm=m.kind==='pairConfirm',card=book(c,'ParentPair',112),parents=m.parents!;
+    const hasConfirm=m.kind==='pairConfirm',card=book(c,'ParentPair',100),parents=m.parents!;
     const x=c.inner*.26;
-    ['母','公'].forEach((sex,i)=>{
+    ['选择母本','选择父本'].forEach((label,i)=>{
         const px=i?x:-x,animal=parents[i];
         const holder=frame(card,'Slot'+i,px,11,62,58,animal?'#ECDEB8':'#FCF0CE','#C5AA7E');
         if(animal)animalArt(holder,animal,0,0,58,54);
         else caption(holder,'Sex',i?'♂':'♀',0,0,55,51,24,'#AC9470',true);
-        heading(card,'Name'+i,animal?animal.name:'选择'+sex+m.species,px,-33,c.inner*.42,22,14,ink,true);
+        heading(card,'Name'+i,animal?animal.name:label,px,-30,c.inner*.42,22,14,ink,true);
     });
     caption(card,'Cross','×',0,0,34,46,24,'#987951',true);
-    const rates=rows.find(row=>row.rateSummary);
-    if(rates)c.row(rates,-2);
-    c.startList();
     if(hasConfirm) {
         section(c,'核对亲本','五项评分与缺陷等级');
         c.startList();
-        rows.filter(row=>!row.rateSummary).forEach((r,i)=>c.row(r,i));
+        if(m.parentTraits?.length)compareParents(c,m.parentTraits);
+        rows.forEach((r,i)=>c.row(r,i));
         c.startFooter();
         const actions=c.p.actions||[],start=actions.find(a=>a.type==='care.breed');
         const toggle=actions.find(a=>a.type==='care.toggle');
         const selected=m.guide?.index??start?.args?.guide??-1;
-        const dimensions=actions.filter(a=>a.page==='breed'&&Number.isInteger(a.args?.guide)&&a.args!.guide>=0);
-        const noGuide=actions.find(a=>a.page==='breed'&&a.args?.guide===-1)
-            ||{page:'breed',label:'不使用指导单',args:{...c.args,guide:-1}};
-        const options=[noGuide,...dimensions].map(a=>({...a,active:a.args?.guide===selected}));
-        const choice=options.find(a=>a.active)||options[0];
+        const options=actions.filter(a=>a.page==='breed'&&a.replace&&Number.isInteger(a.args?.guide));
+        const choice=options.find(a=>a.args?.guide===selected)||options[0];
         const y=c.slot(48,6),w=toggle?(c.inner-6)*.55:c.inner;
         const anchor=press(c.body,'ChooseGuide',choice.label+' ▾',(w-c.inner)/2,y,w,
             ()=>c.ui.openFilter([{anchor,options}],0));
         if(toggle)press(c.body,'BonusSettings','五维加成设置',(w+6)/2,y,c.inner-w-6,c.ui.openBreedingBonus);
-        const modify=actions.find(a=>a.page==='breed'&&a.args?.picking);
-        c.actions([...(start?[start]:[]),...(modify?[modify]:[])]);return;
+        const cancel=actions.find(a=>a.label==='取消繁育');
+        if(start&&cancel){
+            const buttonW=(c.inner-6)/2,buttonX=(buttonW+6)/2,buttonY=c.slot(48,6);
+            press(c.body,'Action0',start.label!, -buttonX,buttonY,buttonW,()=>c.ui.choose(start),true);
+            const undo=frame(c.body,'CancelPair',buttonX,buttonY,buttonW,48,'#EBD3C6','#936252',false);
+            caption(undo,'Caption',cancel.label!,0,0,buttonW-8,44,14,'#873B32',true).isBold=true;
+            tap(undo,()=>c.ui.choose(cancel));
+        }
+        return;
     }
     section(c,'选择亲本','成年或老年 · 一公一母');
     c.startList();
@@ -329,8 +350,8 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     });
     if(!candidates.length)note(c,'当前没有可配对的亲本。');
     c.startFooter();
-    const dock=frame(c.body,'PairDock',0,c.slot(89,10),c.inner,89,'#F7E7C5','#AA9169');
-    caption(dock,'Rule',m.species+'一生仅能繁育一窝，预计 '+m.wait+' 分钟后出生。',0,26,c.inner-20,22,13,muted);
+    const dock=frame(c.body,'PairDock',0,c.slot(76,8),c.inner,76,'#F7E7C5','#AA9169');
+    caption(dock,'Rule',m.species+'一生仅能繁育一窝，预计 '+m.wait+' 分钟后出生。',0,24,c.inner-20,20,13,muted);
     press(dock,'Review','核对亲本',0,-11,c.inner-20,()=>{if(m.confirm)c.ui.choose(m.confirm);},true,!m.confirm);
     c.actions((c.p.actions||[]).filter(a=>a.page==='litter'));
     tabs(c);

@@ -2,13 +2,13 @@ import { BlockInputEvents, Color, Graphics, Mask, Node, ScrollView, UITransform,
 import type { Args, Choice, LedgerPage, LedgerRow } from './ShopConnection';
 import { box, caption, frame, heading, lines, paper, picture, press, rect, tap, type LedgerUI, type PageCanvas } from './LedgerCanvas';
 import { drawRoom } from './RoomPresentation';
-import { drawBusiness } from './BusinessPresentation';
+import { drawBusiness, nutritionStore } from './BusinessPresentation';
 
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean =>
-    ['saleQuote','researchNode','researchTable','roomNutrition','nutritionDetail','nutritionShop'].includes(key);
+    ['saleQuote','researchNode','researchTable','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt'].includes(key);
 
-function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toGuide=false): void {
+function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toTasks=false): void {
     const h = modal ? 54 : 64;
     const n = box(parent,'Header',0,(height-h)/2,width,h,modal ? '#34594C' : paper.green);
     const g = n.getComponent(Graphics)!;
@@ -30,7 +30,7 @@ function drawHeader(parent: Node, width: number, height: number, title: string, 
             rect(arrow,-20+i*1.4,-1+i*1.4,3,2.5,'#FFF0BD');
             rect(arrow,-20+i*1.4,-1-i*1.4,3,2.5,'#FFF0BD');
         }
-        caption(backNode,'Caption',toGuide?'回引导':'返回',toGuide?9:5,0,toGuide?43:34,40,toGuide?13:14,'#FFF0BD',true).isBold=true;
+        caption(backNode,'Caption',toTasks?'回任务':'返回',toTasks?9:5,0,toTasks?43:34,40,toTasks?13:14,'#FFF0BD',true).isBold=true;
         tap(backNode,back);
         const balanceWidth=Math.max(66,String(coins).length*9+47);
         const wallet=frame(n,'Wallet',width/2-10-balanceWidth/2,3,balanceWidth,27,'#193D34','#75916A',false);
@@ -151,59 +151,45 @@ function account(ctx: PageCanvas): boolean {
     return false;
 }
 
-function tutorial(c:PageCanvas):boolean {
-    const m=c.p.presentation;
-    if(m?.kind!=='tutorial')return false;
-    const focus=frame(c.body,'TutorFocus',0,c.slot(74),c.inner,74,paper.green,'#617C5E',false);
-    const progress=m.archived?'开店手册':m.completed?'四步已完成':'当前第 '+m.step+' 步 / 共 '+m.total+' 步';
-    caption(focus,'Progress',progress,0,17,c.inner-26,23,13,'#E5D9AF');
-    heading(focus,'Title',m.archived?'开店四件事':m.completed?'你已经学会照料小店':m.title||c.p.title,
-        0,-12,c.inner-26,31,19,paper.cream);
+function taskList(c:PageCanvas):boolean {
+    if(c.key!=='tasks'||!Array.isArray(c.p.visual?.rewards))return false;
+    const w=c.inner;
+    heading(c.body,'TaskProgress',c.p.subtitle||'',0,c.slot(25,5),w,25,16,paper.green);
     c.startList();
     (c.p.rows||[]).forEach((row,i)=>{
-        const textW=c.inner-58,th=Math.max(23,lines(row.title,textW,15)*21);
-        const dh=row.text?Math.max(21,lines(row.text,textW,13)*19):0;
-        const h=th+dh+19;
-        const card=frame(c.body,'TutorStep'+i,0,c.slot(h,6),c.inner,h,row.current?'#E8EDD3':paper.card,row.current?'#78936C':paper.brass,false);
-        const badge=frame(card,'Index',-c.inner/2+23,h/2-23,25,25,row.done?'#45694F':'#F3E3BF',row.current?'#78936C':paper.brass,false);
-        heading(badge,'Value',row.done?'✓':String(i+1),0,0,23,23,14,row.done?'#FFF0CA':paper.green,true);
-        heading(card,'Title',row.title.replace(/^\d+\.\s*/,''),19,h/2-9-th/2,textW,th,15,paper.ink);
-        if(row.text)caption(card,'Detail',row.text,19,h/2-9-th-dh/2,textW,dh,13,paper.muted);
+        const textW=w-113, linesH=Math.max(20,lines(row.text||'',textW,13)*18),h=linesH+38;
+        const card=frame(c.body,'TaskRow'+i,0,c.slot(h,6),w,h,row.done?'#E0E8CE':paper.card,row.done?'#75916A':paper.brass,false);
+        heading(card,'Title',row.title,-44,h/2-17,textW,23,15,paper.ink);
+        caption(card,'Detail',row.text||'',-44,h/2-30-linesH/2,textW,linesH,13,paper.muted);
+        caption(card,'State',row.done?'已完成':'待完成',w/2-56,0,64,25,13,row.done?paper.green:paper.muted,true).isBold=!!row.done;
+        caption(card,'Arrow','›',w/2-13,0,16,27,19,paper.green,true);
+        if(row.link)tap(card,()=>c.ui.choose(row.link!));
     });
-    const actions=c.p.actions||[];
     c.startFooter();
-    for(let i=0;i<actions.length;i+=2) {
-        const group=actions.slice(i,i+2),y=c.slot(48,6),w=(c.inner-6*(group.length-1))/group.length;
-        group.forEach((a,j)=>press(c.body,'TutorAction'+(i+j),a.label||'继续',-c.inner/2+w/2+j*(w+6),y,w,
-            ()=>c.ui.choose(a),!i&&!j,!!a.disabled));
-    }
+    const items=c.p.visual.rewards as {name:string;quantity:number;art?:string}[];
+    const rewards=frame(c.body,'TaskRewards',0,c.slot(57,6),w,57,paper.card,paper.brass,false);
+    const width=w/items.length;
+    items.forEach((item,i)=>{
+        const left=-w/2+i*width, x=left+23;
+        if(item.art)picture(rewards,'RewardArt'+i,item.art,x,0,27,35);
+        else {
+            const coin=box(rewards,'RewardCoin',x,0,23,23);
+            const g=coin.addComponent(Graphics);
+            rect(g,-12,-8,24,16,'#865528');rect(g,-8,-12,16,24,'#865528');
+            rect(g,-10,-7,20,14,'#D5A447');rect(g,-7,-10,14,20,'#D5A447');
+            caption(coin,'Glyph','金',0,0,19,18,12,'#57351C',true).isBold=true;
+        }
+        const contentW=width-49;
+        caption(rewards,'RewardName'+i,item.name,left+43+contentW/2,10,contentW,21,12,paper.ink);
+        caption(rewards,'RewardCount'+i,'× '+item.quantity,left+43+contentW/2,-11,contentW,19,14,paper.green).isBold=true;
+    });
+    const claim=c.p.actions?.[0];
+    if(claim)press(c.body,'ClaimTasks',claim.label||'领取',0,c.slot(48,2),w,()=>c.ui.choose(claim),true,!!claim.disabled);
     return true;
 }
 
 interface NutritionRow extends LedgerRow {
-    visual: { badge:string; rate:number; selected:boolean; pick:Choice; detail:Choice; };
-}
-interface NutritionStoreRow extends LedgerRow {
-    visual: { rate:number; price:number; stock:number; };
-    action: Choice;
-}
-function nutritionStore(c:PageCanvas):void {
-    const w=c.inner;
-    c.strip(c.p.tabs||[],'NutritionRoom');
-    caption(c.body,'NutritionSubtitle',c.p.subtitle||'营养餐',0,c.slot(28,4),w,28,14,paper.muted);
-    c.startList();
-    ((c.p.rows||[]) as NutritionStoreRow[]).forEach((r,i)=>{
-        const h=84, left=-w/2+57, textWidth=w-165, right=w/2-55;
-        const card=frame(c.body,'NutritionOffer'+i,0,c.slot(h,7),w,h,
-            r.current?'#E0E8CE':paper.card,r.current?'#75916A':paper.brass,false);
-        if(r.art)picture(card,'MealArt',r.art,-w/2+29,0,43,58);
-        const {rate,price,stock}=r.visual, textX=left+textWidth/2;
-        heading(card,'MealName',r.title,textX,21,textWidth,22,15,paper.green);
-        caption(card,'Growth','成长速度 '+rate+' 倍',textX,0,textWidth,20,13,paper.ink);
-        caption(card,'Stock','库存 '+stock+' 份',textX,-21,textWidth,20,13,paper.muted);
-        caption(card,'Price',price+' 金币',right,23,96,20,14,paper.ink,true).isBold=true;
-        press(card,'NutritionPurchase'+i,r.action.label!,right,-12,94,()=>c.ui.choose(r.action),true,!!r.action.disabled,42);
-    });
+    visual: { rate:number; selected:boolean; pick:Choice; detail:Choice; };
 }
 function nutrition(c:PageCanvas):boolean {
     if(c.key==='nutritionShop'&&c.p.rows?.some(r=>r.action?.type==='care.buyNutrition')){
@@ -214,10 +200,6 @@ function nutrition(c:PageCanvas):boolean {
     if(!rows[0]?.visual)return false;
     const w=c.inner;
     const rise=(rate:number)=>'成长速度 '+rate+' 倍';
-    const badge=(n:Node,text:string,x:number,y:number,selected=false)=>{
-        const mark=frame(n,'Tier',x,y,31,17,selected?'#D7E3C2':'#E9DAB3',selected?'#8CA37A':paper.brass,false);
-        caption(mark,'Value',text,0,0,29,15,10,paper.green,true).isBold=true;
-    };
     if(c.key==='roomNutrition'){
         rows.forEach((r,i)=>{
             const v=r.visual,h=60;
@@ -234,7 +216,6 @@ function nutrition(c:PageCanvas):boolean {
             const left=-w/2+65, labelWidth=w-138;
             heading(entry,'MealName',r.title,left+labelWidth/2,11,labelWidth,21,15,paper.green);
             caption(entry,'Growth',rise(v.rate),left+48,-12,96,22,12,paper.ink);
-            badge(entry,v.badge,left+111,-12,v.selected);
             const details=box(entry,'NutritionDetail'+i,w/2-39,0,68,44);
             caption(details,'Caption','查看详情',0,0,65,36,12,paper.green,true).isBold=true;
             tap(details,()=>c.ui.choose(v.detail));
@@ -253,8 +234,7 @@ function nutrition(c:PageCanvas):boolean {
     if(preview.art)picture(hero,'MealArt',preview.art,-w/2+44,0,56,70);
     const labelWidth=w-93,left=-w/2+83;
     heading(hero,'MealName',preview.title,left+labelWidth/2,17,labelWidth,29,21,paper.green);
-    badge(hero,v.badge,left+16,-15,true);
-    caption(hero,'Growth',rise(v.rate),left+95,-15,109,22,14,paper.ink);
+    caption(hero,'Growth',rise(v.rate),left+58,-15,116,22,14,paper.ink);
     const fields=rows.slice(1);
     const facts=frame(c.body,'MealFacts',0,c.slot(108,8),w,108,paper.card,paper.brass,false);
     fields.forEach((r,i)=>{
@@ -295,7 +275,7 @@ function generic(ctx:PageCanvas):void {
     }
 }
 
-interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;backToGuide?:boolean;}
+interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;backToTasks?:boolean;}
 
 // Keep explanatory cards whole when they do not fit, while animal and transaction lists can scroll.
 function paginateDetails(content:Node,sheet:Node,ui:LedgerUI,width:number,top:number,height:number):boolean {
@@ -348,7 +328,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     const ctx=layout.ctx;
     if(opts.offline)press(content,'Retry','离线 · 重新连接',0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
     if(opts.pending)ctx.row({title:'有一笔操作等待确认',text:'查询原请求回执',action:{type:'ui.receipt'}},-1);
-    if(opts.ready===false || !(tutorial(ctx)||nutrition(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
+    if(opts.ready===false || !(taskList(ctx)||nutrition(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
     const extent=layout.extent();
     const actualHeight=modal?Math.min(maxHeight,headerHeight+extent+4):height;
     const bodyHeight=actualHeight-headerHeight-(modal?4:0);
@@ -383,7 +363,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
         for(const child of children.slice(split.count))child.setPosition(child.position.x,child.position.y+split.height,child.position.z);
     }
     let vh=available-fixedHeight,listHeight=(footer?.height??extent)-(split?.height||0);
-    const details=['offer','show.review','show.result','show.bot'].includes(key)||p.presentation?.kind==='pairConfirm';
+    const details=['offer','show.review','show.result','show.bot'].includes(key);
     if(details&&listHeight>vh&&paginateDetails(content,sheet,ui,width,top-fixedHeight,vh)){
         vh-=48;listHeight=vh;
     }
@@ -395,10 +375,10 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     content.setPosition(0,vh/2);
     area.setContentSize(width,Math.max(vh,listHeight));
     scroll.vertical=listHeight>vh;
-    const titles:Record<string,string>={rooms:'动物小屋',research:'研究技能树',login:'账号',profile:'每日签到',pet:'个体档案',
+    const titles:Record<string,string>={rooms:'动物小屋',research:'研究',login:'账号',profile:'每日签到',pet:'个体档案',
         collection:'荣誉',show:'赛事',lab:'培育中心',orders:'订单',guest:'订单'};
     const title=(opts.ready!==false&&titles[key])||(key==='breed'&&p.title==='繁育台'?'繁育':p.title);
-    drawHeader(sheet,width,actualHeight,title,coins,ui.back,modal,opts.backToGuide);
+    drawHeader(sheet,width,actualHeight,title,coins,ui.back,modal,opts.backToTasks);
     if(modal) {
         const g=sheet.addComponent(Graphics);g.lineWidth=3;g.strokeColor=new Color().fromHEX('#745437');
         g.rect(-width/2+1.5,-actualHeight/2+1.5,width-3,actualHeight-3);g.stroke();

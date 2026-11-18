@@ -53,7 +53,7 @@ export function thumbTabs(c:PageCanvas,items:Choice[]):void {
 }
 const ratios:Record<string,number>={orders:512/220,lab:512/288,market:512/288,stage:384/256};
 /** Same cover crop and image focus as .banner/.dr-scene in the approved portrait preview. */
-export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'research'|'services'|'stage'|'rank'='normal',animal?:string,animalStage?:string):void {
+export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'research'|'services'|'stage'|'rank'='normal',animal?:string,animalStage?:string):Node {
     const full=variant==='normal'||variant==='research'||variant==='services',w=full?c.width:c.inner;
     const h=variant==='services'?Math.min(90,w*.19):variant==='research'?Math.min(116,Math.max(84,w*.24)):
         variant==='stage'?Math.min(162,w*(c.width<=350?.31:.39)):variant==='rank'?Math.min(112,w*.27):w/2.85;
@@ -71,6 +71,7 @@ export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'re
         const sign=frame(crop,'Sign',-w/2+12+pw/2,-h/2+22,pw,27,'#28483D','#CBA771');
         heading(sign,'Caption',title,0,0,pw-4,25,15,'#FFE8AE',true);
     }
+    return crop;
 }
 export function info(c:PageCanvas,r:LedgerRow,i:number,mutedArt=false):void {
     const hasPic=!!r.art,pad=10,left=hasPic?62:pad,right=r.link||r.action?23:pad;

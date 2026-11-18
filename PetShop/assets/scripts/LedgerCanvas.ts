@@ -222,8 +222,8 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
     const paths=new Set<string>();
     if(page.art)paths.add(stageArt(page.art, page.stage || ''));
     if(counter)paths.add('shop-modules/'+counter);
-    if(key==='roomNutrition'||key==='nutritionShop'){
-        for(const row of page.rows||[])if(row.art)paths.add(row.art);
+    if(['roomNutrition','nutritionShop','checkinReceipt'].includes(key)||key==='lab'&&args.tab==='nutrition'){
+        for(const row of page.rows||[])if(row.art)paths.add(stageArt(row.art,row.stage||''));
     }
     if(key==='rooms'&&page.presentation?.nutrition)paths.add('rooms/nutrition-meal-fill');
     await Promise.all(Array.from(paths,art=>{

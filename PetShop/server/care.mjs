@@ -377,6 +377,7 @@ export function careAction(s,type,args,now) {
     const effect=activeNutrition(s.rooms.rabbit,now);
     for(const p of pair)accelerateMaturation(p,effect,now);
     s.pets.push(...pair);s.care.signedDay=today;s.care.claimIds=pair.map(p=>p.id);
+    s.care.claimAnimals=pair.map(birthIdentity);
     return '已领取两只基础原色幼兔，一公一母。';
   }
   if(type==='care.breed') return startLitter(s,args,now);

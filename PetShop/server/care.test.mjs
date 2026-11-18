@@ -6,7 +6,7 @@ import { businessAction, businessPage, initBusiness, purchasePrice, youngPurchas
 const T=Date.UTC(2026,10,16,15,55), M=60000, D=86400000;
 function fresh() {const s={coins:680,ratingBps:0,research:{rabbit:[0,0,0],cat:[0,0,0],dog:[0,0,0]}};initCare(s,T);return s;}
 
-test('选择与核对双亲使用每只幼体的加权缺陷率和完美无缺率',()=>{
+test('核对页分别返回母本和父本六项，隐藏概率提示并保留实际概率',()=>{
   const s=fresh(), [mother,father]=s.pets;
   const args={species:'rabbit',mother:mother.id,father:father.id,picking:true};
   const all=grade=>Array(5).fill(grade);
@@ -21,13 +21,60 @@ test('选择与核对双亲使用每只幼体的加权缺陷率和完美无缺�
     const chosen=carePage(s,'breed',args,T);
     const action=chosen.presentation.confirm;
     const confirmed=carePage(s,action.page,action.args,T);
+    assert.deepEqual(confirmed.presentation.parentTraits.map(t=>t.mother.grade),[...m,mother.traits[5].grade]);
+    assert.deepEqual(confirmed.presentation.parentTraits.map(t=>t.father.grade),[...f,father.traits[5].grade]);
     for(const page of [chosen,confirmed]){
       const rates=page.presentation.mutationPreview.defect;
       assert.ok(Math.abs(rates.defectPercent-defect)<1e-9);
       assert.ok(Math.abs(rates.perfectPercent-perfect)<1e-9);
-      const risk=page.rows.find(row=>row.rateSummary);
-      assert.match(risk.text,/缺陷率/);assert.match(risk.text,/完美无缺率/);
+      assert.ok(!page.rows.some(row=>row.rateSummary||row.title==='每只幼体的出生概率'));
     }
+  }
+});
+
+test('开始繁育弹窗只列有效研究加成和已选指导，指导指向较高等级的亲本',()=>{
+  const s=fresh(),[mother,father]=s.pets,room=s.rooms.rabbit;
+  const args={species:'rabbit',mother:mother.id,father:father.id};
+  const read=(extra={})=>carePage(s,'breed',{...args,...extra},T);
+  const text=(extra)=>read(extra).actions.find(a=>a.type==='care.breed').confirm.split('\n').slice(1);
+  assert.deepEqual(text(),['后代品种 安哥拉兔']);
+  s.research.rabbit=[2,4,0];
+  room.items.guide=1;
+  mother.traits[1].grade='A';
+  father.traits[2].grade='S';
+  assert.deepEqual(text({guide:1}),['后代品种 安哥拉兔','研究加成 稀有率+10%，属性提升+12%',
+    '选育指导 幼体品相属性会更容易遗传自母本。']);
+  room.mutationEnabled=false;
+  assert.deepEqual(text({guide:2}),['后代品种 安哥拉兔','研究加成 稀有率+10%',
+    '选育指导 幼体毛发属性会更容易遗传自父本。']);
+  s.research.rabbit=[0,4,0];
+  room.mutationEnabled=true;
+  assert.deepEqual(text(),['后代品种 安哥拉兔','研究加成 属性提升+12%']);
+  assert.deepEqual(read().rows.map(r=>r.title),['一生仅一次繁育']);
+});
+
+test('签到回执按实际领取记录显示原始幼兔基础信息',()=>{
+  const s=fresh();
+  assert.equal(carePage(s,'checkinReceipt',{},T).title,'签到记录');
+  careAction(s,'care.checkin',{},T);
+  const ids=s.care.claimIds;
+  const rows=carePage(s,'checkinReceipt',{},T).rows;
+  assert.deepEqual(rows.map(r=>r.title),['谷穗 · 母','小麦 · 公']);
+  assert.ok(rows.every(r=>r.text==='原色兔 · 栗野 · 幼年'&&r.art.startsWith('pets/domestic-coat01_')));
+  s.pets=s.pets.filter(p=>!ids.includes(p.id));
+  assert.deepEqual(carePage(s,'checkinReceipt',{},T+30*M).rows,rows);
+  assert.throws(()=>careAction(s,'care.checkin',{},T),/已领取/);
+});
+
+test('繁育候选优先显示各房仍可配对的种源，同组维持名册顺序',()=>{
+  const s=fresh();
+  for(const [species,breedKey] of [['rabbit','angora'],['cat','british'],['dog','shiba']]){
+    s.rooms[species]??=structuredClone(s.rooms.rabbit);
+    const parents=Array.from({length:5},(_,i)=>({...structuredClone(s.pets[0]),id:species+'-'+i,species,breedKey,
+      name:'候选'+i,bornAt:T-120*M,retained:[1,3,4].includes(i),bred:i===4}));
+    s.pets=parents;
+    const candidates=carePage(s,'breed',{species},T).presentation.candidates;
+    assert.deepEqual(candidates.map(p=>p.name),['候选1','候选3','候选0','候选2']);
   }
 });
 
@@ -82,7 +129,7 @@ test('配对确认逐维预览真实升档机会，指导选择与取消均不�
   const s=fresh(),[mother,father]=s.pets,room=s.rooms.rabbit;
   const args={species:'rabbit',mother:mother.id,father:father.id};
   const pair=(guide=-1)=>carePage(s,'breed',{...args,guide},T);
-  const choices=p=>p.actions.filter(a=>a.page==='breed'&&Number.isInteger(a.args.guide));
+  const choices=p=>p.actions.filter(a=>a.page==='breed'&&a.replace&&Number.isInteger(a.args.guide));
   room.items.guide=2;
   assert.deepEqual(choices(pair()).map(a=>[a.label,a.active]),[['不使用指导单',true]]);
   ['B','A','S+','E','S','B'].forEach((grade,i)=>{mother.traits[i].grade=grade;});
@@ -331,8 +378,8 @@ test('房间共用名册和筛选，选择两只亲本后才显示核对入口',
   const both=carePage(s,'breed',{picking:true,mother:mother.id,father:father.id},T).presentation;
   const review=carePage(s,both.confirm.page,both.confirm.args,T);
   assert.equal(review.presentation.kind,'pairConfirm');
-  const edit=review.actions.find(a=>a.label==='修改亲本');
-  assert.deepEqual(carePage(s,edit.page,edit.args,T).presentation.parents.map(p=>p.id),[mother.id,father.id]);
+  const cancel=review.actions.find(a=>a.label==='取消繁育');
+  assert.deepEqual(carePage(s,cancel.page,cancel.args,T).presentation.parents.map(p=>p.id),[mother.id,father.id]);
   const petActions=carePage(s,'pet',{id:mother.id},T).actions;
   assert.equal(petActions.find(a=>a.page==='market').args.preselectId,mother.id);
   assert.ok(!petActions.some(a=>a.page==='recycle'));
@@ -478,19 +525,19 @@ test('三物种独立房间、幼体成熟时间、双亲快照与指导',()=>{
 
 test('核对亲本所示登记品种与整窝出生一致，杂交外形不能交纯种订单',()=>{
   const cases=[
-    {fatherBreed:'lop',motherMixed:false,registration:'杂交',appearance:'每只幼体独立决定外形，安哥拉兔和垂耳兔各占 50%。'},
-    {fatherBreed:'angora',motherMixed:true,registration:'杂交',appearance:'幼体都是安哥拉兔外形。'},
-    {fatherBreed:'angora',motherMixed:false,registration:'安哥拉兔',appearance:'幼体都是安哥拉兔外形。'},
+    {fatherBreed:'lop',motherMixed:false,registration:'杂交'},
+    {fatherBreed:'angora',motherMixed:true,registration:'杂交'},
+    {fatherBreed:'angora',motherMixed:false,registration:'安哥拉兔'},
   ];
-  for(const {fatherBreed,motherMixed,registration,appearance} of cases){
+  for(const {fatherBreed,motherMixed,registration} of cases){
     const s=fresh(),[mother,father]=s.pets;
     initBusiness(s,T);
     father.breedKey=fatherBreed;mother.mixed=motherMixed;
     assert.notEqual(mother.coatIndex,father.coatIndex);
     const args={species:'rabbit',mother:mother.id,father:father.id},now=T+2*M;
     const confirm=carePage(s,'breed',args,T);
-    assert.deepEqual(confirm.rows[0],{title:'后代登记品种 · '+registration,text:appearance});
     const begin=confirm.actions.find(a=>a.type==='care.breed');
+    assert.ok(begin.confirm.split('\n').includes('后代品种 '+registration));
     careAction(s,begin.type,begin.args,T);tickCare(s,now);
     const children=s.pets.filter(p=>p.source==='本店繁育'),mixed=registration==='杂交';
     assert.ok(children.length>=3);

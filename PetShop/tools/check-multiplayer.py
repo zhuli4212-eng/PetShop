@@ -110,8 +110,8 @@ def verify(pw, address):
             used_entry=register(page,a)
             page.wait_for_function("currentLedger()?.title === '旧店交接'")
             first_id = page.evaluate("shopUI().shop.profileId")
-            assert page.evaluate("currentLedger().actions.some(a=>a.page==='tutorial')")
-            tap_game_label(page,"跳过，进店")
+            assert page.evaluate("currentLedger().actions.some(a=>a.page==='tasks')")
+            tap_game_label(page,"进入店铺")
             page.wait_for_function("shopUI().home.active")
             gift="ShopHome/RoomPlane/Entrances/Hotspot_profile"
             with page.expect_response(lambda r:urlsplit(r.url).path=="/api/action" and

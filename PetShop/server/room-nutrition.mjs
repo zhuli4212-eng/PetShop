@@ -1,7 +1,7 @@
 const meals = [
-  { key:'quality', label:'优质', badge:'低档', rate:1.5, priceRatio:.8 },
-  { key:'select', label:'精选', badge:'中档', rate:1.8, priceRatio:.9 },
-  { key:'premium', label:'臻选', badge:'高档', rate:2, priceRatio:1 },
+  { key:'quality', label:'优质', rate:1.5, priceRatio:.8 },
+  { key:'select', label:'精选', rate:1.8, priceRatio:.9 },
+  { key:'premium', label:'臻选', rate:2, priceRatio:1 },
 ];
 const minutes = 30;
 export const nutritionDuration = minutes * 60_000;
@@ -39,7 +39,7 @@ export function nutritionPage(s, page, species, tier, now) {
   const roomState=s.rooms[species], current = activeNutrition(roomState, now);
   const count=nutritionStock(roomState,meal.key);
   const row = m => ({ title:m.label + name, art:icon(m),
-    visual:{ badge:m.badge, rate:m.rate, selected:m.key===meal.key,
+    visual:{ rate:m.rate, selected:m.key===meal.key,
       pick:go('选择', 'roomNutrition', {species,tier:m.key}),
       detail:go('查看详情', 'nutritionDetail', {species,tier:m.key}) } });
   if (page === 'nutritionShop') return {
@@ -65,7 +65,7 @@ export function nutritionPage(s, page, species, tier, now) {
       { title:'持续时间', text:minutes+' 分钟（测试基线）' },
       { title:'价格', text:nutritionPrice(species,meal)+' 金币（测试价）' },
       { title:'库存', text:count+' 份' }],
-    visual:{rules:'只加速成年前成长，不影响繁育等待、衰老或死亡。\n离线继续计时，期间出生的幼体共享本房剩余时间。\n效果不叠加，到期后可再次投喂。新手首次投喂为单独的教学特例。'},
+    visual:{rules:'只加速成年前成长，不影响繁育等待、衰老或死亡。\n离线继续计时，期间出生的幼体共享本房剩余时间。\n效果不叠加，到期后可再次投喂。'},
     actions:[{label:'返回选择',type:'ui.back'},buy],
   };
   return { title:'选择'+name, art, rows:meals.map(row),

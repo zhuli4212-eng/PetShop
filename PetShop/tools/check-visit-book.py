@@ -12,7 +12,10 @@ import {GameStore} from './server/game-store.mjs';
 import {createPetShopServer} from './server/main.mjs';
 let store=new GameStore(process.argv[1]);
 store.shop();store.state.coins=4000;
-if(process.argv[2]==='legacy')delete store.state.visitBook.tutorial;
+if(process.argv[2]==='legacy'){
+  delete store.state.tasks;
+  store.state.visitBook.tutorial={marketViewed:true};
+}
 store.save(store.state);
 store=new GameStore(process.argv[1]);
 const server=createPetShopServer(undefined,{store});
@@ -40,7 +43,7 @@ def verify(width):
                 page.wait_for_function("() => window.cc && (" + SCENE + ")()?.session.current?.key==='visitBook'")
                 page.evaluate("() => {window.shopForCheck=" + SCENE + "}")
                 opening=page.evaluate("shopForCheck().session.current.data.actions")
-                assert opening[0]["page"]=="tutorial" and opening[0]["label"]==("查看开店四步" if legacy else "开始新手引导"),opening
+                assert opening[0]["page"]=="tasks" and opening[0]["label"]=="查看任务",opening
 
                 def entry(key, args=None):
                     return page.evaluate("([k,a])=>shopForCheck().session.open(k,a)", [key, args or {}])
@@ -62,10 +65,10 @@ def verify(width):
 
                 # A loose Cocos build once serialized Set spread as [{}]. Source and HTTP-only tests miss this.
                 with page.expect_response(received, timeout=25_000) as ack:
-                    tap("跳过，进店")
+                    tap("进入店铺")
                 assert ack.value.request.post_data_json["reader"]["read"] == ["opening"]
                 assert ack.value.json()["letter"] is None
-                assert bool(ack.value.json().get("tutorial")) != legacy
+                assert "tutorial" not in ack.value.json()
 
                 # Keep a section open while a real purchase produces the first-room story.
                 entry("rooms", {"species": "cat"})
@@ -82,12 +85,10 @@ def verify(width):
                 assert story.value.json()["letter"] is None
                 entry("openingGuide")
                 assert page.evaluate("shopForCheck().session.current.data.readNoteIds.length") == 0
-                tap("查看开店四步")
-                page.wait_for_function("shopForCheck().session.current?.data?.presentation?.kind==='tutorial'")
-                guide=page.evaluate("shopForCheck().session.current.data")
-                assert len(guide["rows"])==4 and bool(guide["presentation"].get("archived"))==legacy
-                if legacy:
-                    assert [a.get("type") for a in guide["actions"]]==["ui.back"]
+                tap("查看任务")
+                page.wait_for_function("shopForCheck().session.current?.key==='tasks'&&shopForCheck().session.current?.data?.title==='任务'")
+                tasks=page.evaluate("shopForCheck().session.current.data")
+                assert len(tasks["rows"])==6 and tasks["rows"][4]["done"]==legacy
                 for _ in range(4):
                     if not page.evaluate("shopForCheck().session.active"):break
                     page.keyboard.press("Escape")

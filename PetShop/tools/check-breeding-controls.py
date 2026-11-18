@@ -4,7 +4,6 @@ import base64
 import json
 from io import BytesIO
 import math
-import re
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -192,20 +191,31 @@ def check_dialog(page, settings, selected, enabled):
     assert -1<=bounds["top"] and bounds["bottom"]<=page.viewport_size["height"]+1,bounds
 
 
+def check_parent_comparison(page, grades):
+    assert not page.evaluate("!!pairQA.title('每只幼体的出生概率')")
+    columns = page.evaluate("""() => ['MotherTraits','FatherTraits'].map(name=>{
+        const q=pairQA,col=q.find(name);
+        return {title:q.find('ColumnTitle',col).getComponent(cc.Label).string, bounds:q.box(col),
+            rows:Array.from({length:6},(_,i)=>{
+                const label=q.find('Grade',q.find('Trait'+i,col)).getComponent(cc.Label);
+                return [label.string,label.color.r,label.color.g,label.color.b];
+            })};
+    })""")
+    assert [c["title"] for c in columns] == ["母本", "父本"]
+    assert columns[0]["bounds"]["right"] < columns[1]["bounds"]["left"]
+    for side, column in enumerate(columns):
+        assert [row[0] for row in column["rows"]] == grades[side]
+        for i, row in enumerate(column["rows"]):
+            expected = [165, 57, 40] if grades[0][i] != grades[1][i] else [41, 72, 62]
+            assert row[1:] == expected, (side, i, row, expected)
+
+
 def check_birth_rates(page, expected):
-    # Read the two labels that were actually drawn, including their screen bounds.
-    text,bounds = page.evaluate("""()=>{
-        const q=pairQA, fixed=q.find('Fixed',q.find('DeskPage'));
-        const title=fixed&&q.title('每只幼体的出生概率',fixed);
-        if(!title)return ['',null];
-        const row=title.parent;
-        return [q.texts(row).join(' '),q.box(row)];
-    }""")
-    assert bounds and -1<=bounds["top"]<bounds["bottom"]<=page.viewport_size["height"]+1,bounds
-    assert -1<=bounds["left"]<bounds["right"]<=page.viewport_size["width"]+1,bounds
-    for label,target in zip(["缺陷率","完美无缺率"],expected):
-        hit = re.search(label+r"\s*[：:]?\s*([0-9.]+)%",text)
-        assert hit and abs(float(hit[1])-target)<=0.011,(label,target,text)
+    """The calculation remains in the engine, while the pairing screens show no probability card."""
+    assert not page.evaluate("!!pairQA.title('每只幼体的出生概率')")
+    rates = page.evaluate("pairQA.visit().data.presentation.mutationPreview.defect")
+    assert abs(rates["defectPercent"] - expected[0]) < 1e-9, rates
+    assert abs(rates["perfectPercent"] - expected[1]) < 1e-9, rates
 
 
 def observe_parent_motion(page, species):
@@ -305,6 +315,7 @@ def verify(browser, web, width, output, motion=False):
                 check_birth_rates(page,sample["expected"])
                 touch.tap("Review",scope="DeskPage")
                 touch.kind("pairConfirm")
+                check_parent_comparison(page,sample["grades"])
                 check_birth_rates(page,sample["expected"])
                 if motion:
                     touch.tap(text="开始繁育",scope="DeskPage")
@@ -324,7 +335,7 @@ def verify(browser, web, width, output, motion=False):
                     continue
                 if width==390 and species=="rabbit" and output:
                     touch.wait("()=>!pairQA.find('Feedback')")
-                    page.screenshot(path=str(output/"配对确认-每只幼体缺陷率与完美无缺率-390.png"))
+                    page.screenshot(path=str(output/"核对亲本双栏-390.png"))
                 different = [i for i,(m,f) in enumerate(zip(*sample["grades"])) if i<len(FIELDS) and m!=f] if initial else []
                 labels = ["不使用指导单",*["指导"+FIELDS[i] for i in different]]
                 def options(active):
@@ -391,7 +402,8 @@ def verify(browser, web, width, output, motion=False):
                 touch.tap(text="开始繁育",scope="DeskPage")
                 touch.wait("()=>!!pairQA.find('Confirm')")
                 question=page.evaluate("()=>pairQA.texts(pairQA.find('Confirm')).join(' ')")
-                assert ("使用一张选育指导单" in question)==(selected>=0),question
+                assert ("选育指导 幼体" in question)==(selected>=0),question
+                assert "后代品种" in question,question
                 touch.tap("Cancel",scope="Confirm")
                 touch.wait("()=>!pairQA.find('Confirm')")
                 room=room_state(species)

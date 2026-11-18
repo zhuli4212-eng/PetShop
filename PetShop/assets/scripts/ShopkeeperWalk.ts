@@ -13,6 +13,15 @@ export class ShopkeeperWalk extends Component {
     private next = 1;
     private rest = 1;
     private strideTime = 0;
+    private speaking = false;
+
+    setSpeaking(speaking: boolean): void {
+        this.speaking = speaking;
+        if (speaking && this.sprite) {
+            this.strideTime = 0;
+            this.pose(this.idle);
+        }
+    }
 
     start(): void {
         if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
@@ -31,6 +40,7 @@ export class ShopkeeperWalk extends Component {
     }
 
     update(dt: number): void {
+        if (this.speaking) return;
         const delta = Math.min(dt, 0.1);
         if (this.rest > 0) {
             this.rest -= delta;

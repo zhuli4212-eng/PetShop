@@ -9,12 +9,12 @@ interface Entrance {
     label?:Label;
 }
 
-/** A scene prop and a shortcut can both open the same shop feature. */
+/** Scene props open shop features. */
 export class ShopHomeFeatures {
     private entries:Entrance[]=[];
     private props=new Map<string,{ui:UITransform;sign:Node;width:number;height:number}>();
 
-    constructor(room:Node,footer:Node,open:(key:string,args?:Args)=>void) {
+    constructor(room:Node,open:(key:string,args?:Args)=>void) {
         const register=(key:string,target:Node,sign:Node,args?:Args)=>{
             this.entries.push({key,target,sign});
             const choose=()=>open(key,args);
@@ -26,12 +26,18 @@ export class ShopHomeFeatures {
             const key=target.name.slice('Hotspot_'.length);
             const sign=target.getChildByName('Sign')!;
             const ui=target.getComponent(UITransform)!;
-            this.props.set(key,{ui,sign,width:ui.width,height:ui.height});
+            let height=ui.height;
+            if(key==='profile'){
+                const gift=target.getChildByName('GiftArt')!;
+                const artHeight=gift.getComponent(UITransform)!.height;
+                const {x,y,z}=gift.position,scale=1.5;
+                gift.setScale(scale,scale,1);
+                gift.setPosition(x,y+artHeight*(scale-1)/2,z);
+                height=Math.max(height,2*gift.position.y+artHeight*scale);
+            }
+            this.props.set(key,{ui,sign,width:ui.width,height});
             register(key,target,sign);
         }
-        const roomLink=footer.getChildByName('RoomLink')!,book=footer.getChildByName('TrophyBook')!;
-        register('rooms',roomLink,roomLink,{species:'rabbit'});
-        register('collection',book,book);
     }
 
     update(shop:ShopSnapshot):void {
@@ -47,10 +53,7 @@ export class ShopHomeFeatures {
             if(entry.label) {
                 entry.label.node.parent!.active=!!rule&&!rule.unlocked;
                 if(rule&&!rule.unlocked){
-                    const preview=entry.key==='orders'&&shop.tutorial?.step===4;
-                    entry.label.string=preview?'可预览':rule.requiredLevel+' 级开放';
-                    entry.label.node.setPosition(preview?0:7,0);
-                    entry.label.node.parent!.getChildByName('LockIcon')!.active=!preview;
+                    entry.label.string=rule.requiredLevel+' 级开放';
                 }
             }
         }

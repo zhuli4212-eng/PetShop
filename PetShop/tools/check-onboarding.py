@@ -1,219 +1,250 @@
-"""Play through the four opening steps in fresh shops on an isolated multiplayer server."""
-import argparse
-import json
-import sqlite3
-import subprocess
-from contextlib import closing
+"""Verify the local task board, mixed catalog and parent comparison in Web Mobile."""
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
+import argparse
+import subprocess
 
 from playwright.sync_api import sync_playwright
 
-
-PROJECT=Path(__file__).resolve().parents[1]
-touch_tools=import_module("check-breeding-controls")
-SERVER="""
-import {createMultiplayerServer} from './server/multiplayer.mjs';
-const server=createMultiplayerServer({dataDirectory:process.argv[1],webRoot:process.argv[2]});
+ROOT = Path(__file__).resolve().parents[1]
+QA = import_module("check-breeding-controls")
+MAIN = "window.cc?.director?.getScene()?.getChildByName('Canvas')?.getComponent('ShopMain')"
+SERVER = """
+import {createInterface} from 'node:readline';
+import {randomUUID} from 'node:crypto';
+import {GameStore} from './server/game-store.mjs';
+import {createPetShopServer} from './server/main.mjs';
+import {purchasePrice,youngPurchaseBase} from './server/business.mjs';
+let offset=0;
+const store=new GameStore(process.argv[1],{wall:()=>Date.now()+offset});
+store.ensure();
+const s=store.state;
+s.shopXp=36;
+s.coins=12000;
+s.visitBook.opening=false;
+s.pets[1].traits[1].grade='A';
+s.research.rabbit=[2,4,0];
+s.rooms.rabbit.items.guide=1;
+s.rooms.cat={...structuredClone(s.rooms.rabbit),shelf:null};
+store.save(s);
+const act=(type,args)=>{
+  const {profileId,version}=store.shop();
+  store.act({type,args,profileId,version,requestId:randomUUID()});
+};
+const server=createPetShopServer(process.argv[2],{store});
 server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
+createInterface({input:process.stdin}).on('line',line=>{
+  if(line!=='complete')return;
+  offset+=121_000;
+  const batch=store.state.rooms.rabbit.shelf;
+  const offer=batch.offers.find(Boolean);
+  act('care.buyPet',{id:offer.id,batch:batch.number,price:purchasePrice(store.state,youngPurchaseBase(offer))});
+  offset+=30*60_000;
+  const purchased=store.state.pets.filter(p=>p.source==='研究所采购'&&p.species==='rabbit');
+  act('care.breed',{mother:purchased.find(p=>p.sex==='母').id,father:purchased.find(p=>p.sex==='公').id});
+  console.log('complete');
+});
 """
-MAIN="window.cc?.director?.getScene()?.getChildByName('Canvas')?.getComponent('ShopMain')"
 
 
-def play(browser,address,save,width,screenshot):
-    options=dict(viewport={'width':width,'height':568 if width==320 else 844},is_mobile=True,
-                 has_touch=True,device_scale_factor=1,reduced_motion='reduce')
-    page=browser.new_page(**options)
-    errors=[]
-    actions=[]
-    account='开店验收'+str(width)
-    def observe(response):
-        if urlsplit(response.url).path=='/api/action' and response.request.method=='POST' and response.ok:
-            actions.append(response.request.post_data_json['type'])
+def verify(browser, url, proc, width, output):
+    page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
+                            is_mobile=True, has_touch=True, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(url)
+    page.wait_for_function("()=>!!" + MAIN + "?.home?.active", timeout=90000)
+    page.evaluate(QA.LOCATORS)
+    touch = QA.Touch(page)
 
-    def load(register=False,refresh=False):
-        page.set_default_timeout(20000)
-        if refresh:
-            page.reload()
-        else:
-            page.goto(address)
-        page.get_by_role('button',name='登录店铺',exact=True).wait_for()
-        if register:
-            page.get_by_role('link',name='注册',exact=True).click()
-        page.get_by_label('账号名',exact=True).fill(account)
-        page.get_by_role('button',name='注册并开店' if register else '登录店铺',exact=True).click()
-        page.wait_for_function('()=>'+MAIN+'?.shop?.profileId',timeout=90000)
-        page.evaluate(touch_tools.LOCATORS)
-        page.evaluate('window.previewShop=()=>'+MAIN+'.shop')
-        return touch_tools.Touch(page)
+    def ready(key):
+        touch.wait("key=>pairQA.ready()&&pairQA.visit()?.key===key", key)
 
-    def hook():
-        page.on('pageerror',lambda error:errors.append(str(error)))
-        page.on('response',observe)
+    def tap(node):
+        touch.tap(node, scope="DeskPage")
 
-    def visit(key):
-        touch.wait('k=>pairQA.ready()&&pairQA.visit()?.key===k',key)
+    def snap(name):
+        if output and width == 390:
+            touch.wait("()=>!pairQA.find('Feedback')")
+            output.mkdir(parents=True, exist_ok=True)
+            page.screenshot(path=output / (name + ".png"))
 
-    def step(number):
-        touch.wait('n=>previewShop().tutorial?.step===n&&!previewShop().tutorial.completed',number)
+    def act(command, node, scope="DeskPage"):
+        with page.expect_response(lambda r: urlsplit(r.url).path == "/api/action"
+                and r.request.post_data_json.get("type") == command) as result:
+            touch.tap(node, scope=scope)
+        assert result.value.ok, result.value.text()
 
-    def menu():
-        # Follow rendered Back / home controls so the test covers the same way
-        # back from a guide detail or sales page that the player has on mobile.
-        for _ in range(5):
-            key=page.evaluate("pairQA.visit()?.key||''")
-            if key=='tutorial':
-                visit(key)
-                return
-            if key:
-                touch.tap('Back',scope='DeskPage')
-            else:
-                touch.tap('TutorialLink')
-            touch.wait("k=>(pairQA.visit()?.key||'')!==k",key)
-        raise AssertionError(('Could not return to guide',key))
-
-    def choose(destination):
-        visit('tutorial')
-        choices=page.evaluate("pairQA.visit().data.actions.map(a=>({page:a.page,label:a.label}))")
-        choice=next((a for a in choices if a.get('page')==destination),None)
-        assert choice,(destination,choices)
-        touch.tap(text=choice['label'],scope='DeskPage')
-        visit(destination)
-
-    def state():
-        uri=(save/'multiplayer.sqlite').as_uri()+'?mode=ro'
-        with closing(sqlite3.connect(uri,uri=True)) as db:
-            row=db.execute('SELECT snapshot FROM shops JOIN accounts ON accounts.id=shops.account_id '
-                           'WHERE accounts.username=?',(account,)).fetchone()
-        assert row,'Disposable shop was never created'
-        return json.loads(row[0])['state']
-
-    def confirm(kind,button):
-        touch.tap(text=button,scope='DeskPage')
+    def buy(node, command):
+        tap(node)
         touch.wait("()=>!!pairQA.find('Confirm')")
-        with page.expect_response(lambda r:urlsplit(r.url).path=='/api/action' and
-                                  r.request.post_data_json.get('type')==kind) as answer:
-            touch.tap('Accept',scope='Confirm')
-        assert answer.value.ok,answer.value.text()
-        return answer.value.request.post_data_json['args']
+        act(command, "Accept", "Confirm")
 
-    hook()
-    try:
-        touch=load(register=True)
-        visit('visitBook')
-        first=state()
-        original={p['id'] for p in first['pets']}
-        assert len(original)==2 and first['care']['signedDay'] is None
-        assert first['coins']==680
-        profile=first['profileId']
-        touch.tap('Action0',scope='DeskPage')
-        visit('tutorial')
-        step(1)
-        choose('breed')
-        touch.kind('pair')
-        for i in range(2):
-            touch.tap('Animal'+str(i),scope='DeskPage')
-            touch.wait("n=>pairQA.ready()&&pairQA.visit().data.presentation.parents.filter(Boolean).length===n",i+1)
-        touch.tap('Review',scope='DeskPage')
-        touch.kind('pairConfirm')
-        pair=confirm('care.breed','开始繁育')
-        step(2)
-        job=state()['rooms']['rabbit']['job']
-        assert job and {job['motherId'],job['fatherId']}==original=={pair['mother'],pair['father']}
-        assert state()['care']['signedDay'] is None
-        print(f"{width}px: registration, opening letter and actual starter pairing passed.",flush=True)
+    def row_done(index):
+        touch.wait("i=>pairQA.ready()&&pairQA.visit().data.rows[i].done", index)
+        assert page.evaluate("i=>pairQA.texts(pairQA.find('TaskRow'+i)).includes('已完成')", index)
 
-        # Close the first device. The fresh browser page has no remembered notes
-        # or tutorial state, yet the persisted shop must resume the second step.
-        page.close()
-        page=browser.new_page(**options)
-        hook()
-        touch=load()
-        step(2)
-        assert page.evaluate('previewShop().profileId')==profile
-        touch.tap('TutorialLink')
-        visit('tutorial')
-        if width==390 and screenshot:
-            touch.wait("()=>!!pairQA.find('TutorFocus')&&!!pairQA.find('TutorAction0')&&!pairQA.find('Feedback')")
-            screenshot.parent.mkdir(parents=True,exist_ok=True)
-            page.screenshot(path=str(screenshot))
-        choose('shelf')
-        touch.tap('Row0',scope='DeskPage')
-        visit('offer')
-        coins=state()['coins']
-        purchase=confirm('care.buyPet','购买幼体')
-        step(3)
-        bought=state()
-        assert bought['coins']==coins-purchase['price'] and purchase['price']>0
-        assert next(p for p in bought['pets'] if p['id']==purchase['id'])['source']=='研究所采购'
-        assert not any(p and p['id']==purchase['id'] for p in bought['rooms']['rabbit']['shelf']['offers'])
-        assert bought['care']['signedDay'] is None
-        print(f"{width}px: fresh-device login restored step 2; purchased at {purchase['price']} coins.",flush=True)
+    def check_gift_receipt():
+        ready("checkinReceipt")
+        assert page.evaluate("!!pairQA.find('Shade')")
+        assert page.evaluate("pairQA.visit().data.rows.map(r=>r.title)") == ["谷穗 · 母", "小麦 · 公"]
+        assert all("栗野 · 幼年" in row for row in page.evaluate("pairQA.visit().data.rows.map(r=>r.text)"))
 
-        menu()
-        choose('profile')
-        with page.expect_response(lambda r:urlsplit(r.url).path=='/api/action' and
-                                  r.request.post_data_json.get('type')=='care.checkin') as signed:
-            touch.tap('Claim',scope='DeskPage')
-        assert signed.value.ok,signed.value.text()
-        step(4)
-        claimed=state()
-        claim_ids=set(claimed['care']['claimIds'])
-        young=[p for p in claimed['pets'] if p['id'] in claim_ids]
-        assert len(young)==2 and {p['sex'] for p in young}=={'公','母'}
-        assert all(p['breedKey']=='domestic' and p['source']=='每日签到' for p in young)
-        assert claim_ids.isdisjoint(original|{purchase['id']})
-        assert claimed['coins']==bought['coins']
-        menu()
-        destinations=('orders','market') if width==320 else ('market','orders')
-        first,last=destinations
-        choose(first)
-        flag={'orders':'ordersViewed','market':'marketViewed'}
-        touch.wait("([a,b])=>previewShop().tutorial?.[a]===true&&!previewShop().tutorial[b]",[flag[first],flag[last]])
-        # Ordinary browser reload should preserve the single visited destination.
-        touch=load(refresh=True)
-        step(4)
-        touch.tap('TutorialLink')
-        visit('tutorial')
-        assert page.evaluate("([a,b])=>previewShop().tutorial[a]===true&&!previewShop().tutorial[b]",
-                             [flag[first],flag[last]])
-        choose(last)
-        touch.wait("()=>previewShop().tutorial?.completed===true")
-        finished=state()
-        assert actions==['care.breed','care.buyPet','care.checkin'],actions
-        assert finished['coins']==claimed['coins'] and len(finished['receipts'])==3
-        assert finished['care']['claimIds']==claimed['care']['claimIds']
-        touch=load(refresh=True)
-        touch.wait("()=>previewShop().tutorial?.completed===true&&!pairQA.find('TutorialLink')")
-        assert not errors,errors
-        print(f"{width}px: starter pair bred, purchased rabbit for {purchase['price']}, adopted both sexes, "
-              f"viewed {first} then {last}; progress restored after close and reload.",flush=True)
-    finally:
-        page.close()
+    assert page.evaluate("pairQA.texts(pairQA.find('TaskShortcut')).includes('任务完成 0/6')")
+    assert page.evaluate("!pairQA.find('RoomLink')&&!pairQA.find('TrophyBook')")
+    snap("首页任务与签到礼物")
+    touch.tap("TaskShortcut")
+    ready("breed")
+    tap("Back")
+    if width == 390:
+        assert page.evaluate("pairQA.find('GiftArt').scale.x") == 1.5
+        act("care.checkin", "GiftArt", "Hotspot_profile")
+        check_gift_receipt()
+        assert page.evaluate("!!pairQA.find('ShopHome')&&!pairQA.find('Hotspot_profile')")
+        snap("签到奖励弹窗")
+        tap("Back")
+    touch.tap("Sign", scope="Hotspot_rooms")
+    ready("rooms")
+    touch.tap("Feed", scope="FeedingStation")
+    ready("roomNutrition")
+    assert page.evaluate("!pairQA.find('Tier',pairQA.find('DeskPage'))")
+    snap("营养餐选择")
+    tap("NutritionDetail2")
+    ready("nutritionDetail")
+    assert page.evaluate("!pairQA.find('Tier',pairQA.find('DeskPage'))")
+    assert page.evaluate("pairQA.find('Growth',pairQA.find('DeskPage')).getComponent(cc.Label).string") == "成长速度 2 倍"
+    for target in ("roomNutrition", "rooms"):
+        tap("Back")
+        ready(target)
+    tap("Back")
+    touch.tap("Sign", scope="Hotspot_tasks")
+    ready("tasks")
+    assert page.evaluate("pairQA.visit().data.subtitle") == ("1 / 6 已完成" if width == 390 else "0 / 6 已完成")
+    assert page.evaluate("!pairQA.find('TutorialLink')")
+    assert page.evaluate("pairQA.visit().data.actions[0].disabled")
+    tap("TaskRow1")
+    ready("lab")
+    touch.wait("()=>!!pairQA.find('Picture',pairQA.find('Artwork'))?.getComponent(cc.Sprite)?.spriteFrame")
+    assert page.evaluate("pairQA.visit().data.rows.map(r=>r.link.args.species)") == ["rabbit", "cat", "rabbit", "cat"]
+    assert page.evaluate("()=>['种源','营养餐','服务单'].every(t=>pairQA.title(t,pairQA.find('DeskPage')))")
+    snap("培育中心种源")
+    tap("Row0")
+    ready("offer")
+    touch.tap(text="购买幼体", scope="DeskPage")
+    touch.wait("()=>!!pairQA.find('Confirm')")
+    act("care.buyPet", "Accept", "Confirm")
+    ready("lab")
+    assert page.evaluate("pairQA.visit().data.rows.length") == 3
+    tap("LabTab1")
+    touch.wait("()=>pairQA.ready()&&pairQA.visit().args.tab==='nutrition'")
+    assert page.evaluate("pairQA.visit().data.rows.map(r=>r.action.args.species)") == ["rabbit", "cat"] * 3
+    buy("NutritionPurchase1", "care.buyNutrition")
+    touch.wait("()=>pairQA.ready()&&pairQA.visit().data.rows[1].visual.stock===1")
+    snap("培育中心营养餐")
+    tap("LabTab2")
+    touch.wait("()=>pairQA.ready()&&pairQA.visit().args.tab==='services'")
+    assert page.evaluate("pairQA.visit().data.rows.map(r=>r.action.args.species)") == ["rabbit", "cat"] * 2
+    buy("ServicePurchase1", "care.buyItem")
+    touch.wait("()=>pairQA.ready()&&pairQA.visit().data.rows[1].title.includes('持有 1 张')")
+    snap("培育中心服务单")
+    tap("LabResearch")
+    ready("research")
+    tap("LabRecycle")
+    ready("recycle")
+    tap("Back")
+    ready("tasks")
+    row_done(1)
+
+    tap("TaskRow0")
+    ready("breed")
+    touch.kind("pair")
+    assert page.evaluate("()=>['选择母本','选择父本'].every(t=>pairQA.title(t,pairQA.find('DeskPage')))")
+    for i in range(2):
+        tap("Animal"+str(i))
+        touch.wait("n=>pairQA.ready()&&pairQA.visit().data.presentation.parents.filter(Boolean).length===n", i+1)
+    assert page.evaluate("!pairQA.title('每只幼体的出生概率')")
+    snap("繁育选择亲本")
+    tap("Review")
+    touch.kind("pairConfirm")
+    QA.check_parent_comparison(page, [["B"]*6, ["B","A","B","B","B","B"]])
+    snap("核对亲本双栏")
+    assert [item["name"] for item in touch.guide_options()] == ["不使用指导单", "指导品相"]
+    touch.choose_guide(1)
+    tap("CancelPair")
+    touch.kind("pair")
+    assert page.evaluate("pairQA.visit().data.presentation.parents.map(p=>p.name)") == ["小花", "小白"]
+    tap("Review")
+    touch.kind("pairConfirm")
+    assert page.evaluate("pairQA.visit().data.presentation.guide.index") == 1
+    touch.tap(text="开始繁育", scope="DeskPage")
+    touch.wait("()=>!!pairQA.find('Confirm')")
+    text = page.evaluate("pairQA.find('Question',pairQA.find('Confirm')).getComponent(cc.Label).string")
+    assert "后代品种 安哥拉兔" in text and "研究加成 稀有率+10%，属性提升+12%" in text
+    assert "选育指导 幼体品相属性会更容易遗传自父本。" in text
+    snap("繁育确认弹窗")
+    act("care.breed", "Accept", "Confirm")
+    touch.kind("breeding")
+    tap("Back")
+    ready("tasks")
+    row_done(0)
+    tap("TaskRow2")
+    ready("profile")
+    if width == 320:
+        with page.expect_response(lambda r: r.url.endswith("/api/action")
+                and r.request.post_data_json.get("type") == "care.checkin") as receipt:
+            touch.tap(text="领养两只幼兔", scope="DeskPage")
+        assert receipt.value.ok
+        check_gift_receipt()
+        tap("Back")
+        ready("profile")
+    tap("Back")
+    ready("tasks")
+    row_done(2)
+    for row, key in ((4, "market"), (3, "orders")):
+        tap("TaskRow"+str(row))
+        ready(key)
+        tap("Back")
+        ready("tasks")
+        row_done(row)
+    proc.stdin.write("complete\n")
+    proc.stdin.flush()
+    assert proc.stdout.readline().strip() == "complete"
+    row_done(5)
+    assert page.evaluate("!pairQA.visit().data.actions[0].disabled")
+    assert page.evaluate("pairQA.find('RewardCount0').getComponent(cc.Label).string") == "× 40"
+    assert page.evaluate("pairQA.find('RewardCount1').getComponent(cc.Label).string") == "× 2"
+    touch.wait("()=>!!pairQA.find('RewardArt1')?.getComponent(cc.Sprite)?.spriteFrame")
+    snap("任务全部完成")
+    wallet = MAIN + "?.shop?.coins"
+    coins = page.evaluate(wallet)
+    act("task.claim", "ClaimTasks")
+    touch.wait("()=>pairQA.ready()&&pairQA.visit().data.actions[0].label==='已领取'")
+    assert page.evaluate(wallet) == coins + 40
+    assert not errors, errors
+    page.close()
+    print(f"{width}px: mixed catalogs, side-by-side parents, task links and one reward passed.", flush=True)
 
 
-def main():
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--web-root',type=Path,default=PROJECT/'build'/'web-mobile')
-    parser.add_argument('--screenshot',type=Path,help='output path for the 390px second step')
-    args=parser.parse_args()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--web", type=Path, default=ROOT / "build/web-mobile")
+    parser.add_argument("--output", type=Path)
+    options = parser.parse_args()
     with sync_playwright() as pw:
-        browser=pw.chromium.launch(channel='msedge',args=['--use-angle=swiftshader','--enable-unsafe-swiftshader'])
+        browser = pw.chromium.launch(channel="msedge", args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
         try:
-            for width in (320,390):
-                with TemporaryDirectory(prefix='petshop-opening-guide-test-') as temp:
-                    proc=subprocess.Popen(['node','--input-type=module','-e',SERVER,temp,str(args.web_root.resolve())],
-                        cwd=PROJECT,stdout=subprocess.PIPE,text=True,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+            for viewport in (390, 320):
+                with TemporaryDirectory(prefix="petshop-task-list-") as save:
+                    process = subprocess.Popen(["node", "--input-type=module", "-e", SERVER, save, str(options.web)],
+                                               cwd=ROOT, text=True, encoding="utf-8", stdin=subprocess.PIPE,
+                                               stdout=subprocess.PIPE, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
                     try:
-                        play(browser,'http://127.0.0.1:'+str(int(proc.stdout.readline())),Path(temp),width,args.screenshot)
+                        port = int(process.stdout.readline())
+                        verify(browser, f"http://127.0.0.1:{port}/", process, viewport, options.output)
                     finally:
-                        proc.terminate()
-                        proc.wait(timeout=10)
+                        process.terminate()
+                        process.wait(timeout=10)
         finally:
             browser.close()
-
-
-if __name__=='__main__':
-    main()

@@ -3,7 +3,7 @@ import type { Args } from './ShopConnection';
 // A section replaces the current level-two view. Other destinations share one
 // work window owned by the section that opened it.
 const sections: Record<string,string> = {
-    rooms:'rooms', login:'login', tasks:'tasks', tutorial:'tutorial', profile:'profile', orders:'orders', guest:'guest', market:'market',
+    rooms:'rooms', login:'login', tasks:'tasks', profile:'profile', checkinReceipt:'profile', orders:'orders', guest:'guest', market:'market',
     breed:'breed', decor:'decor', lab:'lab', shelf:'lab', services:'lab', recycle:'lab', research:'lab',
     show:'show', 'show.history':'show', 'show.archive':'show', 'show.board':'show', 'show.tier':'show',
     collection:'collection', 'collection.theme':'collection',

@@ -88,7 +88,7 @@ test('短暂失联仍在线时不生成摘要，心跳超时的返回可以查�
   f.store.save(s);
   f.later(30*minute);
   const first=f.pulse();
-  assert.ok(first.page.rows.some(r=>r.title==='兔房当前货架'&&r.link.args.species==='rabbit'&&r.text.includes('金币')));
+  assert.ok(first.page.rows.some(r=>r.title==='兔房当前货架'&&r.link?.page==='lab'&&r.text.includes('金币')));
   f.pulse(false);f.later(4*day);
   const combined=f.pulse();
   assert.ok(combined.ids.length>first.ids.length);

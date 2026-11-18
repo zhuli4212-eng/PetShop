@@ -5,66 +5,95 @@ const reward={coins:40,tier:'premium',quantity:2};
 const isPurchasedRabbit=p=>p?.species==='rabbit'&&p.source==='研究所采购';
 
 export function initTasks(s) {
-  if(s.tasks)return false;
-  s.tasks={};
-  const {job}=s.rooms.rabbit;
+  if(s.tasks?.opening)return false;
+  s.tasks??={};
+  const {job,lastLitter}=s.rooms.rabbit;
+  const old=s.visitBook.tutorial;
+  const progress=s.tasks.opening={
+    breed:!!(old?.bred||job||lastLitter), buy:!!old?.bought, checkin:!!(old?.claimed||s.care.signedDay!=null),
+    orders:!!old?.ordersViewed, market:!!old?.marketViewed,
+  };
+  delete s.visitBook.tutorial;
   const knownParents=job?[...s.pets,job.mother,job.father]:s.pets;
   const purchasedIds=new Set(knownParents.filter(isPurchasedRabbit).map(p=>p.id));
-  if(purchasedIds.size<2)return true;
+  if(purchasedIds.size)progress.buy=true;
 
   // A legacy mating can count when its receipt and both purchase records are still available.
   let firstRabbitPair=Infinity, qualifyingPair;
   for(const receipt of Object.values(s.receipts)){
     const version=receipt?.result?.version;
-    if(!Number.isSafeInteger(version)||typeof receipt.key!=='string'||!receipt.key.startsWith('["care.breed",'))continue;
-    let args;
-    try { [,args]=JSON.parse(receipt.key); } catch { continue; }
+    if(!Number.isSafeInteger(version)||typeof receipt.key!=='string'||!/^\["care\.(breed|buyPet)",/.test(receipt.key))continue;
+    let type,args;
+    try { [type,args]=JSON.parse(receipt.key); } catch { continue; }
     if(!args||(args.species??'rabbit')!=='rabbit')continue;
+    if(type==='care.buyPet'){progress.buy=true;continue;}
+    progress.breed=true;
     firstRabbitPair=Math.min(firstRabbitPair,version);
     if(purchasedIds.has(args.mother)&&purchasedIds.has(args.father)&&version>(qualifyingPair?.version??0)){
       qualifyingPair={motherId:args.mother,fatherId:args.father,version};
     }
   }
-  if(qualifyingPair&&qualifyingPair.version>firstRabbitPair)s.tasks[rabbitPairTask]=qualifyingPair;
+  if(!s.tasks[rabbitPairTask]&&qualifyingPair&&qualifyingPair.version>firstRabbitPair)s.tasks[rabbitPairTask]=qualifyingPair;
   return true;
 }
 
 export function recordTaskAction(s,type,args) {
-  if(type!=='care.breed'||(args.species??'rabbit')!=='rabbit'||s.tasks[rabbitPairTask])return;
+  const progress=s.tasks.opening;
+  if(type==='care.checkin')progress.checkin=true;
+  if((args.species??'rabbit')!=='rabbit')return;
+  if(type==='care.buyPet')progress.buy=true;
+  if(type!=='care.breed')return;
+  progress.breed=true;
+  if(s.tasks[rabbitPairTask])return;
   const {job,lastLitter}=s.rooms.rabbit;
   if(lastLitter&&isPurchasedRabbit(job?.mother)&&isPurchasedRabbit(job?.father)){
     s.tasks[rabbitPairTask]={motherId:job.motherId,fatherId:job.fatherId,version:s.version+1};
   }
 }
 
+export function recordTaskVisit(s,page) {
+  if(!['orders','market'].includes(page)||s.tasks.opening[page])return s;
+  return {...s,tasks:{...s.tasks,opening:{...s.tasks.opening,[page]:true}}};
+}
+
+const complete=s=>!!s.tasks[rabbitPairTask]&&Object.values(s.tasks.opening).every(Boolean);
+
+function taskRows(s,access) {
+  const task=s.tasks[rabbitPairTask], p=s.tasks.opening;
+  const entry=(title,text,done,page,args={})=>({title,text,done,link:{page,args}});
+  const requirement=key=>access[key].unlocked?'':' · '+access[key].requiredLevel+' 级开放';
+  return [
+    entry('开始兔子繁育','确认一公一母的配对。',p.breed,'breed',{species:'rabbit'}),
+    entry('购入一只种兔','培育中心 · 种源'+requirement('lab'),p.buy,'lab',{fromTasks:true}),
+    entry('签到领养幼兔','领取今日的两只幼兔。',p.checkin,'profile'),
+    entry('查看普通订单','订单'+requirement('orders'),p.orders,'orders',{fromTasks:true}),
+    entry('查看自由市场','查看当前的动物报价。',p.market,'market'),
+    entry('用购入的种兔继续繁育','首窝出生后，用购入的一公一母开始配对。',!!task,'breed',{species:'rabbit'}),
+  ];
+}
+
+export function taskShortcut(s,access) {
+  const rows=taskRows(s,access), pending=rows.filter(r=>!r.done);
+  const next=pending[0];
+  const claimed=s.tasks[rabbitPairTask]?.claimedAt!==undefined;
+  return {completed:rows.length-pending.length,total:rows.length,
+    choice:next?{...next.link,label:next.title}:{page:'tasks',label:claimed?'任务已全部完成':'领取任务奖励'}};
+}
+
 export function tasksPage(s,access) {
-  const task=s.tasks[rabbitPairTask], room=s.rooms.rabbit, firstBorn=!!room.lastLitter||!!task;
-  const claimed=task?.claimedAt!==undefined;
-  const title='用购入的种兔继续繁育';
-  const rewardText=reward.coins+' 金币 · 臻选兔兔营养餐 '+reward.quantity+' 份';
-  const actions=[];
-  if(task&&!claimed)actions.push({label:'领取奖励',type:'task.claim',args:{id:rabbitPairTask}});
-  if(!task) {
-    actions.push({label:'前往繁育',page:'breed',args:{species:'rabbit'}});
-    if(firstBorn&&access.lab.unlocked)actions.push({label:'前往种源货架',page:'shelf',args:{species:'rabbit'}});
-  }
-  return {title:'任务',subtitle:claimed?'已领取':task?'可领取':'进行中',rows:[
-    {title,text:'用一公一母两只从培育中心买来的种兔开始配对。'},
-    {title:'完成首窝兔子繁育',text:firstBorn?'已完成':room.job?'繁育中，等待首窝出生':'尚未开始',done:firstBorn},
-    {title:'确认购入种兔的配对',text:task?'已完成':'等待配对成功',done:!!task},
-    {title:'任务奖励',text:rewardText},
-    ...(!task&&firstBorn&&!access.lab.unlocked?
-      [{title:'培育中心',text:'店铺达到 '+access.lab.requiredLevel+' 级后开放种源货架。'}]:[]),
-    {title:'新手引导',text:'查看开店四步与当前进度。',link:{page:'tutorial'}},
-  ],actions};
+  const rows=taskRows(s,access);
+  const claimed=s.tasks[rabbitPairTask]?.claimedAt!==undefined;
+  return {title:'任务',subtitle:rows.filter(r=>r.done).length+' / '+rows.length+' 已完成',rows,
+    visual:{rewards:[{name:'金币',quantity:reward.coins},{name:'臻选兔兔营养餐',quantity:reward.quantity,art:'rooms/rabbit-nutrition-premium'}]},
+    actions:[{label:claimed?'已领取':'领取',type:'task.claim',args:{id:rabbitPairTask},disabled:claimed||!complete(s)}]};
 }
 
 export function taskAction(s,type,args,now) {
   if(type!=='task.claim')return undefined;
   if(args.id!==rabbitPairTask)throw new Error('没有这项任务。');
   const task=s.tasks[rabbitPairTask];
-  if(!task)throw new Error('请先完成任务。');
-  if(task.claimedAt!==undefined)throw new Error('这项任务的奖励已领取。');
+  if(task?.claimedAt!==undefined)throw new Error('这项任务的奖励已领取。');
+  if(!complete(s))throw new Error('请先完成全部任务。');
   const room=s.rooms.rabbit;
   const stock=nutritionStock(room,reward.tier)+reward.quantity;
   if(!Number.isSafeInteger(stock))throw new Error('兔房对应营养餐库存已满。');

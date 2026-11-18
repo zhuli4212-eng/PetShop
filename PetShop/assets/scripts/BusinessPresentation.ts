@@ -1,6 +1,6 @@
 import { assetManager, isValid, Sprite, SpriteFrame, UITransform } from 'cc';
 import type { Choice, LedgerPage, LedgerRow } from './ShopConnection';
-import { animalFilters, box, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
+import { animalFilters, box, caption, frame, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { banner, blocks, brown, buttons, card, cream, dock, edge, green, info, ink, note, section, text, thumbTabs } from './BusinessCards';
 
 interface ResearchBenefit {
@@ -12,7 +12,7 @@ interface RowVisual {
     name?:string; number?:string; price?:number; summary?:string; blockedReason?:string; mode?:string; benefit?:ResearchBenefit; status?:string; uncollected?:boolean;
 }
 interface PageVisual {
-    shelf?:LedgerPage; remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
+    remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
     schedule?:Record<string,{close:string;result:string;payout:string}>; pet?:string; petStage?:string; tierOptions?:LedgerRow[];
     shopDay?:number; raceAccess?:Record<string,{opensDay:number;unlocked:boolean;opensAt:number}>; benefit?:ResearchBenefit;
 }
@@ -92,7 +92,7 @@ function sale(c:PageCanvas):void {
     const channel=c.key==='sale'?String(c.args.channel):c.key,mode=channel==='order'?'交付':channel==='recycle'?'回收':'出售';
     const list=rows(c),ids=list.filter(r=>r.select).map(r=>r.select!);
     if(channel==='recycle'){
-        banner(c,'lab','研究所');c.startList();labTabs(c,'recycle');
+        labMenu(c,'recycle');
         c.strip([['','全部'],['rabbit','兔'],['cat','猫'],['dog','狗']].map(([species,label])=>({
             ...act(label,'recycle',species?{species}:{}),active:(c.args.species||'')===species,
         })),'RecycleSpecies');
@@ -163,26 +163,62 @@ function quote(c:PageCanvas):void {
     const edit=c.p.actions?.find(choice=>choice.type==='ui.editSelection');
     buttons(c,[...(edit?[edit]:[]),a],edit?1:0);
 }
-function labTabs(c:PageCanvas,active:string):void {
-    const scope=c.args.species?{species:c.args.species}:{};
-    c.strip([['shelf','种源货架'],['recycle','研究回收'],['research','技能树'],['services','服务单']].map(([id,label])=>({
-        ...act(label,id,scope),active:active===id || (active==='lab'&&id==='shelf'),
+interface NutritionStoreRow extends LedgerRow {
+    visual: { rate:number; price:number; stock:number; };
+    action: Choice;
+}
+export function nutritionStore(c:PageCanvas):void {
+    const w=c.inner;
+    if(c.key==='nutritionShop')c.strip(c.p.tabs||[],'NutritionRoom');
+    caption(c.body,'NutritionSubtitle',c.p.subtitle||'营养餐',0,c.slot(28,4),w,28,14,paper.muted);
+    c.startList();
+    ((c.p.rows||[]) as NutritionStoreRow[]).forEach((r,i)=>{
+        const h=84, left=-w/2+57, textWidth=w-165, right=w/2-55;
+        const card=frame(c.body,'NutritionOffer'+i,0,c.slot(h,7),w,h,
+            r.current?'#E0E8CE':paper.card,r.current?'#75916A':paper.brass,false);
+        if(r.art)picture(card,'MealArt',r.art,-w/2+29,0,43,58);
+        const {rate,price,stock}=r.visual, textX=left+textWidth/2;
+        heading(card,'MealName',r.title,textX,21,textWidth,22,15,paper.green);
+        caption(card,'Growth','成长速度 '+rate+' 倍',textX,0,textWidth,20,13,paper.ink);
+        caption(card,'Stock','库存 '+stock+' 份',textX,-21,textWidth,20,13,paper.muted);
+        caption(card,'Price',price+' 金币',right,23,96,20,14,paper.ink,true).isBold=true;
+        press(card,'NutritionPurchase'+i,r.action.label!,right,-12,94,()=>c.ui.choose(r.action),true,!!r.action.disabled,42);
+    });
+}
+function labMenu(c:PageCanvas,active:string):void {
+    const scene=banner(c,'lab','培育中心');
+    const y=-scene.getComponent(UITransform)!.height/2+31,x=c.width/2-53;
+    press(scene,'LabResearch','研究',x,y+14,90,()=>c.ui.choose(act('研究','research')),active==='research',false,25);
+    press(scene,'LabRecycle','动物回收',x,y-14,90,()=>c.ui.choose(act('动物回收','recycle')),active==='recycle',false,25);
+    c.strip([['seed','种源'],['nutrition','营养餐'],['services','服务单']].map(([tab,label])=>({
+        ...act(label,'lab',tab==='seed'?{}:{tab}),active:active===tab,
     })),'LabTab');
 }
 function lab(c:PageCanvas):void {
-    banner(c,'lab','培育中心');c.startList();labTabs(c,'lab');
-    const shelf=pageVisual(c).shelf;
-    if(shelf)section(c,'本批种源',shelf.subtitle||'');
+    const tab=c.args.tab||'seed';
+    labMenu(c,tab);
+    if(tab==='nutrition'){nutritionStore(c);return;}
+    if(tab==='seed')section(c,'本批种源',c.p.subtitle);
     c.startList();
-    if(!shelf){rows(c).forEach((r,i)=>info(c,r,i));return;}
-    (shelf.rows||[]).forEach((r,i)=>info(c,r,i));
-    note(c,'每 30 分钟刷新一批。同批内容固定，已售货位留空。');
-    dock(c,[act('查看各房货架','shelf'),act('营养餐','nutritionShop',c.args.species?{species:c.args.species}:{})],-1);
+    if(tab==='services')rows(c).forEach((r,i)=>catalogService(c,r,i));
+    else rows(c).forEach((r,i)=>info(c,r,i));
+    if(!rows(c).length)c.empty();
+}
+function catalogService(c:PageCanvas,r:LedgerRow,i:number):void {
+    const a=r.action!, w=c.inner;
+    const detail=(r.text||'').split('\n');
+    const price=detail.pop()||'', copy=detail.join('\n');
+    const dh=blocks(copy,w-20,13)*18,h=96+dh,n=card(c,'ServiceOffer'+i,h);
+    if(r.art)picture(n,'Icon',r.art,-w/2+26,h/2-24,31,31);
+    text(n,'Title',r.title,18,h/2-24,w-61,31,15,ink,'left',true);
+    text(n,'Effect',copy,0,h/2-45-dh/2,w-20,dh,13,brown);
+    text(n,'Price',price,-55,-h/2+24,w-130,32,13,brown);
+    press(n,'ServicePurchase'+i,a.disabled?'金币不足':'购买 1 张',w/2-61,-h/2+26,102,()=>c.ui.choose(a),true,!!a.disabled,40);
 }
 const branchArt=['research-review','breeding-guide','research-market'];
 function research(c:PageCanvas):void {
     const v=pageVisual(c);
-    banner(c,'lab','研究台','research');c.startList();labTabs(c,'research');thumbTabs(c,c.p.tabs||[]);
+    labMenu(c,'research');thumbTabs(c,c.p.tabs||[]);
     const w=c.inner,lev=v.levels||[0,0,0],h=59;
     const head=frame(c.body,'BookHeading',0,c.slot(h,0),w,h,'#FFF1CF','#B99C6C');
     heading(head,'Title',v.handbook||c.p.title,-43,9,w-107,26,19,green);
@@ -382,8 +418,8 @@ function secondary(c:PageCanvas):void {
     else if(key==='shelf'||key==='services'){
         // Closed species use the shared room-unlock layout and pricing.
         if(art==='shop-modules/lab'){
-            banner(c,'lab','研究所',key==='services'?'services':'normal');
-            c.startList();labTabs(c,key);thumbTabs(c,c.p.tabs||[]);
+            banner(c,'lab','培育中心',key==='services'?'services':'normal');
+            c.startList();thumbTabs(c,c.p.tabs||[]);
         }
     }
     if(c.p.subtitle)note(c,c.p.subtitle);

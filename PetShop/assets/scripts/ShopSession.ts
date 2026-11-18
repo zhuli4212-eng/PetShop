@@ -12,7 +12,7 @@ interface ResponseReceipt { message:string; requestId:string; }
 interface StageClock {label:Label;endsAt:number;shown:number;progress?:(seconds:number)=>void;}
 interface Host {
     layer:Node; origin:string; height:()=>number; wallet:()=>ShopSnapshot;
-    update:(shop:ShopSnapshot)=>void; activate:(open:boolean)=>void; notice:(message:string)=>void;
+    update:(shop:ShopSnapshot)=>void; activate:(open:boolean,keepHome?:boolean)=>void; notice:(message:string)=>void;
     readNotes:(profile:string,ids:string[])=>void;
 }
 const storagePrefix='petshop.command.';
@@ -59,7 +59,7 @@ function payment(stage:string):LedgerPage {
 }
 export class ShopSession {
     private feature?:Visit;
-    private guideReturn?:Visit;
+    private taskReturn?:Visit;
     private panel?:Visit;
     private editDraft?:Visit;
     private navigation=0;
@@ -111,11 +111,8 @@ export class ShopSession {
     dispose():void{this.browser.dispose();this.closeFilter();this.closed=true;this.serial++;}
     async open(key:string,args:Args={}):Promise<void>{
         if(this.closed||this.confirm)return;
-        const shop=this.host.wallet(),rule=shop.featureAccess?.[accessFeature(key,args)],guide=shop.tutorial;
-        const guidedAccess=guide&&(
-            (guide.step>=2&&(key==='shelf'||key==='offer')&&(args.species??'rabbit')==='rabbit')
-            ||(guide.step===4&&key==='orders'));
-        if(rule&&!rule.unlocked&&!guidedAccess){this.host.notice(rule.name+'需要店铺达到 '+rule.requiredLevel+' 级。');return;}
+        const rule=this.host.wallet().featureAccess?.[accessFeature(key,args)];
+        if(rule&&!rule.unlocked&&args.fromTasks!==true){this.host.notice(rule.name+'需要店铺达到 '+rule.requiredLevel+' 级。');return;}
         if(this.current?.key==='visitBook'){
             const dismiss=this.dismissLetter;this.dismissLetter=undefined;dismiss?.();
         }
@@ -127,12 +124,10 @@ export class ShopSession {
         this.bonusVisit=undefined;
         if(key==='roomRoster')key='rooms';
         if(key==='sale'&&args.preselectId&&['market','recycle'].includes(args.channel))key=args.channel;
-        const readingHandbook=key==='tutorial'&&this.panel?.key==='openingGuide'&&!this.host.wallet().tutorial;
-        const dest=readingHandbook?undefined:featureFor(key,args);
+        const dest=key==='checkinReceipt'&&this.feature?undefined:featureFor(key,args);
         const visit:Visit={key,args,selected:new Set(),offset:0};
-        if(key==='tutorial')this.guideReturn=undefined;
-        else if(this.current?.key==='tutorial'&&this.host.wallet().tutorial&&!this.host.wallet().tutorial!.completed)
-            this.guideReturn=this.current;
+        if(key==='tasks')this.taskReturn=undefined;
+        else if(dest&&this.feature?.key==='tasks')this.taskReturn=this.feature;
         if(dest){
             // A button that points back at the same section restores its selection
             // and scroll. Changed filters, columns and rooms start a fresh list.
@@ -153,7 +148,6 @@ export class ShopSession {
         }else{
             if(!this.feature)throw new Error('请先进入相应的店铺功能。');
             const prior=this.panel;
-            if(readingHandbook)visit.returnPanel=prior;
             if(key==='nutritionDetail'||key==='nutritionShop'){
                 visit.returnPanel=prior?.key===key?prior.returnPanel:prior;
             }
@@ -176,7 +170,7 @@ export class ShopSession {
             this.panel=visit;
         }
         if(key==='payment')this.paymentStage='start';
-        this.host.activate(true);this.browser.sync();
+        this.host.activate(true,this.feature?.key==='checkinReceipt');this.browser.sync();
     }
     private closePanel():void {
         this.panel=undefined;this.confirm=undefined;this.editDraft=undefined;
@@ -192,7 +186,7 @@ export class ShopSession {
         if(!this.confirm&&this.panel?.returnPanel){
             this.panel=this.panel.returnPanel;this.editDraft=undefined;
         }else if(this.confirm||this.panel)this.closePanel();
-        else if(this.guideReturn){this.feature=this.guideReturn;this.guideReturn=undefined;}
+        else if(this.taskReturn){this.feature=this.taskReturn;this.taskReturn=undefined;}
         else{
             const dismiss=this.dismissLetter;
             this.feature=undefined;this.dismissLetter=undefined;
@@ -330,7 +324,7 @@ export class ShopSession {
         if(remember)this.remember();
         this.renderedVisit=undefined;this.scroll=null;
         clearLayer(this.host.layer);
-        const modal=!!this.panel&&ledgerModal(v.key);
+        const modal=(!!this.panel||v.key==='checkinReceipt')&&ledgerModal(v.key);
         const confirmingNutrition=!!this.confirm&&v.key==='nutritionShop';
         const hidePanel=!!this.confirm&&!confirmingNutrition;
         const views=hidePanel?[v.data.presentation?.kind==='pairConfirm'?v:this.feature!]:modal?this.stack:[v];
@@ -358,7 +352,7 @@ export class ShopSession {
                 }
             },view.key,view.args,{
                 backdrop,modal:!backdrop&&modal,
-                backToGuide:!backdrop&&!this.panel&&!!this.guideReturn,
+                backToTasks:!backdrop&&!this.panel&&!!this.taskReturn,
                 ready:view.version!==undefined||view.key==='payment',
                 pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
             });
@@ -461,8 +455,6 @@ export class ShopSession {
     private async commit(a:Choice,args:Args,version:number):Promise<void>{
         if(this.busy)return;
         const origin=this.navigation;
-        const guide=this.host.wallet().tutorial;
-        const tutorialPurchase=a.type==='care.buyPet'&&guide?.step===2&&!guide.completed&&(args.species??'rabbit')==='rabbit';
         this.busy=true;this.serial++;this.reading=false;
         const command={requestId:requestId(),profileId:this.host.wallet().profileId,version,type:a.type!,args};
         let feedback='';
@@ -480,8 +472,8 @@ export class ShopSession {
                     }else if(a.type==='care.unlock'){
                         this.navigate('rooms',{species:args.species});
                         this.navigate('roomReceipt',{species:args.species});
-                    }else if(tutorialPurchase){
-                        this.navigate('tutorial',{});
+                    }else if(a.type==='care.checkin'){
+                        this.navigate('checkinReceipt',{});
                     }else if(a.type==='care.buyPet'||a.type==='care.feed'||a.type==='order.cancel'){
                         this.closePanel();
                     }else if(a.go)this.navigate(a.go,a.goArgs||{});
@@ -503,6 +495,6 @@ export class ShopSession {
             try{const shop=await connectShop(this.host.origin);if(!this.closed)this.host.update(shop);}
             catch{/* The normal store poll will retry the snapshot. */}
         }
-        if(!this.closed)this.host.notice(feedback);
+        if(!this.closed&&this.current?.key!=='checkinReceipt')this.host.notice(feedback);
     }
 }

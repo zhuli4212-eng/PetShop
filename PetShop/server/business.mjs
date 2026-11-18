@@ -1,5 +1,5 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import { BREEDS, SPECIES, TRAITS, breedName, carePage, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, stageEnd, stageNames, stageOf, stockStatus } from './care.mjs';
+import { BREEDS, SPECIES, TRAITS, breedName, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, stageEnd, stageNames, stageOf, stockStatus } from './care.mjs';
 import { bredValuePercent, researchBenefit } from './research-effects.mjs';
 
 const minute = 60_000;
@@ -9,7 +9,7 @@ const gradeNames = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'];
 const baseValues = { rabbit: 100, cat: 1200, dog: 1300 };
 const breedFactors = [100, 110, 120, 135];
 const stageFactors = { 幼年: 80, 成长: 92, 成年: 100, 老年: 65, 已故: 0 };
-const channelNames = { market: '自由市场', order: '订单交付', recycle: '研究所回收', guest: '来客委托' };
+const channelNames = { market: '自由市场', order: '订单交付', recycle: '动物回收', guest: '来客委托' };
 const researchNames = ['稀有标签研究', '五维选育研究', '繁育后价值研究'];
 const researchBases = { rabbit: 100, cat: 250, dog: 400 };
 const ornaments = {
@@ -431,14 +431,6 @@ function orderActions(s, id) {
 }
 
 export function businessPage(s, page, args, now) {
-  if (page === 'lab') {
-    return { title: '研究所', art: 'shop-modules/lab', visual: { shelf: carePage(s,'shelf',{species:'rabbit'},now) }, rows: [
-      linkRow('幼体货架', '每个已开放动物房各有两格，每 30 分钟换批。', 'shelf'),
-      linkRow('研究手册', '选一个动物房，看看研究能让幼体或售价改善多少。', 'research'),
-      linkRow('服务单', '购买特征复评或选育指导服务。', 'services'),
-      linkRow('回收窗口', '仅回收已故动物，可多选并逐只核价。', 'recycle'),
-    ] };
-  }
   if (page === 'market' || page === 'recycle' || page === 'sale') {
     const channel = page === 'sale' ? args.channel : page;
     const target = saleTarget(s, { ...args, channel }, now);
@@ -529,7 +521,7 @@ function researchPage(s, page, args) {
   const levels = s.research[species];
   const benefitAt = (branch, level) => researchBenefit(branch, level, speciesName(species), s.rooms[species]?.mutationEnabled !== false);
   if (page === 'research') {
-    return { title: '研究技能树', visual:{levels,open:!!s.rooms[species],handbook:speciesName(species)+'房研究手册'}, subtitle: s.rooms[species] ?
+    return { title: '研究', visual:{levels,open:!!s.rooms[species],handbook:speciesName(species)+'房研究手册'}, subtitle: s.rooms[species] ?
       '当前总等级 ' + levels.reduce((sum, x) => sum + x, 0) + ' / 30' : '开放该物种房间后可以研究。',
       tabs: speciesList.map(key => ({...nextPage(speciesName(key) + '房', 'research', { species: key }), active: key === species})),
       rows: levels.map((level, branch) => {

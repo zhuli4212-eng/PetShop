@@ -83,6 +83,22 @@ test('购买营养餐按已确认的单价扣款入库存，重试、拒绝与�
   assert.equal(reopened.state.rooms.rabbit.nutritionStock.premium,1);
 });
 
+test('培育中心混排已开房间的在售种源、营养餐和服务单',()=>{
+  const g=fixture().make();
+  g.state.shopXp=36;
+  g.state.coins=10_000;
+  g.state.rooms.cat={...structuredClone(g.state.rooms.rabbit),shelf:null};
+  const read=tab=>g.page('lab',{tab}).page.rows;
+  assert.deepEqual(read('seed').map(r=>r.link.args.species),['rabbit','cat','rabbit','cat']);
+  assert.deepEqual(read('nutrition').map(r=>r.action.args.species),['rabbit','cat','rabbit','cat','rabbit','cat']);
+  assert.deepEqual(read('services').map(r=>r.action.args.species),['rabbit','cat','rabbit','cat']);
+  const cat=read('seed').find(r=>r.link.args.species==='cat');
+  const buy=g.page('offer',cat.link.args).page.actions[0];
+  assert.throws(()=>g.act(request(g,buy.type,{...buy.args,species:'dog'})),/请先开放/);
+  g.act(request(g,buy.type,buy.args));
+  assert.ok(!read('seed').some(r=>r.link.args.id===cat.link.args.id));
+});
+
 test('投喂按房间扣一份，防重、防叠加，只提前成年前的时点',()=>{
   const clock=fixture(),g=clock.make();
   const [mother,father]=g.state.pets;

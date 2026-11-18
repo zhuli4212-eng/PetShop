@@ -54,13 +54,12 @@ test('订单区分缺项、占用及未持有的货架幼体，采购预计收�
   assert.match(noStock.rows.find(r=>r.title==='本批货架').text,/没有.*下一批随机/);
 });
 
-test('指导及复评前展示风险，服务单、装饰确认显示折前及实付金额', () => {
+test('确认繁育显示选育方向，复评风险和采购报价仍按现行规则显示', () => {
   const s=fresh(),[mother,father]=s.pets;
   mother.traits[0].grade='S';
   s.rooms.rabbit.items={guide:1,review:1};
   const pair=carePage(s,'breed',{species:'rabbit',mother:mother.id,father:father.id,guide:0},t0);
-  assert.match(pair.rows.find(r=>r.title.startsWith('选育指导单')).text,/80%.*20%.*目标较低/);
-  assert.match(pair.actions.find(a=>a.type==='care.breed').confirm,/目标偏低/);
+  assert.match(pair.actions.find(a=>a.type==='care.breed').confirm,/选育指导 幼体性格属性会更容易遗传自母本/);
   const review=carePage(s,'review',{species:'rabbit',id:mother.id},t0);
   assert.equal(review.stage,'成年');
   assert.equal(carePage(s,'review',{species:'rabbit',id:mother.id},t0+3*24*60*min).stage,'老年');

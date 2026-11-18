@@ -9,9 +9,6 @@ export interface LedgerRow {
     title:string; text?:string; art?:string; select?:string; stage?:string;
     link?:Choice; action?:Choice; done?:boolean; current?:boolean;
 }
-export interface TutorialProgress {
-    step:number; total:number; title:string; completed:boolean; ordersViewed:boolean; marketViewed:boolean;
-}
 export interface MutationPreview {
     enabled:boolean; level:number;
     fields:{name:string;mother:string;father:string;off:number;on:number}[];
@@ -23,7 +20,7 @@ export interface LedgerPage {
     readNoteIds?:string[];
     visual?:Args;
     title:string; subtitle?:string; art?:string; stage?:string; animals?:string[]; animalStages?:string[];
-    presentation?:{kind:string; bornAt?:number; endsAt?:number; nextStageAt?:number|null; remaining?:number; mutationPreview?:MutationPreview; nutrition?:NutritionEffect; archived?:boolean} & Partial<TutorialProgress>;
+    presentation?:{kind:string; bornAt?:number; endsAt?:number; nextStageAt?:number|null; remaining?:number; mutationPreview?:MutationPreview; nutrition?:NutritionEffect; archived?:boolean};
     tabs?:Choice[]; filters?:Choice[][]; selectionLabel?:string;
     rows?:LedgerRow[]; actions?:Choice[]; empty?:string; initialSelection?:string[];
 }
@@ -34,8 +31,9 @@ export interface ShopSnapshot {
     shopExperience?:{total:number;intoLevel:number;toNext:number;maxLevel:number};
     featureAccess?:Record<string,{name:string;requiredLevel:number;unlocked:boolean}>;
     notice?:{key:string,text:string,at:number}; hints?:{id:string,text:string}[];
+    taskShortcut?:{completed:number;total:number;choice:Choice};
     guest?:{id:string;endsAt:number};
-    letter?:ShopLetter|null; tutorial?:TutorialProgress;
+    letter?:ShopLetter|null;
 }
 export interface ShopLetter {ids:string[];page:LedgerPage;}
 export interface Command {requestId:string; profileId:string; version:number; type:string; args:Args;}
