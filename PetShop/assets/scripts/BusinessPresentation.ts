@@ -24,6 +24,7 @@ const back={label:'返回',type:'ui.back'};
 
 function orders(c:PageCanvas):void {
     banner(c,'orders','订单柜台');
+    c.strip(c.p.tabs||[],'OrderTab');
     c.startList();
     if(c.p.visual?.preview){
         section(c,'普通订单','新手预览');
@@ -302,10 +303,11 @@ function decor(c:PageCanvas):void {
     });
 }
 function visitor(c:PageCanvas):void {
+    c.strip(c.p.tabs||[],'OrderTab');
     const w=c.inner,hero=card(c,'GuestPortrait',86);
     picture(hero,'Portrait','shop-modules/guest',-w/2+44,0,60,76);
     text(hero,'Type','特殊来客',38,22,w-94,20,12,brown);
-    heading(hero,'Name',c.p.actions?.length?c.p.title:'来客簿',38,0,w-94,25,18,green);
+    heading(hero,'Name',c.p.actions?.length?c.p.title:'特殊来客',38,0,w-94,25,18,green);
     text(hero,'Status',c.p.actions?.length?'到店委托':'等候客人上门',38,-21,w-94,20,13,brown);
     c.startList();
     if(c.p.subtitle){section(c,'来客需求');note(c,c.p.subtitle);}

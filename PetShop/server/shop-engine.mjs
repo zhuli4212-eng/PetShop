@@ -37,7 +37,7 @@ function publicShop(s,now,rules) {
   const access=featureAccess(rules,level);
   const hints=[];
   const dayClaimed=s.care.signedDay===dayAt(now);
-  if(access.guest.unlocked&&s.visitors.active) hints.push({id:s.visitors.active.id,text:'有位客人正在等，到来客簿看看吧。'});
+  const guest=access.guest.unlocked&&s.visitors.active;
   for(const room of Object.values(s.rooms)){
     const litter=room.lastLitter;
     if(access.breed.unlocked&&litter&&now-litter.bornAt<86400000) hints.push({id:'litter-'+litter.ids[0],text:'新的一窝出生了，去繁育台看看小家伙吧。'});
@@ -47,6 +47,7 @@ function publicShop(s,now,rules) {
   return { protocol:1, profileId:s.profileId, version:s.version, mode:s.mode, name:'宠物店', coins:s.coins,
     shopLevel:level, shopExperience, ...shopRaceAccess(rules,s.createdAt,now),
     featureAccess:access, entrances:legacyEntrances.filter(key=>access[key].unlocked),
+    ...(guest&&{guest:{id:guest.id,endsAt:guest.endsAt}}),
     ...(s.visitBook.tutorial&&{tutorial:tutorialStatus(s)}),now, hints, dayClaimed, decor:Object.keys(s.decor || {}).filter(k=>s.decor[k]?.placed),
     rooms:Object.keys(s.rooms || {}).filter(k=>s.rooms[k]), notice:s.journal.at(-1) ?? null };
 }
@@ -149,6 +150,14 @@ export class ShopEngine {
     let view=page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access);
     for(const get of pageHandlers) {if(view) break;view=get(data,page,args,now,this.rules);}
     if(!view) throw new GameError('这个页面暂不可用，请返回店铺。',404);
+    if(page==='orders'||page==='guest'){
+      view.tabs=[
+        {label:'普通订单',page:'orders',active:page==='orders'},
+        {label:access.guest.unlocked?'特殊来客':`特殊来客 · ${access.guest.requiredLevel} 级`,
+          page:'guest',active:page==='guest',disabled:!access.guest.unlocked},
+      ];
+    }
+    if(page==='tutorial'&&args?.fromTasks)view.title='任务';
     if(!access.lab.unlocked&&s.visitBook.tutorial?.bought&&['shelf','offer'].includes(page)){
       view.actions=[{label:'返回新手引导',page:'tutorial'}];
       view.subtitle=(view.subtitle?view.subtitle+' · ':'')+'本次引导采购已完成，再次采购需店铺 '+access.lab.requiredLevel+' 级。';

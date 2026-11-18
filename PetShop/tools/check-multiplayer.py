@@ -113,10 +113,12 @@ def verify(pw, address):
             assert page.evaluate("currentLedger().actions.some(a=>a.page==='tutorial')")
             tap_game_label(page,"跳过，进店")
             page.wait_for_function("shopUI().home.active")
-            tap_game_label(page,"ShopHome/RoomPlane/Entrances/Hotspot_profile/Sign",path=True)
-            page.wait_for_function("currentLedger()?.title === '每日签到'")
-            tap_game_label(page,"领养两只幼兔")
-            page.wait_for_function("currentLedger()?.presentation?.signed === true")
+            gift="ShopHome/RoomPlane/Entrances/Hotspot_profile"
+            with page.expect_response(lambda r:urlsplit(r.url).path=="/api/action" and
+                                      r.request.post_data_json.get("type")=="care.checkin") as result:
+                tap_game_label(page,gift+"/Sign",path=True)
+            assert result.value.ok,result.value.text()
+            page.wait_for_function("gift=>shopUI().shop.dayClaimed && !shopUI().node.getChildByPath(gift).active",arg=gift)
             adopted=residents(page)
             assert len(adopted)==4
 

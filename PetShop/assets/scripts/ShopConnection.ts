@@ -31,6 +31,7 @@ export interface ShopSnapshot {
     shopExperience?:{total:number;intoLevel:number;toNext:number;maxLevel:number};
     featureAccess?:Record<string,{name:string;requiredLevel:number;unlocked:boolean}>;
     notice?:{key:string,text:string,at:number}; hints?:{id:string,text:string}[];
+    guest?:{id:string;endsAt:number};
     letter?:ShopLetter|null; tutorial?:TutorialProgress;
 }
 export interface ShopLetter {ids:string[];page:LedgerPage;}

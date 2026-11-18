@@ -29,9 +29,9 @@ function finishStory(s,now) {
 }
 
 const tutorialSteps=[
-  ['开始兔子繁育','在繁育台挑选一公一母，核对后确认配对。一生只能繁育一窝。'],
-  ['购入一只种兔','到研究所的兔种源货架查看两只幼兔，挑一只按当前报价购买。'],
-  ['签到领养幼兔','在每日签到簿领取一公一母两只基础幼兔。'],
+  ['开始兔子繁育','从首页进入繁育，挑选一公一母，核对后确认配对。一生只能繁育一窝。'],
+  ['购入一只种兔','到培育中心的兔种源货架查看两只幼兔，挑一只按当前报价购买。'],
+  ['签到领养幼兔','点首页门口礼物，领取一公一母两只基础幼兔。'],
   ['查看订单和自由市场','分别看看普通订单的委托条件和自由市场的动物报价。'],
 ];
 const linkTo=(label,page,args={})=>({label,page,args});
@@ -78,11 +78,11 @@ function tutorialPage(s,now,access) {
         });
         rows[0].text=next?'现有后备兔最早于北京时间 '+beijingTime(next.adultAt)+' 配对，可到兔房查看成长。':
           (s.care.signedDay===dayAt(now)?'今天已经签到，明天可再领一对幼兔。':'当前缺少可配对的公母兔，可先签到领养一对幼兔。')+'幼兔成年后再回来配对。';
-        actions.push(linkTo('查看兔房','rooms',rabbit),linkTo('查看签到簿','profile'));
+        actions.push(linkTo('查看兔房','rooms',rabbit),linkTo('前往每日签到','profile'));
         if(access.lab.unlocked)actions.push(linkTo('查看兔种源货架','shelf',rabbit));
       }
     } else if(summary.step===2)actions.push(linkTo('前往兔种源货架','shelf',rabbit));
-    else if(summary.step===3)actions.push(linkTo('前往签到簿','profile'));
+    else if(summary.step===3)actions.push(linkTo('前往每日签到','profile'));
     else {
       rows[3].text='普通订单'+(summary.ordersViewed?'已查看':'待查看')+' · 自由市场'+(summary.marketViewed?'已查看':'待查看');
       if(!summary.ordersViewed)actions.push(linkTo('查看普通订单','orders'));

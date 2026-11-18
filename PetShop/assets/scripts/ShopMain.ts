@@ -1,7 +1,7 @@
 import { _decorator, Component, game, Game, EventKeyboard, input, Input, isValid, KeyCode,
     Graphics, Label, Node, screen, sys, UITransform, view } from 'cc';
 import { api, connectShop, requestId, sendDeparture, type ShopSnapshot, type ShopLetter } from './ShopConnection';
-import { box, caption, picture, drawConnection } from './ShopEntranceView';
+import { box, caption, picture, drawConnection, guestArrival } from './ShopEntranceView';
 import { ShopHomeFeatures } from './ShopHomeFeatures';
 import { ShopSession } from './ShopSession';
 import { ShopkeeperWalk } from './ShopkeeperWalk';
@@ -41,6 +41,8 @@ export class ShopMain extends Component {
     private toast:Node|null=null;
     private hintBubble:Node|null=null;
     private letter:ShopLetter|null=null;
+    private notesReady=false;
+    private guestPopup:{id:string;node:Node;later:()=>void}|null=null;
     private readerSeq=0;
     private decorKey='';
     private lastHintAt=0;
@@ -58,12 +60,16 @@ export class ShopMain extends Component {
         this.session=new ShopSession({layer:this.layer,origin:this.serverOrigin,height:()=>this.pageHeight,
             wallet:()=>this.shop,update:shop=>this.applyShop(shop),activate:open=>{
                 this.home.active=!open;this.layer.active=open;
-                if(!open&&this.state==='open')this.scheduleOnce(()=>{this.showLetter();void this.pulse();},0);
+                if(open)this.closeGuestPopup();
+                else if(this.state==='open')this.scheduleOnce(()=>{this.showHomeNotes();void this.pulse();},0);
             },notice:text=>this.notify(text),readNotes:(profile,ids)=>this.markNotesRead(profile,ids)});
         this.home.active = false;
         this.room.getChildByName('Keeper')!.addComponent(ShopkeeperWalk);
         this.features=new ShopHomeFeatures(this.room,this.footer,(key,args)=>{
-            if(this.state==='open'&&!this.session.active)void this.session.open(key,args);
+            if(this.state!=='open'||this.session.active)return;
+            if(key==='profile')this.session.claimDailyGift();
+            else if(key==='tasks')void this.session.open('tutorial',{fromTasks:true});
+            else void this.session.open(key,args);
         });
         this.levelProgress=caption(this.header,'LevelProgress','',0,-12,178,20,12,'#E8D9B2');
         this.roomLink=this.footer.getChildByName('RoomLink')!;
@@ -149,11 +155,13 @@ export class ShopMain extends Component {
     }
     private applyShop(shop:ShopSnapshot):void {
         if(this.shop&&this.shop.profileId===shop.profileId&&shop.version<this.shop.version)return;
-        if(this.shop&&this.shop.profileId!==shop.profileId)this.letter=null;
+        if(this.shop&&this.shop.profileId!==shop.profileId){
+            this.letter=null;this.notesReady=false;this.closeGuestPopup();
+        }
         this.shop=shop;
         this.header.getChildByPath('Wallet/Value')!.getComponent(Label)!.string='金币 '+shop.coins;
         this.fitWallet(this.header.getComponent(UITransform)!.width);
-        this.header.getChildByName('Title')!.getComponent(Label)!.string=shop.name;
+        this.header.getChildByName('Title')!.getComponent(Label)!.string=shop.name==='宠物店'?'麦穗宠物店':shop.name;
         this.features.update(shop);
         const xp=shop.shopExperience;
         this.levelProgress.string=xp?'店铺 '+shop.shopLevel+' 级 · '+(xp.toNext?'经验 '+xp.intoLevel+'/'+xp.toNext:'已满级'):'';
@@ -196,7 +204,10 @@ export class ShopMain extends Component {
     private poll=async ():Promise<void>=>{
         if(this.state!=='open'||!this.foreground)return;
         if(this.session.active){await this.session.refresh();return;}
-        try {const shop=await connectShop(this.serverOrigin);if(this.isValid)this.applyShop(shop);}
+        try {
+            const shop=await connectShop(this.serverOrigin);
+            if(this.isValid){this.applyShop(shop);this.showHomeNotes();}
+        }
         catch{if(this.isValid&&!this.session.active){this.state='offline';this.showPage();}}
     };
     private pulse=async ():Promise<void>=>{
@@ -211,11 +222,34 @@ export class ShopMain extends Component {
         try {const ids:unknown=JSON.parse(stored);return Array.isArray(ids)?ids.filter(id=>typeof id==='string'):[];}
         catch{return [];}
     }
-    private showLetter():void {
-        const letter=this.letter;
-        if(!letter||this.state!=='open'||!this.foreground||this.session.active)return;
+    private closeGuestPopup():void {
+        this.guestPopup?.node.destroy();
+        this.guestPopup=null;
+    }
+    private showHomeNotes():void {
+        if(this.state!=='open'||!this.foreground||this.session.active)return;
         const profile=this.shop.profileId;
-        this.session.showLetter(letter,()=>this.markNotesRead(profile,letter.ids));
+        const letter=this.letter;
+        if(letter){
+            this.session.showLetter(letter,()=>this.markNotesRead(profile,letter.ids));
+            return;
+        }
+        const guest=this.shop.guest;
+        const seenKey='petshop.seenGuest.'+profile;
+        if(!this.notesReady||!guest||sys.localStorage.getItem(seenKey)===guest.id){
+            this.closeGuestPopup();return;
+        }
+        if(this.guestPopup?.id===guest.id)return;
+        this.closeGuestPopup();
+        const later=()=>{
+            sys.localStorage.setItem(seenKey,guest.id);
+            this.closeGuestPopup();
+        };
+        const node=guestArrival(this.home,()=>{
+            later();
+            void this.session.open('guest');
+        },later);
+        this.guestPopup={id:guest.id,node,later};
     }
     private markNotesRead(profile:string,ids:string[]):void {
         const read=new Set([...this.readIds(profile),...ids]);
@@ -235,8 +269,9 @@ export class ShopMain extends Component {
         this.applyShop(shop);
         if(shop.letter!==undefined){
             this.letter=shop.letter?.ids.some(id=>outstanding.includes(id))?null:shop.letter;
-            this.showLetter();
+            this.notesReady=true;
         }
+        this.showHomeNotes();
     }
     private hideGame():void {
         this.foreground=false;if(this.state==='open')void this.readerHeartbeat(false).catch(()=>{});
@@ -292,7 +327,7 @@ export class ShopMain extends Component {
             const line=this.header.getChildByName(name)!.getComponent(UITransform)!;
             line.setContentSize(width,line.height);
         }
-        this.header.getChildByName('Title')!.setPosition(-width/2+87,9);
+        this.header.getChildByName('Title')!.setPosition(-width/2+123,9);
         this.levelProgress.node.setPosition(-width/2+138,-13);
         this.fitWallet(width);
         this.footer.setPosition(0,-h/2+29);
@@ -309,6 +344,7 @@ export class ShopMain extends Component {
         const sceneScale=scale*roomScale;
         this.features.resize(roomScale,48*screen.devicePixelRatio/(view.getScaleX()*sceneScale),
             48*screen.devicePixelRatio/(view.getScaleY()*sceneScale));
+        if(paneChanged&&this.guestPopup){this.closeGuestPopup();this.showHomeNotes();}
         if (paneChanged && this.layer.active) this.showPage();
     }
 
@@ -349,11 +385,14 @@ export class ShopMain extends Component {
 
 
     private onKey(event:EventKeyboard):void {
-        if(this.session.active&&(event.keyCode===KeyCode.ESCAPE||event.keyCode===KeyCode.MOBILE_BACK))this.session.back();
+        if(event.keyCode!==KeyCode.ESCAPE&&event.keyCode!==KeyCode.MOBILE_BACK)return;
+        if(this.session.active)this.session.back();
+        else this.guestPopup?.later();
     }
     private showPage():void {
         if(this.state==='open'&&this.session.active){this.session.render();return;}
         const ready=this.state==='open';this.home.active=ready;this.layer.active=!ready;
+        if(!ready)this.closeGuestPopup();
         for(const child of [...this.layer.children]){child.removeFromParent();child.destroy();}
         if(!ready)drawConnection(this.layer,this.pageHeight,this.state==='offline',()=>{if(this.state==='offline')void this.openStore();});
     }

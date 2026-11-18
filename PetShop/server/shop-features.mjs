@@ -2,8 +2,8 @@ import shopRules from './shop-feature-levels.json' with { type: 'json' };
 export { shopRules };
 
 export const featureNames = {
-  rooms:'动物房间', login:'店主登记簿', orders:'普通订单', show:'宠物赛展', lab:'研究所',
-  market:'自由市场', profile:'每日签到', breed:'繁育台', decor:'店铺装饰', guest:'特殊来客', collection:'奖杯收藏',
+  rooms:'动物房间', login:'店主登记簿', orders:'普通订单', show:'赛事', lab:'培育中心',
+  market:'自由市场', profile:'每日签到', breed:'繁育', decor:'店铺装饰', guest:'特殊来客', collection:'荣誉',
 };
 
 export function featureAccess(rules, level) {

@@ -251,6 +251,17 @@ for (let i = 0; i < owners.length; i++) {
 if (protectedDiff) throw Error('保留区出现像素变化');
 writePng('新版摆放.png', width, height, revised);
 
+if (process.argv.includes('--sync-game')) {
+  const gameBackdrop = Buffer.from(base);
+  for (const item of revisedLayers) {
+    if (item.id !== 'checkin-gift') stamp(gameBackdrop, item);
+  }
+  const gameAssets = '../../PetShop/assets';
+  writePng(gameAssets+'/art/shop-home-approved.png', width, height, gameBackdrop);
+  const gift = newPieces.find(item => item.id === 'checkin-gift');
+  writePng(gameAssets+'/resources/shop-modules/home-checkin-gift.png', gift.w, gift.h, gift.pixels);
+}
+
 for (const name of ['shopkeeper','ui-coin','ui-home']) {
   writeFileSync(path.join(layerFolder, name + '.png'), readFileSync(path.join(assets, name + '.png')));
 }

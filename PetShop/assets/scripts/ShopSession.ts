@@ -81,6 +81,11 @@ export class ShopSession {
     private dismissLetter?:()=>void;
     constructor(private host:Host){this.browser=new GameBrowserBack(()=>this.active,()=>this.back());}
     get active():boolean{return !!this.feature;}
+    claimDailyGift():void {
+        const shop=this.host.wallet();
+        if(this.active||this.closed||shop.dayClaimed)return;
+        void this.commit({type:'care.checkin'},{},shop.version);
+    }
     showLetter(letter:ShopLetter,dismiss:()=>void):void {
         if(this.active||this.closed)return;
         this.feature={key:'visitBook',args:{},selected:new Set(),offset:0,data:letter.page,version:this.host.wallet().version};
@@ -453,7 +458,7 @@ export class ShopSession {
         const tutorialPurchase=a.type==='care.buyPet'&&guide?.step===2&&!guide.completed&&(args.species??'rabbit')==='rabbit';
         this.busy=true;this.serial++;this.reading=false;
         const command={requestId:requestId(),profileId:this.host.wallet().profileId,version,type:a.type!,args};
-        let feedback='',done=false;
+        let feedback='';
         try {
             const existing=await this.recover();
             if(existing){feedback=existing+' 请重新核对当前操作。';}
@@ -475,7 +480,7 @@ export class ShopSession {
                     }else if(a.go)this.navigate(a.go,a.goArgs||{});
                 }};
                 feedback=(await this.send(command)).message;
-                done=true;this.finishReceipt(command.requestId,true);
+                this.finishReceipt(command.requestId,true);
             }
         } catch(e){
             feedback=(e as Error).message;
@@ -487,7 +492,7 @@ export class ShopSession {
         finally{this.busy=false;}
         if(this.closed)return;
         if(this.current)await this.read();
-        else if(done){
+        else{
             try{const shop=await connectShop(this.host.origin);if(!this.closed)this.host.update(shop);}
             catch{/* The normal store poll will retry the snapshot. */}
         }

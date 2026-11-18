@@ -297,8 +297,10 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     content.setPosition(0,vh/2);
     area.setContentSize(width,Math.max(vh,listHeight));
     scroll.vertical=listHeight>vh;
-    const titles:Record<string,string>={rooms:'动物房间',research:'研究技能树',login:'账号',profile:'每日签到',pet:'个体档案',collection:'奖杯收集册'};
-    drawHeader(sheet,width,actualHeight,(opts.ready!==false&&titles[key])||p.title,coins,ui.back,modal,opts.backToGuide);
+    const titles:Record<string,string>={rooms:'动物房间',research:'研究技能树',login:'账号',profile:'每日签到',pet:'个体档案',
+        collection:'荣誉',show:'赛事',lab:'培育中心',orders:'订单',guest:'订单'};
+    const title=(opts.ready!==false&&titles[key])||(key==='breed'&&p.title==='繁育台'?'繁育':p.title);
+    drawHeader(sheet,width,actualHeight,title,coins,ui.back,modal,opts.backToGuide);
     if(modal) {
         const g=sheet.addComponent(Graphics);g.lineWidth=3;g.strokeColor=new Color().fromHEX('#745437');
         g.rect(-width/2+1.5,-actualHeight/2+1.5,width-3,actualHeight-3);g.stroke();
@@ -331,5 +333,21 @@ export function confirmBox(parent:Node,title:string,onYes:()=>void,onNo:()=>void
     const bw=(inner-8)/2;
     press(panel,'Cancel','返回',-(bw+8)/2,-h/2+38,bw,onNo);
     press(panel,'Accept','确认',(bw+8)/2,-h/2+38,bw,onYes,true);
+    return overlay;
+}
+
+export function guestArrival(parent:Node,open:()=>void,later:()=>void):Node {
+    const {width,height}=parent.getComponent(UITransform)!;
+    const overlay=box(parent,'GuestArrival',0,0,width,height);
+    overlay.addComponent(BlockInputEvents);
+    const g=overlay.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);
+    g.rect(-width/2,-height/2,width,height);g.fill();
+    const w=Math.min(356,width-24);
+    const panel=frame(overlay,'GuestPanel',0,0,w,162,paper.card,'#866846',true);
+    heading(panel,'Title','特殊来客',0,48,w-28,34,21,paper.green);
+    caption(panel,'Message','有位新来客到店了。',0,10,w-28,34,15,paper.ink);
+    const bw=(w-36)/2;
+    press(panel,'Orders','查看订单',-(bw+8)/2,-40,bw,open,true);
+    press(panel,'Later','稍后',(bw+8)/2,-40,bw,later);
     return overlay;
 }

@@ -37,7 +37,8 @@ export class ShopHomeFeatures {
     update(shop:ShopSnapshot):void {
         for(const entry of this.entries) {
             const rule=shop.featureAccess?.[entry.key];
-            entry.target.active=!!rule||entry.key==='collection'||shop.entrances.includes(entry.key);
+            entry.target.active=entry.key==='tasks'||!!rule||entry.key==='collection'||shop.entrances.includes(entry.key);
+            if(entry.key==='profile'&&shop.dayClaimed)entry.target.active=false;
             if(rule&&!rule.unlocked&&!entry.label) {
                 const tag=frame(entry.sign,'LevelLock',0,-16,64,17,'#66513A','#BBA17A',false);
                 picture(tag,'LockIcon','shop-modules/node-lock',-23,0,13,13);
@@ -64,5 +65,9 @@ export class ShopHomeFeatures {
         const door=this.props.get('rooms')!.ui,key=this.props.get('login')!.ui;
         const overlap=(door.width+key.width)/2-(key.node.position.x-door.node.position.x);
         door.setAnchorPoint(.5+Math.max(0,overlap)/door.width,.5);
+        // Keep the two stacked doors of the awards cabinet independently tappable.
+        const upper=this.props.get('show')!.ui,lower=this.props.get('collection')!.ui;
+        const stacked=(upper.height+lower.height)/2-(upper.node.position.y-lower.node.position.y);
+        lower.setAnchorPoint(.5,.5+Math.max(0,stacked)/lower.height);
     }
 }
