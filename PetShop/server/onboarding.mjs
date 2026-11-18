@@ -1,4 +1,5 @@
-import { lifeDates, makePet, petArt, specimen, stageOf, startLitter } from './care.mjs';
+import { randomUUID } from 'node:crypto';
+import { isBusy, lifeDates, makePet, petArt, specimen, SPECIES, stageOf, startLitter } from './care.mjs';
 import { salePrice } from './business.mjs';
 import { occupiedPetNames } from './pet-names.mjs';
 import { grantOpeningReward, openingReward } from './shop-tasks.mjs';
@@ -9,6 +10,8 @@ export const firstLitterWait=5_000;
 const mealArt='rooms/rabbit-nutrition-premium';
 const openingLetter='街角的麦穗宠物店交给你了。过去，街坊常把小动物托付到这里，也来为它们找一个新家。兔房已经收拾好，先接一对小兔住下，把这间小店重新开起来吧。';
 const firstLitterSexes=['母','公','母','公'];
+const parentSexes=['母','公'];
+const recoverySource='引导续接';
 const adultOffer=(offer,now)=>({...offer,bornAt:now-(lifeDates(offer).adultAt-offer.bornAt)});
 const pair=(s,breed,now,source)=> {
   const names=occupiedPetNames(s);
@@ -26,12 +29,16 @@ function guidePair(g) {return g.step===4?g.starters:g.offerIds;}
 function matchesPair(ids,args) {
   return args.mother===ids?.[0]&&args.father===ids?.[1]&&(args.species??'rabbit')==='rabbit';
 }
+const saleFor=(s,channel,id)=>id&&s.sales.findLast(record=>record.channel===channel&&record.lines.some(line=>line.id===id));
+const saleForOrder=(s,id)=>id&&s.sales.findLast(record=>record.channel==='order'&&record.targetId===id);
+const firstOrder=id=>({id,species:'rabbit',breed:'domestic',diff:0,rate:135});
+const guidePrice=s=>Math.max(0,Math.min(seedPrice,s.coins));
 
 export function initOnboarding(s) {
   s.onboarding={step:0};
   s.visitBook.opening=false;
   const first=s.orders[0].order;
-  first.breed='domestic';
+  Object.assign(first,firstOrder(first.id));
   s.onboarding.orderId=first.id;
 }
 
@@ -68,24 +75,115 @@ export function guideAccess(s,key) {
 export const rabbitWaitingForOpening=s=>Boolean(active(s)?.step<3);
 
 export function settleOnboarding(s,now) {
-  const g=active(s), litter=s.rooms.rabbit.lastLitter;
+  const g=active(s), room=s.rooms.rabbit, litter=room.lastLitter;
   if(!g)return;
-  if(g?.step===5&&litter?.bornAt===g.firstLitterAt){
-    g.litterIds=[...litter.ids];
-    g.step=6;
+  if(g.step===5&&!room.job){
+    if(litter&&litter.bornAt===g.firstLitterAt){
+      g.litterIds=[...litter.ids];
+      g.step=6;
+    }else{
+      g.step=4;
+    }
   }
-  if(g?.step===10)settleUnsoldParent(s,g);
+  repairGuideTargets(s,g,now);
   protectGuideAnimals(s,g,now);
 }
 
-function settleUnsoldParent(s,g) {
+function recoveredRabbit(s,g,now,role,missingId,{sex='母',breed='domestic',bornAt=now,...data}={}) {
+  const pet=makePet(occupiedPetNames(s), 'rabbit',breed,sex,bornAt,recoverySource,data);
+  s.pets.push(pet);
+  (g.recoveredTargets??=[]).push({step:g.step,at:now,role,missingId:missingId??null,id:pet.id});
+  return pet;
+}
+
+function repairGuideTargets(s,g,now) {
+  if([8,9].includes(g.step)){
+    const sold=g.starters?.find(id=>saleFor(s,'market',id));
+    if(sold){
+      g.remainingId=g.starters.find(id=>id!==sold);
+      g.step=10;
+    }
+  }
+  if([3,4,8,9].includes(g.step)){
+    const previous=g.starters??[], bred=g.step>=8;
+    g.starters=parentSexes.map((sex,index)=>{
+      const id=previous[index],pet=findPet(s,id);
+      if(pet&&pet.sex===sex&&pet.species==='rabbit'&&pet.breedKey==='domestic'&&pet.bred===bred&&
+          pet.tutorialDeathAt===undefined&&(g.step<8||!pet.retained)&&!isBusy(s,pet))return id;
+      const substitute=recoveredRabbit(s,g,now,'starter',id,{sex,bred});
+      if(g.step!==3)substitute.maturation={growthAt:now,adultAt:now};
+      return substitute.id;
+    });
+  }
+  if(g.step>=10&&g.step<=12){
+    const soldId=g.starters?.find(id=>saleFor(s,'market',id));
+    if(soldId)g.remainingId??=g.starters.find(id=>id!==soldId);
+    if(saleFor(s,'recycle',g.remainingId)){
+      openGuideOffers(s,g,now);
+    }else{
+      const remaining=findPet(s,g.remainingId);
+      if(!remaining?.bred||remaining.retained||remaining.species!=='rabbit'||isBusy(s,remaining)){
+        const index=g.starters?.indexOf(g.remainingId);
+        const deathAt=saleFor(s,'market',soldId)?.at??now;
+        const bornAt=deathAt-(SPECIES.rabbit.young+SPECIES.rabbit.growth)*60_000;
+        g.remainingId=recoveredRabbit(s,g,now,'recycle',g.remainingId,
+           {sex:parentSexes[index]??'母',bornAt,bred:true,tutorialDeathAt:deathAt}).id;
+      }else settleUnsoldParent(s,g,now);
+    }
+  }
+  if(g.step===13||g.step===14)repairPurchasedSeeds(s,g,now);
+  if(g.step===16&&saleForOrder(s,g.orderId)){g.step=17;return;}
+  if([6,7,16].includes(g.step)){
+    const litter=s.rooms.rabbit.lastLitter;
+    if(!g.litterIds?.length&&litter&&litter.bornAt===g.firstLitterAt)g.litterIds=[...litter.ids];
+    if(!guideLitterPet(s,g)){
+      const pet=recoveredRabbit(s,g,now,'litter',g.litterIds?.[0]);
+      (g.litterIds??=[]).push(pet.id);
+    }
+  }
+  if(g.step===16&&(!g.orderId||s.orders[0].order?.id!==g.orderId)){
+    g.orderId??=randomUUID();
+    const index=s.orders.findIndex(slot=>slot.order?.id===g.orderId);
+    if(index>0)[s.orders[0],s.orders[index]]=[s.orders[index],s.orders[0]];
+    else s.orders[0]={order:firstOrder(g.orderId),readyAt:null};
+  }
+}
+
+function openGuideOffers(s,g,now) {
+  g.offers=pair(s,'lop',now,'开店种源');
+  g.offerIds=idsOf(g.offers);g.purchased=[];g.step=13;
+}
+
+function repairPurchasedSeeds(s,g,now) {
+  for(const [index,offer] of g.offers.entries()){
+    const id=offer.id;
+    if(!g.purchased.includes(id))continue;
+    const pet=findPet(s,id);
+    if(pet?.species==='rabbit'&&pet.sex===offer.sex&&pet.breedKey==='lop'&&!pet.bred&&
+        pet.tutorialDeathAt===undefined&&!isBusy(s,pet))continue;
+    const restored=recoveredRabbit(s,g,now,'seed',id,{sex:offer.sex,breed:'lop',bornAt:adultOffer(offer,now).bornAt});
+    g.offers[index]={...offer,id:restored.id,name:restored.name};
+    g.offerIds[index]=restored.id;
+    g.purchased[g.purchased.indexOf(id)]=restored.id;
+  }
+}
+
+function settleUnsoldParent(s,g,now) {
   const remaining=findPet(s,g.remainingId);
   if(!remaining?.bred||remaining.tutorialDeathAt!==undefined)return;
-  const soldId=g.starters.find(id=>id!==remaining.id);
-  const sale=s.sales.findLast(record=>record.channel==='market'&&record.lines.some(line=>line.id===soldId));
-  if(sale&&stageOf(remaining,sale.at)!=='已故'){
-    remaining.tutorialDeathAt=sale.at;
+  const soldId=g.starters?.find(id=>id!==remaining.id&&saleFor(s,'market',id));
+  const deathAt=saleFor(s,'market',soldId)?.at??now;
+  if(stageOf(remaining,deathAt)!=='已故'){
+    remaining.tutorialDeathAt=deathAt;
     delete remaining.tutorialLifeGuard;
+  }
+}
+
+function guideLitterPet(s,g) {
+  for(const id of g.litterIds??[]){
+    const pet=findPet(s,id);
+    if(pet?.species==='rabbit'&&pet.breedKey==='domestic'&&!pet.mixed&&!pet.retained&&
+      pet.tutorialDeathAt===undefined&&!isBusy(s,pet))return pet;
   }
 }
 
@@ -95,8 +193,8 @@ function protectGuideAnimals(s,g,now) {
   const needed=new Set(g?.purchased??[]);
   if(g&&g.step<10)for(const id of g.starters??[])needed.add(id);
   if(g&&g.step<=16){
-    const delivery=g.litterIds?.find(id=>s.pets.some(p=>p.id===id&&!p.retained&&p.tutorialDeathAt===undefined));
-    if(delivery)needed.add(delivery);
+    const delivery=guideLitterPet(s,g);
+    if(delivery)needed.add(delivery.id);
   }
   for(const pet of s.pets){
     if(needed.has(pet.id)){
@@ -162,13 +260,16 @@ export function onboardingPage(s,key,args,now) {
     const offer=g.offers.find(p=>p.id===args.id);
     if(!offer)return;
     const bought=g.purchased.includes(offer.id);
+    const cash=guidePrice(s),aid=seedPrice-cash;
+    const price=aid?'开店补贴抵扣 '+aid+' 金币 · 实付 '+cash+' 金币':'采购价格 '+seedPrice+' 金币';
     return {title:offer.name+' · '+offer.sex,art:petArt(offer),stage:'成年',
       subtitle:'垂耳兔 · 奶油 · 成年 · 未繁育',rows:[
-        {title:'成年种源',text:'采购价格 '+seedPrice+' 金币 · '+(bought?'已购入':'本次专属货位')},
+        {title:'成年种源',text:bought?'已购入':price},
       ],
       actions:bought?[choice('返回种源','lab')]:[
-        {...action('核对购买','onboarding.buy',{id:offer.id,price:seedPrice},'lab'),
-          confirm:'用 '+seedPrice+' 金币购入 '+offer.name+'（'+offer.sex+'）？',disabled:s.coins<seedPrice},
+        {...action('核对购买','onboarding.buy',{id:offer.id,price:seedPrice,cash},'lab'),
+          confirm:aid?'购入 '+offer.name+'（'+offer.sex+'）？'+price+'。':
+            '用 '+cash+' 金币购入 '+offer.name+'（'+offer.sex+'）？'},
       ]};
   }
 }
@@ -177,11 +278,8 @@ function candidates(s,g,channel,now) {
   if(channel==='market'&&[8,9].includes(g.step))return g.starters;
   if(channel==='recycle'&&[11,12].includes(g.step))return [g.remainingId];
   if(channel==='order'&&g.step===16){
-    const id=g.litterIds.find(id=>{
-      const pet=findPet(s,id);
-      return pet&&stageOf(pet,now)!=='已故'&&!pet.retained;
-    });
-    return id?[id]:[];
+    const pet=guideLitterPet(s,g);
+    return pet&&stageOf(pet,now)!=='已故'?[pet.id]:[];
   }
 }
 function checkSale(s,g,args,now) {
@@ -201,7 +299,9 @@ export function decorateGuidePage(s,key,args,view,now) {
   }
   if(key==='roomNutrition'&&view.visual?.tutorialMeal)teach(view.subtitle,'Action1');
   if(key==='offer'&&g.step===13&&view.actions?.some(a=>a.type==='onboarding.buy')){
-    teach('核对这只成年种源的信息，再点击「核对购买」。','Action0');
+    const cash=guidePrice(s);
+    teach(cash<seedPrice?'开店补贴抵扣 '+(seedPrice-cash)+' 金币，实付 '+cash+' 金币。点击「核对购买」。':
+      '核对这只成年种源的信息，再点击「核对购买」。','Action0');
   }
   if(key==='rooms'&&(args.species??'rabbit')==='rabbit'){
     view.title='动物小屋';
@@ -238,8 +338,26 @@ export function decorateGuidePage(s,key,args,view,now) {
   if(key==='breed'&&g.step===15){
     teach('第二窝按正常时间培育，现在可以去领取开店奖励。','GuideNext',home('返回店铺'));
   }
-  if(key==='litter'&&[6,7].includes(g.step))teach('小兔出生了，点开第一只看看它的特点。','Animal0');
-  if(key==='pet'&&[7,8].includes(g.step)&&args.id===g.litterIds[0]){
+  if(key==='litter'&&[6,7].includes(g.step)&&(args.species??'rabbit')==='rabbit'){
+    const pet=guideLitterPet(s,g);
+    const rows=view.rows??=[];
+    let index=rows.filter(row=>row.litterMember||row.animal).findIndex(row=>row.animal?.id===pet.id&&row.link);
+    if(index<0){
+      index=rows.filter(row=>row.litterMember||row.animal).length;
+      const animal=specimen(s,pet,now);
+      rows.push({title:pet.name,animal,art:animal.art,stage:animal.stage,litterMember:true,
+        link:{page:'pet',args:{id:pet.id}}});
+      if(!view.presentation){
+        view.title='查看幼兔';
+        view.subtitle='首窝出生记录已缺失。';
+        view.presentation={kind:'litter',species:SPECIES.rabbit.name,count:0};
+        view.art=SPECIES.rabbit.art;
+      }
+    }
+    teach(pet.source===recoverySource?'旧档缺少首窝幼兔，点开补齐的幼兔档案。':
+      '点击高亮的幼兔，查看它的特点。','Animal'+index);
+  }
+  if(key==='pet'&&[7,8].includes(g.step)&&args.id===guideLitterPet(s,g)?.id){
     teach('这六项记录了它的特点，选种和经营都会用到。','GuideNext',home('返回店铺'));
   }
   if(key==='pet'&&[10,11].includes(g.step)&&args.id===g.remainingId&&view.stage==='已故'){
@@ -282,7 +400,7 @@ export function decorateGuidePage(s,key,args,view,now) {
     view.visual={...view.visual,eligibleCount:view.rows.length,singleSelect:true};
     view.filters=undefined;
     if(!view.rows.length){view.actions=[];if(view.guide)view.guide.target=undefined;}
-    if(channel==='order')teach('选择首窝的第一只原色兔，核对市场与订单估价。','Row0');
+    if(channel==='order')teach('选择高亮的原色兔，核对市场与订单估价。','Row0');
     if(view.guide&&view.rows.length){
       view.guide.selectedText='选好了，点击「核对'+{market:'出售',recycle:'回收',order:'交付'}[channel]+'」。';
     }
@@ -321,7 +439,7 @@ export function recordGuideVisit(s,key,args,now) {
   if(!g)return s;
   let next;
   if(g.step===6&&key==='litter'&&(args.species??'rabbit')==='rabbit')next=7;
-  if(g.step===7&&key==='pet'&&args.id===g.litterIds[0])next=8;
+  if(g.step===7&&key==='pet'&&args.id===guideLitterPet(s,g)?.id)next=8;
   if(g.step===8&&key==='market')next=9;
   if(g.step===10&&key==='pet'&&args.id===g.remainingId){
     const pet=findPet(s,g.remainingId);
@@ -381,13 +499,15 @@ export function guideAction(s,type,args,now) {
     expect(g.step===13);
     const offer=g.offers.find(p=>p.id===args.id);
     expect(offer&&!g.purchased.includes(offer.id),'这个货位已购入。');
-    expect(args.price===seedPrice&&s.coins>=seedPrice,'报价已变化或金币不足。');
+    const cash=guidePrice(s),aid=seedPrice-cash;
+    expect(args.price===seedPrice&&(args.cash===undefined||args.cash===cash),'报价已变化，请重新核对购买。');
     const acquired=makePet(occupiedPetNames(s), 'rabbit','lop',offer.sex,now,'研究所采购',
       {...adultOffer(offer,now),source:'研究所采购'});
-    s.coins-=seedPrice;s.pets.push(acquired);
+    s.coins-=cash;s.pets.push(acquired);
+    if(aid)g.seedAid=(g.seedAid??0)+aid;
     g.purchased.push(acquired.id);
     if(g.purchased.length===2)g.step=14;
-    return acquired.name+'已入住兔房。';
+    return acquired.name+'已入住兔房。'+(aid?'开店补贴已抵扣 '+aid+' 金币。':'');
   }
   if(type==='onboarding.claim'){
     expect(g.step===15&&tutorialTaskRows(g).every(row=>row.done));
@@ -410,10 +530,9 @@ export function recordGuideAction(s,type,args,now) {
   if(type!=='sale.commit')return;
   if(g.step===9){
     g.remainingId=g.starters.find(id=>id!==args.ids[0]);g.step=10;
-    settleUnsoldParent(s,g);
+    settleUnsoldParent(s,g,now);
   }else if(g.step===12){
-    g.offers=pair(s,'lop',now,'开店种源');
-    g.offerIds=idsOf(g.offers);g.purchased=[];g.step=13;
+    openGuideOffers(s,g,now);
   }else if(g.step===16){
     g.step=17;
   }

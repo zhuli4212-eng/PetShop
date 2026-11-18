@@ -20,7 +20,7 @@ server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
 """
 
 
-def verify(browser, url, width, output):
+def verify(browser, url, width, output, scenario=None):
     page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
                             is_mobile=True, has_touch=True,
                             reduced_motion="reduce" if width == 320 else "no-preference")
@@ -120,120 +120,139 @@ def verify(browser, url, width, output):
         action("sale.commit", text=text)
 
     open_page()
-    ready("onboarding")
-    step(0)
-    touch.wait("()=>!!"+MAIN+".audio.music.clip")
-    assert not main("return m.audio.music.playing")
-    action("onboarding.enter", "Action0")
-    step(1)
-    music_playing()
-    touch.wait("()=>!!pairQA.find('HandoverEnvelope')?.getComponent(cc.Sprite)?.spriteFrame")
-    focus("Action0")
-    snap("01-交接信")
-    action("onboarding.openLetter", "Action0")
-    touch.wait("()=>!!pairQA.find('OpenedLetter')")
-    assert main("return m.session.current.data.subtitle.includes('麦穗宠物店')")
-    touch.wait("()=>(pairQA.find('DeskPage').getComponent('cc.UIOpacity')?.opacity??255)===255")
-    snap("01-拆开交接信")
-    open_page(reload=True)
-    ready("onboarding")
-    step(1)
-    assert main("return m.session.current.data.visual.letterOpened")
-    page.evaluate(r"""() => {
-        const open=XMLHttpRequest.prototype.open,send=XMLHttpRequest.prototype.send;
-        window.staleGuideRequests=0;
-        XMLHttpRequest.prototype.open=function(method,url,...rest){
-            this.delayGuide=/\/api\/(shop|heartbeat)$/.test(url);
-            this.guidePage=/\/api\/page$/.test(url);
-            open.call(this,method,url,...rest);
-        };
-        XMLHttpRequest.prototype.send=function(...args){
-            if(this.guidePage&&JSON.parse(args[0]).page==='onboarding')staleGuideRequests++;
-            if(this.delayGuide)setTimeout(()=>send.apply(this,args),900);
-            else send.apply(this,args);
-        };
-        window.restoreGuideRequests=()=>{
-            XMLHttpRequest.prototype.open=open;
-            XMLHttpRequest.prototype.send=send;
-        };
-    }""")
-    action("onboarding.proceed", "Action0")
-    step(2)
-    touch.wait("()=>!pairQA.visit()")
-    assert page.evaluate("staleGuideRequests") == 0
-    page.evaluate("restoreGuideRequests()")
-    main("return m.session.open('onboarding')")
-    assert page.evaluate("!pairQA.visit()")
-    focus("Sign")
-    tap("Sign", scope="Hotspot_login")
-    tap("TaskShortcut", scope="ShopHome")
-    assert page.evaluate("!pairQA.visit()")
-    snap("02-首页引导")
-    tap("Sign", scope="Hotspot_rooms")
-    ready("rooms")
-    focus("Action0")
-    back()
-    page.keyboard.press("Escape")
-    ready("rooms")
-    snap("02-免费开放兔房")
-    action("onboarding.openRoom", "Action0")
-    step(3)
-    open_page(reload=True)
-    step(3)
-    tap("Sign", scope="Hotspot_rooms")
-    ready("rooms")
-    focus("Feed")
-    tap("Feed")
-    ready("roomNutrition")
-    assert page.evaluate("!!pairQA.find('TutorialMeal')")
-    snap("03-首次投喂确认")
-    action("onboarding.feed", "Action1")
-    step(4)
-    ready("rooms")
-    sound("growth")
-    touch.wait("()=>!!pairQA.find('GrowthSpark')?.getComponent(cc.Sprite)?.spriteFrame")
-    assert main("return m.session.current.data.presentation.nutrition??null") is None
-    snap("03-首对成年")
-    tap("GuideNext")
-    tap("Sign", scope="Hotspot_breed")
-    pairing(True)
-    step(5)
-    step(6)
-    sound("hatch")
-    tap("GuideNext")
-    ready("litter")
-    step(7)
-    assert main("return m.session.current.data.rows.filter(r=>r.litterMember).map(r=>r.animal.sex)") == ["母","公","母","公"]
-    tap("Animal0")
-    ready("pet")
-    step(8)
-    assert main("return m.session.current.data.presentation.traits.length") == 6
-    focus("GuideNext")
-    tap("GuideNext")
-    tap("Sign", scope="Hotspot_market")
-    ready("market")
-    step(9)
-    assert main("return m.session.current.data.rows.length") == 2
-    sale("market")
-    ready("pet")
-    step(11)
-    sound("coins")
-    assert main("return m.session.current.data.presentation.animal.stage") == "已故"
-    snap("10-已故档案")
-    focus("Action0")
-    tap("Action0")
-    ready("lab")
-    focus("LabRecycle")
-    tap("LabRecycle")
-    ready("recycle")
-    step(12)
-    sale("recycle")
-    ready("lab")
+    if scenario is None:
+        ready("onboarding")
+        step(0)
+        touch.wait("()=>!!"+MAIN+".audio.music.clip")
+        assert not main("return m.audio.music.playing")
+        action("onboarding.enter", "Action0")
+        step(1)
+        music_playing()
+        touch.wait("()=>!!pairQA.find('HandoverEnvelope')?.getComponent(cc.Sprite)?.spriteFrame")
+        focus("Action0")
+        snap("01-交接信")
+        action("onboarding.openLetter", "Action0")
+        touch.wait("()=>!!pairQA.find('OpenedLetter')")
+        assert main("return m.session.current.data.subtitle.includes('麦穗宠物店')")
+        touch.wait("()=>(pairQA.find('DeskPage').getComponent('cc.UIOpacity')?.opacity??255)===255")
+        snap("01-拆开交接信")
+        open_page(reload=True)
+        ready("onboarding")
+        step(1)
+        assert main("return m.session.current.data.visual.letterOpened")
+        page.evaluate(r"""() => {
+            const open=XMLHttpRequest.prototype.open,send=XMLHttpRequest.prototype.send;
+            window.staleGuideRequests=0;
+            XMLHttpRequest.prototype.open=function(method,url,...rest){
+                this.delayGuide=/\/api\/(shop|heartbeat)$/.test(url);
+                this.guidePage=/\/api\/page$/.test(url);
+                open.call(this,method,url,...rest);
+            };
+            XMLHttpRequest.prototype.send=function(...args){
+                if(this.guidePage&&JSON.parse(args[0]).page==='onboarding')staleGuideRequests++;
+                if(this.delayGuide)setTimeout(()=>send.apply(this,args),900);
+                else send.apply(this,args);
+            };
+            window.restoreGuideRequests=()=>{
+                XMLHttpRequest.prototype.open=open;
+                XMLHttpRequest.prototype.send=send;
+            };
+        }""")
+        action("onboarding.proceed", "Action0")
+        step(2)
+        touch.wait("()=>!pairQA.visit()")
+        assert page.evaluate("staleGuideRequests") == 0
+        page.evaluate("restoreGuideRequests()")
+        main("return m.session.open('onboarding')")
+        assert page.evaluate("!pairQA.visit()")
+        focus("Sign")
+        tap("Sign", scope="Hotspot_login")
+        tap("TaskShortcut", scope="ShopHome")
+        assert page.evaluate("!pairQA.visit()")
+        snap("02-首页引导")
+        tap("Sign", scope="Hotspot_rooms")
+        ready("rooms")
+        focus("Action0")
+        back()
+        page.keyboard.press("Escape")
+        ready("rooms")
+        snap("02-免费开放兔房")
+        action("onboarding.openRoom", "Action0")
+        step(3)
+        open_page(reload=True)
+        step(3)
+        tap("Sign", scope="Hotspot_rooms")
+        ready("rooms")
+        focus("Feed")
+        tap("Feed")
+        ready("roomNutrition")
+        assert page.evaluate("!!pairQA.find('TutorialMeal')")
+        snap("03-首次投喂确认")
+        action("onboarding.feed", "Action1")
+        step(4)
+        ready("rooms")
+        sound("growth")
+        touch.wait("()=>!!pairQA.find('GrowthSpark')?.getComponent(cc.Sprite)?.spriteFrame")
+        assert main("return m.session.current.data.presentation.nutrition??null") is None
+        snap("03-首对成年")
+        tap("GuideNext")
+        tap("Sign", scope="Hotspot_breed")
+        pairing(True)
+        step(5)
+        step(6)
+        sound("hatch")
+        tap("GuideNext")
+        ready("litter")
+        step(7)
+        assert main("return m.session.current.data.rows.filter(r=>r.litterMember).map(r=>r.animal.sex)") == ["母","公","母","公"]
+        tap("Animal0")
+        ready("pet")
+        step(8)
+        assert main("return m.session.current.data.presentation.traits.length") == 6
+        focus("GuideNext")
+        tap("GuideNext")
+        tap("Sign", scope="Hotspot_market")
+        ready("market")
+        step(9)
+        assert main("return m.session.current.data.rows.length") == 2
+        sale("market")
+        ready("pet")
+        step(11)
+        sound("coins")
+        assert main("return m.session.current.data.presentation.animal.stage") == "已故"
+        snap("10-已故档案")
+    elif scenario == "missing":
+        step(10)
+        open_page(reload=True)
+        step(10)
+        tap("Sign", scope="Hotspot_rooms")
+        ready("pet")
+        step(11)
+        assert main("return m.session.current.data.presentation.animal.stage") == "已故"
+    if scenario == "budget":
+        step(13)
+        assert main("return m.shop.coins") == 75
+        tap("Sign", scope="Hotspot_lab")
+        ready("lab")
+    else:
+        focus("Action0")
+        tap("Action0")
+        ready("lab")
+        focus("LabRecycle")
+        tap("LabRecycle")
+        ready("recycle")
+        step(12)
+        sale("recycle")
+        ready("lab")
     step(13)
     snap("13-成年垂耳种源")
     for index in range(2):
         tap("Row"+str(index))
         ready("offer")
+        if scenario == "budget":
+            cash = 75 if index == 0 else 0
+            assert main("return m.session.current.data.actions[0].args.cash") == cash
+            assert f"实付 {cash} 金币" in main("return m.session.current.data.actions[0].confirm")
         tap(text="核对购买")
         action("onboarding.buy", "Accept", scope="Confirm")
         ready("lab")
@@ -272,7 +291,7 @@ def verify(browser, url, width, output):
     action("onboarding.finish", "Action0")
     step(None)
     assert not page.evaluate("!!pairQA.find('GuideSpotlight')")
-    if width == 390:
+    if width == 390 and scenario is None:
         audio_settings()
         tap("Action0")
         music_playing(False)
@@ -300,17 +319,21 @@ def verify(browser, url, width, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--scenario", choices=("missing", "budget"))
     args = parser.parse_args()
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="msedge", headless=True)
-        for width in (390, 320):
+        for width in ((390,) if args.scenario else (390, 320)):
             with TemporaryDirectory(prefix="petshop-guide-web-") as directory:
+                if args.scenario:
+                    subprocess.run(["node", "tools/seed-guide-recovery.mjs", args.scenario, directory],
+                                   cwd=ROOT, check=True)
                 with subprocess.Popen(["node", "--input-type=module", "-e", SERVER,
                         directory, str(ROOT/"build"/"web-mobile")], cwd=ROOT,
                         stdout=subprocess.PIPE, text=True, encoding="utf-8") as proc:
                     try:
                         port = int(proc.stdout.readline().strip())
-                        verify(browser, f"http://127.0.0.1:{port}/", width, args.output)
+                        verify(browser, f"http://127.0.0.1:{port}/", width, args.output, args.scenario)
                         print(f"{width} px 触屏引导检查通过", flush=True)
                     finally:
                         proc.terminate()

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { GameStore } from './game-store.mjs';
 import { ShopEngine } from './shop-engine.mjs';
 import { lifeDates, stageOf } from './care.mjs';
+import { seedGuideRecovery } from '../tools/seed-guide-recovery.mjs';
 
 test('开店引导按经营事件推进，保存每一步及成交回执，只有首窝使用 5 秒', t=>{
   const dir=mkdtempSync(join(tmpdir(),'petshop-guide-test-'));
@@ -209,3 +210,75 @@ test('多次长时间离线后，保留引导目标并按原时刻结算繁育',
   assert.equal(shop.shop().onboarding,undefined);
   assert.ok(shop.state.pets.every(p=>!p.tutorialLifeGuard));
 });
+
+for(const scenario of ['missing','budget'])test(
+  scenario==='missing'?'旧档缺少回收亲本、已购种源和首窝交付目标时续接':'旧档用开店补贴买齐种源，刷新和回执重试均不重复扣款',t=>{
+    const dir=mkdtempSync(join(tmpdir(),'petshop-guide-repair-'));
+    t.after(()=>rmSync(dir,{recursive:true,force:true}));
+    const fixture=seedGuideRecovery(dir,scenario);
+    const options={onboarding:true,wall:()=>fixture.now+6000,monotonic:()=>0};
+    let store;
+    const reopen=()=>{store=new GameStore(dir,options);store.shop();};
+    const page=(key,args)=>store.page(key,args).page;
+    const command=({type,args})=>{
+      const {profileId,version}=store.shop();
+      return {requestId:randomUUID(),profileId,version,type,args};
+    };
+    const click=a=>store.act(command(a));
+    const guide=()=>store.state.onboarding;
+    reopen();
+    if(scenario==='missing'){
+      const id=guide().remainingId;
+      assert.notEqual(id,fixture.father);
+      assert.equal(guide().recoveredTargets.length,1);
+      assert.equal(store.state.coins,fixture.coins);
+      assert.equal(store.state.sales.length,1);
+      reopen();
+      assert.equal(guide().remainingId,id);
+      assert.equal(guide().recoveredTargets.length,1);
+      const dossier=page('pet',{id});
+      assert.equal(dossier.stage,'已故');
+      assert.equal(guide().step,11);
+      assert.deepEqual(page('recycle').rows.map(row=>row.select),[id]);
+      click(page('saleQuote',{channel:'recycle',ids:[id]}).actions[0]);
+    }
+    assert.equal(guide().step,13);
+    const [female,male]=guide().offerIds;
+    const first=page('offer',{id:female}).actions[0];
+    assert.equal(first.args.cash,scenario==='budget'?75:200);
+    if(scenario==='budget')assert.match(first.confirm,/抵扣 125 金币 · 实付 75 金币/);
+    const purchase=command(first),receipt=store.act(purchase);
+    reopen();
+    assert.deepEqual(store.act(purchase),receipt);
+    assert.equal(page('lab').subtitle,'已购买 1 / 2');
+    const last=page('offer',{id:male}).actions[0];
+    if(scenario==='budget')assert.match(last.confirm,/抵扣 200 金币 · 实付 0 金币/);
+    click(last);
+    if(scenario==='budget'){
+      assert.equal(store.state.coins,0);
+      assert.equal(guide().seedAid,325);
+    }else{
+      const old=structuredClone(store.state),wallet=old.coins;
+      old.pets=old.pets.filter(p=>p.id!==male&&!old.onboarding.litterIds.includes(p.id));
+      store.save(old);reopen();
+      assert.equal(store.state.coins,wallet);
+      assert.notEqual(guide().offerIds[1],male);
+      assert.equal(guide().purchased.length,2);
+    }
+    const [mother,father]=guide().offerIds;
+    click(page('breed',{mother,father}).actions[0]);
+    assert.equal(page('tasks').rows.filter(row=>row.done).length,4);
+    const wallet=store.state.coins;
+    const reward=command(page('tasks').actions[0]),claimed=store.act(reward);
+    reopen();
+    assert.deepEqual(store.act(reward),claimed);
+    assert.equal(store.state.coins,wallet+40);
+    assert.equal(store.state.rooms.rabbit.nutritionStock.premium,2);
+    const targetId=page('orders').rows[0].link.args.id;
+    const [row]=page('sale',{channel:'order',targetId}).rows;
+    click(page('saleQuote',{channel:'order',targetId,ids:[row.select]}).actions[0]);
+    assert.equal(store.state.coins,wallet+148);
+    click(page('onboarding').actions[0]);
+    reopen();
+    assert.equal(store.shop().onboarding,undefined);
+  });
