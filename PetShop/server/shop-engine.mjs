@@ -7,7 +7,7 @@ import { featureNames, featureAccess, operationFeature, shopRules } from './shop
 import { initVisitBook, recordMilestone, seedRecoveryRows, unreadLetter, updateVisit, visitHistoryPage } from './visit-book.mjs';
 import { initTasks, recordTaskAction, recordTaskVisit, taskAction, taskShortcut, tasksPage } from './shop-tasks.mjs';
 import { initOnboarding, onboardingSnapshot, guideAccess, rabbitWaitingForOpening, settleOnboarding,
-  onboardingPage, decorateGuidePage, recordGuideVisit, guideAction, recordGuideAction } from './onboarding.mjs';
+  onboardingPage, decorateGuidePage, guideAction, recordGuideAction } from './onboarding.mjs';
 
 export { shopRules };
 const legacyEntrances = Object.keys(featureNames).filter(key=>key!=='collection');
@@ -185,7 +185,7 @@ export class ShopEngine {
       view.visual={...view.visual,saleExperience:xp};
       if(xp)view.subtitle+=' · 店铺经验 +'+xp;
     }
-    const viewed=s.onboarding?recordGuideVisit(s,page,args,now):recordTaskVisit(s,page);
+    const viewed=s.onboarding?s:recordTaskVisit(s,page);
     if(viewed!==s){viewed.clock=now;this.save(viewed);}
     return {shop:publicShop(viewed,now,this.rules),page:view};
   }
