@@ -5,7 +5,8 @@ import { drawRoom } from './RoomPresentation';
 import { drawBusiness } from './BusinessPresentation';
 
 export { box, caption, picture } from './LedgerCanvas';
-export const ledgerModal = (key: string): boolean => ['saleQuote','researchNode','researchTable'].includes(key);
+export const ledgerModal = (key: string): boolean =>
+    ['saleQuote','researchNode','researchTable','roomNutrition','nutritionDetail','nutritionShop'].includes(key);
 
 function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toGuide=false): void {
     const h = modal ? 54 : 64;
@@ -179,6 +180,78 @@ function tutorial(c:PageCanvas):boolean {
     return true;
 }
 
+interface NutritionRow extends LedgerRow {
+    visual: { badge:string; rate:number; selected:boolean; pick:Choice; detail:Choice; };
+}
+function nutrition(c:PageCanvas):boolean {
+    if(c.key!=='roomNutrition'&&c.key!=='nutritionDetail')return false;
+    const rows=(c.p.rows||[]) as NutritionRow[];
+    if(!rows[0]?.visual)return false;
+    const w=c.inner;
+    const rise=(rate:number)=>'成长速度 '+rate+' 倍';
+    const badge=(n:Node,text:string,x:number,y:number,selected=false)=>{
+        const mark=frame(n,'Tier',x,y,31,17,selected?'#D7E3C2':'#E9DAB3',selected?'#8CA37A':paper.brass,false);
+        caption(mark,'Value',text,0,0,29,15,10,paper.green,true).isBold=true;
+    };
+    if(c.key==='roomNutrition'){
+        rows.forEach((r,i)=>{
+            const v=r.visual,h=60;
+            const entry=frame(c.body,'NutritionRow'+i,0,c.slot(h,7),w,h,
+                v.selected?'#E0E8CE':paper.card,v.selected?'#75916A':paper.brass,false);
+            tap(entry,()=>c.ui.choose(v.pick));
+            const radio=box(entry,'Radio',-w/2+15,0,15,15).addComponent(Graphics);
+            radio.fillColor=new Color().fromHEX(v.selected?'#436952':'#FFF9E9');
+            radio.circle(0,0,6);radio.fill();
+            radio.strokeColor=new Color().fromHEX(v.selected?'#234D3C':'#AA9470');
+            radio.lineWidth=1.4;radio.circle(0,0,6);radio.stroke();
+            if(v.selected){radio.fillColor=new Color().fromHEX('#F8EBC8');radio.circle(0,0,2.1);radio.fill();}
+            if(r.art)picture(entry,'MealArt',r.art,-w/2+43,0,29,39);
+            const left=-w/2+65, labelWidth=w-138;
+            heading(entry,'MealName',r.title,left+labelWidth/2,11,labelWidth,21,15,paper.green);
+            caption(entry,'Growth',rise(v.rate),left+48,-12,96,22,12,paper.ink);
+            badge(entry,v.badge,left+111,-12,v.selected);
+            const details=box(entry,'NutritionDetail'+i,w/2-39,0,68,44);
+            caption(details,'Caption','查看详情',0,0,65,36,12,paper.green,true).isBold=true;
+            tap(details,()=>c.ui.choose(v.detail));
+        });
+        const hint=frame(c.body,'NutritionHint',0,c.slot(38,7),w,38,'#F0DEB7',paper.brass,false);
+        caption(hint,'Caption',c.p.visual?.hint||'',0,0,w-20,32,13,paper.muted);
+        const action=c.p.actions?.[0];
+        if(action){
+            c.startFooter();
+            press(c.body,'FeedMeal',action.label||'投喂',0,c.slot(48),w,()=>c.ui.choose(action),true,!!action.disabled);
+        }
+        return true;
+    }
+    const preview=rows[0],v=preview.visual;
+    const hero=frame(c.body,'MealCard',0,c.slot(88,7),w,88,paper.card,paper.brass,false);
+    if(preview.art)picture(hero,'MealArt',preview.art,-w/2+44,0,56,70);
+    const labelWidth=w-93,left=-w/2+83;
+    heading(hero,'MealName',preview.title,left+labelWidth/2,17,labelWidth,29,21,paper.green);
+    badge(hero,v.badge,left+16,-15,true);
+    caption(hero,'Growth',rise(v.rate),left+95,-15,109,22,14,paper.ink);
+    const fields=rows.slice(1);
+    const facts=frame(c.body,'MealFacts',0,c.slot(108,8),w,108,paper.card,paper.brass,false);
+    fields.forEach((r,i)=>{
+        const y=36-i*24;
+        caption(facts,'Fact'+i,r.title,-w/2+43,y,64,24,14,paper.ink).isBold=true;
+        caption(facts,'Value'+i,r.text||'',29,y,w-95,24,13,paper.muted);
+    });
+    const rules=String(c.p.visual?.rules||'');
+    const textHeight=lines(rules,w-22,13)*19+10;
+    const paperRules=frame(c.body,'MealRules',0,c.slot(textHeight,10),w,textHeight,'#F7E7C4',paper.brass,false);
+    const copy=caption(paperRules,'Rules',rules,0,0,w-20,textHeight-8,13,paper.ink);
+    copy.lineHeight=19;
+    const [back,buy]=c.p.actions||[];
+    if(back&&buy){
+        c.startFooter();
+        const side=(w-8)/2,y=c.slot(48);
+        press(c.body,'NutritionReturn',back.label!, -(side+8)/2,y,side,()=>c.ui.choose(back));
+        press(c.body,'NutritionBuy',buy.label!, (side+8)/2,y,side,()=>c.ui.choose(buy),true);
+    }
+    return true;
+}
+
 function generic(ctx:PageCanvas):void {
     const {p,body,inner,slot}=ctx;
     ctx.strip(p.tabs||[],'Tab');
@@ -250,7 +323,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     const ctx=layout.ctx;
     if(opts.offline)press(content,'Retry','离线 · 重新连接',0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
     if(opts.pending)ctx.row({title:'有一笔操作等待确认',text:'查询原请求回执',action:{type:'ui.receipt'}},-1);
-    if(opts.ready===false || !(tutorial(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
+    if(opts.ready===false || !(tutorial(ctx)||nutrition(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
     const extent=layout.extent();
     const actualHeight=modal?Math.min(maxHeight,headerHeight+extent+4):height;
     const bodyHeight=actualHeight-headerHeight-(modal?4:0);
@@ -297,7 +370,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     content.setPosition(0,vh/2);
     area.setContentSize(width,Math.max(vh,listHeight));
     scroll.vertical=listHeight>vh;
-    const titles:Record<string,string>={rooms:'动物房间',research:'研究技能树',login:'账号',profile:'每日签到',pet:'个体档案',
+    const titles:Record<string,string>={rooms:'动物小屋',research:'研究技能树',login:'账号',profile:'每日签到',pet:'个体档案',
         collection:'荣誉',show:'赛事',lab:'培育中心',orders:'订单',guest:'订单'};
     const title=(opts.ready!==false&&titles[key])||(key==='breed'&&p.title==='繁育台'?'繁育':p.title);
     drawHeader(sheet,width,actualHeight,title,coins,ui.back,modal,opts.backToGuide);

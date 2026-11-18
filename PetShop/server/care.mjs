@@ -3,6 +3,7 @@ import { purchasePrice, youngPurchaseBase } from './business.mjs';
 import { rareRedrawPercent, scoreRiseChance } from './research-effects.mjs';
 import { GRADES, defectTrait, defectProbabilities } from './defect.mjs';
 import { occupiedPetNames, takePetName } from './pet-names.mjs';
+import { activeNutrition, nutritionDuration, nutritionStock, nutritionTier, nutritionWindow } from './room-nutrition.mjs';
 
 const MINUTE = 60_000, DAY = 24 * 60 * MINUTE, BATCH = 30 * MINUTE;
 export const SPECIES = {
@@ -64,9 +65,25 @@ function roomOf(s, species) {
 export const stageNames = ['幼年','成长','成年','老年','已故'];
 export function lifeDates(p) {
   const cfg=SPECIES[p.species];
-  const growthAt=p.bornAt+cfg.young*MINUTE, adultAt=growthAt+cfg.growth*MINUTE;
-  const oldAt=adultAt+cfg.adult*DAY;
-  return {growthAt,adultAt,oldAt,deathAt:oldAt+cfg.old*DAY};
+  const naturalGrowth=p.bornAt+cfg.young*MINUTE, naturalAdult=naturalGrowth+cfg.growth*MINUTE;
+  const oldAt=naturalAdult+cfg.adult*DAY;
+  return {growthAt:p.maturation?.growthAt??naturalGrowth,adultAt:p.maturation?.adultAt??naturalAdult,
+    oldAt,deathAt:oldAt+cfg.old*DAY};
+}
+function accelerateMaturation(p,effect,arrivedAt) {
+  if(!effect)return;
+  const start=Math.max(effect.startsAt,arrivedAt,p.bornAt);
+  const duration=effect.endsAt-start;
+  const {growthAt,adultAt}=lifeDates(p);
+  if(duration<=0||adultAt<=start)return;
+  const speed=Math.round(effect.rate*10);
+  const earlier=deadline=>{
+    if(deadline<=start)return deadline;
+    const natural=deadline-start;
+    return natural*10<=duration*speed ? start+Math.ceil(natural*10/speed)
+      : deadline-Math.floor(duration*(speed-10)/10);
+  };
+  p.maturation={growthAt:earlier(growthAt),adultAt:earlier(adultAt)};
 }
 export const beijingTime = ms => new Date(ms+8*60*MINUTE).toISOString().slice(0,19).replace('T',' ');
 function ageBand(p,now) {
@@ -225,9 +242,12 @@ export function tickCare(s,now) {
         p.bred=true;
         p.retained=false;
       }
+      // Settle at the birth timestamp even when the store resumes after expiry.
+      const effect=nutritionWindow(room);
+      for(const p of job.offspring)accelerateMaturation(p,effect,job.endsAt);
       s.pets.push(...job.offspring);
       room.lastLitter={ids:job.offspring.map(p=>p.id),children:job.offspring.map(birthIdentity),bornAt:job.endsAt,mother:job.mother.name,father:job.father.name,
-        parents:[job.mother,job.father].map(({id,name,sex,bornAt})=>({id,name,sex,bornAt,species}))};
+        parents:[job.mother,job.father].map(({id,name,sex,bornAt,maturation})=>({id,name,sex,bornAt,species,...(maturation&&{maturation})}))};
       room.job=null;changed=true;
     } else if(room.lastLitter && !room.lastLitter.children) {
       // Preserve the identities still available when opening an older save, before another sale.
@@ -352,6 +372,8 @@ export function careAction(s,type,args,now) {
     const usedNames=occupiedPetNames(s);
     const firstNames=s.care.signedDay==null ? ['谷穗','小麦'] : [];
     const pair=['母','公'].map((sex,i)=>makePet(usedNames,'rabbit','domestic',sex,now,'每日签到',{name:firstNames[i]}));
+    const effect=activeNutrition(s.rooms.rabbit,now);
+    for(const p of pair)accelerateMaturation(p,effect,now);
     s.pets.push(...pair);s.care.signedDay=today;s.care.claimIds=pair.map(p=>p.id);
     return '已领取两只基础原色幼兔，一公一母。';
   }
@@ -370,12 +392,24 @@ export function careAction(s,type,args,now) {
     return cfg.name+'房已开放，两只幼体已入住。';
   }
   const room=roomOf(s,species);
+  if(type==='care.feed') {
+    const meal=nutritionTier(args.tier);
+    requireValue(meal,'请选择有效的营养餐档次。');
+    requireValue(!activeNutrition(room,now),'本房的营养餐仍在生效，请等到期后再投喂。');
+    requireValue(nutritionStock(room,meal.key)>0,'本房所选营养餐库存不足。');
+    room.nutritionStock[meal.key]--;
+    room.nutrition={tier:meal.key,startsAt:now,endsAt:now+nutritionDuration};
+    const effect=activeNutrition(room,now);
+    for(const p of s.pets)if(p.species===species)accelerateMaturation(p,effect,now);
+    return cfg.name+'房成长速度 ×'+meal.rate+'，营养餐已生效。';
+  }
   if(type==='care.buyPet') {
     const index=room.shelf.offers.findIndex(p=>p?.id===args.id);
     requireValue(index>=0 && room.shelf.number===args.batch,'货位已售空或批次已更新。');
     const offer=room.shelf.offers[index];
     charge(s,args.price,youngPurchaseBase(offer));
     const pet=makePet(occupiedPetNames(s,[offer]),species,offer.breedKey,offer.sex,now,'研究所采购',offer);
+    accelerateMaturation(pet,activeNutrition(room,now),now);
     s.pets.push(pet);
     room.shelf.offers[index]=null;
     if (pet.name!==offer.name) return '原货架名“'+offer.name+'”已被占用，已取名“'+pet.name+'”入住'+cfg.name+'房。';

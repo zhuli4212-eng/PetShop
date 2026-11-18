@@ -9,7 +9,7 @@ import { drawBreedingBonus } from './RoomPresentation';
 interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
 interface ResponseReceipt { message:string; requestId:string; }
-interface StageClock {label:Label;endsAt:number;shown:number;}
+interface StageClock {label:Label;endsAt:number;shown:number;progress?:(seconds:number)=>void;}
 interface Host {
     layer:Node; origin:string; height:()=>number; wallet:()=>ShopSnapshot;
     update:(shop:ShopSnapshot)=>void; activate:(open:boolean)=>void; notice:(message:string)=>void;
@@ -154,6 +154,9 @@ export class ShopSession {
             if(!this.feature)throw new Error('请先进入相应的店铺功能。');
             const prior=this.panel;
             if(readingHandbook)visit.returnPanel=prior;
+            if(key==='nutritionDetail'||key==='nutritionShop'){
+                visit.returnPanel=prior?.key===key?prior.returnPanel:prior;
+            }
             if(key==='litter'){
                 const source=prior?.key==='litterKeep'?prior.returnPanel:prior;
                 visit.returnPanel=source?.key==='litter'?source.returnPanel:source;
@@ -238,7 +241,11 @@ export class ShopSession {
             const now=visitNow(visit);
             for(const clock of clocks){
                 const seconds=Math.max(0,Math.ceil((clock.endsAt-now)/1000));
-                if(seconds!==clock.shown){clock.label.string=stageTime(seconds);clock.shown=seconds;}
+                if(seconds!==clock.shown){
+                    clock.label.string=stageTime(seconds);
+                    clock.shown=seconds;
+                    clock.progress?.(seconds);
+                }
             }
             if(now>=next&&!requested&&this.scroll===scroll&&this.canRefreshDeadline(visit)){
                 requested=true;
@@ -336,7 +343,7 @@ export class ShopSession {
                     this.bonusVisit=view;this.render();
                 },
                 bindBirthCountdown:(label,endsAt)=>this.bindBirthCountdown(view,label,endsAt),
-                bindStageCountdown:(label,endsAt)=>stageClocks.push({label,endsAt,shown:-1}),
+                bindStageCountdown:(label,endsAt,progress)=>stageClocks.push({label,endsAt,shown:-1,progress}),
                 selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,
                 detailPage:view.detailPage||0,turnPage:index=>{
                     if(view!==this.current||this.confirm)return;
@@ -353,10 +360,8 @@ export class ShopSession {
                 ready:view.version!==undefined||view.key==='payment',
                 pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
             });
-            if(!backdrop){
-                this.scroll=scroll;this.renderedVisit=view;
-                if(view.key==='rooms')this.bindRoomClocks(view,scroll,stageClocks);
-            }
+            if(view.key==='rooms')this.bindRoomClocks(view,scroll,stageClocks);
+            if(!backdrop){this.scroll=scroll;this.renderedVisit=view;}
         }
         const confirm=this.confirm;
         if(confirm)confirmBox(this.host.layer,confirm.text,()=>{
@@ -475,7 +480,7 @@ export class ShopSession {
                         this.navigate('roomReceipt',{species:args.species});
                     }else if(tutorialPurchase){
                         this.navigate('tutorial',{});
-                    }else if(a.type==='care.buyPet'||a.type==='order.cancel'){
+                    }else if(a.type==='care.buyPet'||a.type==='care.feed'||a.type==='order.cancel'){
                         this.closePanel();
                     }else if(a.go)this.navigate(a.go,a.goArgs||{});
                 }};

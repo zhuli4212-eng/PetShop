@@ -16,11 +16,14 @@ export interface MutationPreview {
     enabled:boolean; level:number;
     fields:{name:string;mother:string;father:string;off:number;on:number}[];
 }
+export interface NutritionEffect {
+    rate:number; startsAt:number; endsAt:number;
+}
 export interface LedgerPage {
     readNoteIds?:string[];
     visual?:Args;
     title:string; subtitle?:string; art?:string; stage?:string; animals?:string[]; animalStages?:string[];
-    presentation?:{kind:string; bornAt?:number; endsAt?:number; nextStageAt?:number|null; remaining?:number; mutationPreview?:MutationPreview; archived?:boolean} & Partial<TutorialProgress>;
+    presentation?:{kind:string; bornAt?:number; endsAt?:number; nextStageAt?:number|null; remaining?:number; mutationPreview?:MutationPreview; nutrition?:NutritionEffect; archived?:boolean} & Partial<TutorialProgress>;
     tabs?:Choice[]; filters?:Choice[][]; selectionLabel?:string;
     rows?:LedgerRow[]; actions?:Choice[]; empty?:string; initialSelection?:string[];
 }

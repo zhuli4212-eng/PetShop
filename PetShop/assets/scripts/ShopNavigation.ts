@@ -17,9 +17,9 @@ export function featureFor(key:string,args:Args):string|undefined {
 export function accessFeature(key:string,args:Args):string {
     if(key==='sale'||key==='saleQuote')
         return ({order:'orders',guest:'guest',market:'market',recycle:'lab'} as Record<string,string>)[args.channel];
-    if(['pet','roomRoster','roomReceipt'].includes(key))return 'rooms';
+    if(['pet','roomRoster','roomReceipt','roomNutrition','nutritionDetail'].includes(key))return 'rooms';
     if(['litter','litterKeep','litterSale'].includes(key))return 'breed';
-    if(['offer','review','researchNode','researchTable'].includes(key))return 'lab';
+    if(['offer','review','researchNode','researchTable','nutritionShop'].includes(key))return 'lab';
     if(['orderDesk','credits'].includes(key))return 'orders';
     if(key==='lastVisit'||key==='openingGuide')return 'login';
     if(key.startsWith('show.'))return 'show';

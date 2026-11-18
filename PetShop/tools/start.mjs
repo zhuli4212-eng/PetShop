@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const origin = 'http://127.0.0.1:17888/';
+const port = process.env.PETSHOP_PORT || '17888';
+if(!/^\d{1,5}$/.test(port)||Number(port)<1||Number(port)>65535)throw new Error('PETSHOP_PORT 必须是有效端口。');
+const origin = 'http://127.0.0.1:'+Number(port)+'/';
 const server = fileURLToPath(new URL('../server/main.mjs', import.meta.url));
 const index = fileURLToPath(new URL('../build/web-mobile/index.html', import.meta.url));
 const editorPath = 'D:\\app\\CocosCreator\\3.8.8\\CocosCreator.exe';
@@ -19,11 +21,11 @@ async function readHealth() {
         });
     } catch (error) {
         if (error.cause?.code === 'ECONNREFUSED') return false;
-        throw new Error('17888 端口没有返回宠物店的健康信息。请检查占用该端口的程序。');
+        throw new Error(port+' 端口没有返回宠物店的健康信息。请检查占用该端口的程序。');
     }
     const info = response.ok ? await response.json().catch(() => null) : null;
     if (info?.service !== 'petshop' || info.status !== 'ok' || info.protocol !== 1) {
-        throw new Error('17888 端口的服务或协议不匹配。请检查占用该端口的程序。');
+        throw new Error(port+' 端口的服务或协议不匹配。请检查占用该端口的程序。');
     }
     if(info.gameplay !== 1) throw new Error('旧版店铺服务仍在运行。请退出旧服务，再启动经营版。');
     return true;
@@ -33,7 +35,7 @@ async function startServer() {
     await access(server).catch(() => { throw new Error('缺少 server/main.mjs。'); });
     const child = spawn(process.execPath, [server], {
         cwd: root, detached: true, windowsHide: true, stdio: 'ignore',
-        env: { ...process.env, PETSHOP_HOST: '127.0.0.1', PETSHOP_PORT: new URL(origin).port,
+        env: { ...process.env, PETSHOP_HOST: '127.0.0.1', PETSHOP_PORT: port,
             PETSHOP_WEB_ROOT: dirname(index) },
     });
     await once(child, 'spawn');

@@ -3,6 +3,7 @@ import {
   lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview,
 } from './care.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
+import { activeNutrition, nutritionPage } from './room-nutrition.mjs';
 
 const go = (label,page,args={}) => ({label,page,args});
 const link = (title,text,page,args={},extra={}) => ({title,text,link:{page,args},...extra});
@@ -61,8 +62,10 @@ function roster(s,a,now) {
     shown.push(row);
   }
   const residents=shown.slice(0,10).map(row=>row.animal);
-  return {title:'动物房间',art:cfg.art,animals:residents.map(p=>p.art),animalStages:residents.map(p=>p.stage),
-    presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents,nextStageAt},
+  const nutrition=activeNutrition(room,now);
+  return {title:'动物小屋',art:cfg.art,animals:residents.map(p=>p.art),animalStages:residents.map(p=>p.stage),
+    presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents,nextStageAt,
+      ...(nutrition&&{nutrition})},
     subtitle:'名册 '+shown.length+' 只 · '+filter+' · '+stage,
     rows:[link(room.job?'查看正在繁育的一窝':'进入繁育台',room.job?'预计 '+describeRemaining(room.job.endsAt-now)+' 后出生':'挑选亲本，查看幼体的缺陷率和完美无缺率','breed',{species}),
       ...(room.lastLitter?[link('最近出生的一窝',room.lastLitter.ids.length+' 只','litter',{species})]:[]),
@@ -306,6 +309,8 @@ export function carePage(s,page,args={},now) {
   switch(page) {
     case 'roomReceipt': return openingReceipt(s,speciesKey(args));
     case 'rooms': case 'roomRoster': return roster(s,args,now);
+    case 'roomNutrition': case 'nutritionDetail': case 'nutritionShop':
+      return nutritionPage(s,page,speciesKey(args),args.tier,now);
     case 'profile': return checkin(s,now);
     case 'pet': return detail(s,args,now);
     case 'breed': return pairPage(s,args,now);

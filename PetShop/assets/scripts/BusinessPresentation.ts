@@ -170,14 +170,14 @@ function labTabs(c:PageCanvas,active:string):void {
     })),'LabTab');
 }
 function lab(c:PageCanvas):void {
-    banner(c,'lab','研究所');c.startList();labTabs(c,'lab');
+    banner(c,'lab','培育中心');c.startList();labTabs(c,'lab');
     const shelf=pageVisual(c).shelf;
     if(shelf)section(c,'本批种源',shelf.subtitle||'');
     c.startList();
     if(!shelf){rows(c).forEach((r,i)=>info(c,r,i));return;}
     (shelf.rows||[]).forEach((r,i)=>info(c,r,i));
     note(c,'每 30 分钟刷新一批。同批内容固定，已售货位留空。');
-    dock(c,[act('查看各房货架','shelf')],-1);
+    dock(c,[act('查看各房货架','shelf'),act('营养餐','nutritionShop',c.args.species?{species:c.args.species}:{})],-1);
 }
 const branchArt=['research-review','breeding-guide','research-market'];
 function research(c:PageCanvas):void {

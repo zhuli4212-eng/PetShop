@@ -12,7 +12,7 @@ export interface LedgerUI {
     back: () => void;
     choose: (choice: Choice) => void;
     bindBirthCountdown: (label: Label, endsAt: number) => void;
-    bindStageCountdown: (label: Label, endsAt: number) => void;
+    bindStageCountdown: (label: Label, endsAt: number, progress?:(seconds:number)=>void) => void;
     openFilter: (fields: FilterField[], index: number) => void;
     openBreedingBonus: () => void;
     toggle: (id: string) => void;
@@ -222,6 +222,10 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
     const paths=new Set<string>();
     if(page.art)paths.add(stageArt(page.art, page.stage || ''));
     if(counter)paths.add('shop-modules/'+counter);
+    if(key==='roomNutrition'||key==='nutritionShop'){
+        for(const row of page.rows||[])if(row.art)paths.add(row.art);
+    }
+    if(key==='rooms'&&page.presentation?.nutrition)paths.add('rooms/nutrition-meal-fill');
     await Promise.all(Array.from(paths,art=>{
         const path=art+'/spriteFrame';
         if(resources.get(path,SpriteFrame))return;

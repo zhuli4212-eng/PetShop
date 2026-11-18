@@ -1,6 +1,6 @@
 import { BlockInputEvents, Color, Graphics, Node, UITransform } from 'cc';
-import type { Choice, LedgerRow, MutationPreview } from './ShopConnection';
-import { animalFilters, box, caption, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
+import type { Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
+import { animalFilters, box, caption, frame, heading, paper, picture, press, rect, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
 import { litterPositions } from './RoomFloor';
 
@@ -13,6 +13,7 @@ interface RoomPage {
     maturity?:number; estimate?:string; youngArt?:string; price?:number; breed?:string; coins?:number; signed?:boolean; date?:string;
     parents?:(Animal|null)[]; candidates?:Animal[]; confirm?:Choice; animal?:Animal; bornAt?:number; endsAt?:number;
     guide?:{count:number;index:number};
+    nutrition?:NutritionEffect;
     traits?:{type:string;label:string;rarity:string;grade:string}[];
 }
 type AnimalRow=LedgerRow & {animal?:Animal;litterMember?:boolean;rateSummary?:boolean};
@@ -59,8 +60,48 @@ function tabs(c:PageCanvas,flush=false):void {
         caption(tab,'LockState','未开放',6,-11,40,19,11,color,true);
     });
 }
+// Native coordinates of the bowls painted into the approved 512 × 288 rooms.
+const feedingPositions:Record<string,[number,number]>={
+    rabbit:[347.5,94.5],cat:[333.5,113.5],dog:[349.5,107.5],
+};
+function feedingStation(c:PageCanvas,scene:Node,h:number,effect?:NutritionEffect):void {
+    const species=c.args.species||'rabbit';
+    const [px,py]=feedingPositions[species]??feedingPositions.rabbit;
+    const x=(px/512-.5)*c.width,y=(.5-py/288)*h;
+    const spriteScale=c.width/512;
+    const station=box(scene,'FeedingStation',x,y,44,44);
+    station.getComponent(UITransform)!.setAnchorPoint(.5,.25);
+    const open=()=>c.ui.choose({page:'roomNutrition',args:{species}});
+    tap(station,open);
+    if(effect)picture(station,'MealFill','rooms/nutrition-meal-fill',0,9*spriteScale,25*spriteScale,17*spriteScale);
+    if(!effect){
+        const buttonX=47.5*spriteScale,buttonWidth=57*spriteScale;
+        const hit=box(station,'FeedTarget',buttonX,0,Math.max(buttonWidth,44),44);
+        hit.getComponent(UITransform)!.setAnchorPoint(.5,.25);
+        tap(hit,open);
+        press(hit,'Feed','投喂',0,0,buttonWidth,open,true,false,25*spriteScale);
+        return;
+    }
+    // Keep the text above the bowl and clear of the right-side furnishings.
+    const panelWidth=c.width*.24,size=c.width<350?10:12;
+    const panel=frame(station,'NutritionProgress',(376-px)*spriteScale,36,panelWidth,44,paper.card,paper.brass,false);
+    tap(panel,open);
+    caption(panel,'Rate','成长加速 ×'+effect.rate,0,12,panelWidth-8,15,size,paper.green,true).isBold=true;
+    const line=panelWidth-8,labelWidth=line*.57,clockWidth=line-labelWidth;
+    caption(panel,'Duration','有效时间',-clockWidth/2,-4,labelWidth,14,size,paper.muted,true);
+    const countdown=caption(panel,'Countdown','',labelWidth/2,-4,clockWidth,14,size,paper.green,true);
+    countdown.isBold=true;
+    const width=panelWidth-10,bar=4;
+    const track=box(panel,'Track',0,-16,width,bar,'#CCB07A');
+    const fill=box(track,'Fill',0,0,width,bar).addComponent(Graphics);
+    const duration=(effect.endsAt-effect.startsAt)/1000;
+    c.ui.bindStageCountdown(countdown,effect.endsAt,seconds=>{
+        fill.clear();
+        rect(fill,-width/2,-bar/2,width*Math.min(1,seconds/duration),bar,paper.primary);
+    });
+}
 function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:boolean,edgeTop=false,
-                   links?:Map<string,Choice>):void {
+                   links?:Map<string,Choice>):Node {
     if(edgeTop)c.slot(-(c.width-c.inner)/2,0);
     const h=c.width*9/16;
     const scene=box(c.body,'Artwork',0,c.slot(h,10),c.width,h,'#B3834F');
@@ -85,12 +126,13 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
             const badgeY=spot?spot.feet+spot.size*.52+4:-sh*.37;
             const badge=box(resident,'AtRest',0,badgeY,33,15,'#544E44');
             caption(badge,'Caption','已故',0,0,32,14,10,'#FFF2D3',true);
-        } else {
+        } else if(a.status!=='繁育中') {
             resident.addComponent(RoomAnimalWalk).setup(figure,a.art,a.stage,name,i,c.width,h,spot?.patrol);
         }
         const target=links?links.get(a.id):{page:'pet',args:{id:a.id}};
         if(target)tap(resident,()=>c.ui.choose(target));
     });
+    return scene;
 }
 function petLine(c:PageCanvas,a:Animal,i:number,choose:(()=>void)|undefined,tail='›',last=false,selected=false):void {
     const h=76;
@@ -132,7 +174,8 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const breed=extras.find(r=>r.link?.page==='breed')?.link||{page:'breed',args:{species:room}};
     tabs(c,true);
     // Older servers returned three unfiltered residents alongside a complete filtered roster.
-    roomScene(c,c.p.art!,c.p.rows?all:m.residents||[],name,true);
+    const scene=roomScene(c,c.p.art!,c.p.rows?all:m.residents||[],name,true);
+    feedingStation(c,scene,c.width*9/16,m.nutrition);
     c.startList();
     const count=m.count??all.length,matched=m.matchedCount??all.length;
     const countText=count===matched?count+' 只登记':'符合 '+matched+' / 共 '+count+' 只';

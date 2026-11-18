@@ -2,7 +2,7 @@ import shopRules from './shop-feature-levels.json' with { type: 'json' };
 export { shopRules };
 
 export const featureNames = {
-  rooms:'动物房间', login:'店主登记簿', orders:'普通订单', show:'赛事', lab:'培育中心',
+  rooms:'动物小屋', login:'店主登记簿', orders:'普通订单', show:'赛事', lab:'培育中心',
   market:'自由市场', profile:'每日签到', breed:'繁育', decor:'店铺装饰', guest:'特殊来客', collection:'荣誉',
 };
 
@@ -15,10 +15,10 @@ export function featureAccess(rules, level) {
 
 const owner = new Map();
 const sections = {
-  rooms:['roomRoster','roomReceipt','pet','care.unlock','care.retain'],
+  rooms:['roomRoster','roomReceipt','roomNutrition','nutritionDetail','pet','care.unlock','care.retain','care.feed'],
   login:['payment'],
   orders:['orderDesk','credits','order.cancel','order.buyCredit'],
-  lab:['shelf','offer','services','review','recycle','research','researchNode','researchTable',
+  lab:['shelf','offer','services','review','recycle','research','researchNode','researchTable','nutritionShop',
     'care.buyPet','care.buyItem','care.review','research.upgrade'],
   profile:['care.checkin'],
   breed:['litter','litterKeep','litterSale','care.breed','care.toggle','care.keepLitter'],
