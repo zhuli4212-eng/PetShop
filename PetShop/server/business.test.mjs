@@ -174,6 +174,10 @@ test('市场两个入口按房间标签显示可售和禁售个体，切换筛�
         const p=all[i];
         assert.equal(row.link.page,'pet');
         assert.equal(row.visual.number,p.id.slice(0,5).toUpperCase());
+        if(s.rooms[p.species]){
+          const {stageEndsAt,...roomAnimal}=carePage(s,'rooms',{species:p.species},t0).rows.find(r=>r.animal?.id===p.id).animal;
+          assert.deepEqual(row.animal,roomAnimal);
+        }
         if (p===mother || p===father) {
           assert.equal(row.select,p.id);
           assert.equal(row.visual.price,salePrice(s,p,t0,'market'));

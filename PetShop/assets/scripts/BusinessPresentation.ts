@@ -1,6 +1,6 @@
 import { assetManager, isValid, Sprite, SpriteFrame, UITransform } from 'cc';
 import type { Choice, LedgerPage, LedgerRow } from './ShopConnection';
-import { animalFilters, box, caption, frame, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
+import { animalFilters, animalSummary, box, caption, frame, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { banner, blocks, brown, buttons, card, cream, dock, edge, green, info, ink, note, section, text, thumbTabs } from './BusinessCards';
 
 interface ResearchBenefit {
@@ -62,9 +62,9 @@ function marketRow(c:PageCanvas,r:DisplayRow,i:number):void {
     // can open a dossier and return to the same list, selection and scroll position.
     const details=c.key==='market'?r.link:undefined;
     const w=c.inner,left=-w/2+68,right=w/2-(details?62:10),infoW=right-left;
-    const summary=v.summary||r.text||'',summaryH=Math.max(17,blocks(summary,infoW,12)*17);
+    const summary=v.summary||r.text||'';
     const reason=v.blockedReason||'',reasonH=reason?blocks(reason,w-22,13)*19+9:0;
-    const mainH=Math.max(60,34+summaryH+6),h=mainH+reasonH,top=h/2;
+    const mainH=76,h=mainH+reasonH,top=h/2;
     const muted='#625F56',mainY=top-mainH/2;
     const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,blocked?'#E8E5DB':chosen?'#E3EBCD':cream,
         blocked?'#B6B2A6':chosen?'#618063':edge);
@@ -76,10 +76,13 @@ function marketRow(c:PageCanvas,r:DisplayRow,i:number):void {
         if(blocked)icon.getComponent(Sprite)!.grayscale=true;
     }
     const priceW=typeof v.price==='number'?60:0;
-    const name=(v.name||r.title)+(v.number?'  #'+v.number:'');
-    text(n,'Name',name,left+(infoW-priceW)/2,top-17,infoW-priceW,24,15,blocked?muted:ink,'left',true);
-    if(priceW)text(n,'Price',v.price+' 金币',right-priceW/2,top-17,priceW,24,12,'#77552B','right',true);
-    text(n,'Summary',summary,left+infoW/2,top-32-summaryH/2,infoW,summaryH,12,blocked?muted:brown);
+    if(r.animal)animalSummary(n,r.animal,left,infoW-priceW-4,mainY,blocked);
+    else {
+        const name=(v.name||r.title)+(v.number?'  #'+v.number:'');
+        text(n,'Name',name,left+(infoW-priceW)/2,mainY+22,infoW-priceW,24,15,blocked?muted:ink,'left',true);
+        text(n,'Summary',summary,left+infoW/2,mainY-10,infoW,35,12,blocked?muted:brown);
+    }
+    if(priceW)text(n,'Price',v.price+' 金币',right-priceW/2,mainY,priceW,24,12,'#77552B','right',true);
     if(reason){
         box(n,'ReasonRule',0,top-mainH,w-16,1,'#C5C1B6');
         text(n,'BlockedReason',reason,0,top-mainH-reasonH/2,w-22,reasonH-3,13,muted,'left',true);
@@ -92,7 +95,7 @@ function sale(c:PageCanvas):void {
     const channel=c.key==='sale'?String(c.args.channel):c.key,mode=channel==='order'?'交付':channel==='recycle'?'回收':'出售';
     const list=rows(c),ids=list.filter(r=>r.select).map(r=>r.select!);
     if(channel==='recycle'){
-        labMenu(c,'recycle');
+        if(!c.modal)banner(c,'lab','培育中心');
         c.strip([['','全部'],['rabbit','兔'],['cat','猫'],['dog','狗']].map(([species,label])=>({
             ...act(label,'recycle',species?{species}:{}),active:(c.args.species||'')===species,
         })),'RecycleSpecies');
@@ -110,13 +113,17 @@ function sale(c:PageCanvas):void {
     for(const [i,r] of list.entries()){
         if(channel==='market'&&r.visual){marketRow(c,r,i);continue;}
         if(!r.select||!r.visual){c.row(r,i);continue;}
-        const chosen=c.ui.selected.has(r.select),w=c.inner,h=56,n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,chosen?'#E3EBCD':cream,chosen?'#618063':edge);
+        const chosen=c.ui.selected.has(r.select),w=c.inner,h=r.animal?76:56;
+        const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,chosen?'#E3EBCD':cream,chosen?'#618063':edge);
         const cb=frame(n,'Check',-w/2+18,0,17,17,chosen?'#365F4A':'#FFF8E6',chosen?'#365F4A':'#9A8970');
         if(chosen)text(cb,'Mark','✓',0,0,16,18,14,'#FFF7E3','center',true);
         if(r.art)picture(n,'Icon',r.art,-w/2+51,0,40,38,r.stage);
         const profileW=r.link?55:0,priceW=68,tw=w-78-priceW-profileW;
-        text(n,'Name',r.visual.name||r.title,-w/2+79+tw/2,10,tw,24,15,ink,'left',true);
-        text(n,'Summary',r.visual.summary||r.text||'',-w/2+79+tw/2,-12,tw,25,12,brown);
+        if(r.animal)animalSummary(n,r.animal,-w/2+79,tw-4,0);
+        else {
+            text(n,'Name',r.visual.name||r.title,-w/2+79+tw/2,10,tw,24,15,ink,'left',true);
+            text(n,'Summary',r.visual.summary||r.text||'',-w/2+79+tw/2,-12,tw,25,12,brown);
+        }
         text(n,'Price',r.visual.price+' 金币',w/2-priceW/2-9-profileW,0,priceW,30,13,'#77552B','right',true);
         tap(n,()=>c.ui.toggle(r.select!));
         if(r.link)press(n,'Details','档案',w/2-28,0,48,()=>c.ui.choose(r.link!),false,false,46);
@@ -187,9 +194,12 @@ export function nutritionStore(c:PageCanvas):void {
 }
 function labMenu(c:PageCanvas,active:string):void {
     const scene=banner(c,'lab','培育中心');
-    const y=-scene.getComponent(UITransform)!.height/2+31,x=c.width/2-53;
-    press(scene,'LabResearch','研究',x,y+14,90,()=>c.ui.choose(act('研究','research')),active==='research',false,25);
-    press(scene,'LabRecycle','动物回收',x,y-14,90,()=>c.ui.choose(act('动物回收','recycle')),active==='recycle',false,25);
+    const y=-scene.getComponent(UITransform)!.height/2+28,right=c.width/2-8;
+    const researchWidth=70,recycleWidth=96,gap=6;
+    press(scene,'LabResearch','研究',right-recycleWidth-gap-researchWidth/2,y,researchWidth,
+        ()=>c.ui.choose(act('研究','research')),false,false,44);
+    press(scene,'LabRecycle','动物回收',right-recycleWidth/2,y,recycleWidth,
+        ()=>c.ui.choose(act('动物回收','recycle')),false,false,44);
     c.strip([['seed','种源'],['nutrition','营养餐'],['services','服务单']].map(([tab,label])=>({
         ...act(label,'lab',tab==='seed'?{}:{tab}),active:active===tab,
     })),'LabTab');
@@ -201,8 +211,17 @@ function lab(c:PageCanvas):void {
     if(tab==='seed')section(c,'本批种源',c.p.subtitle);
     c.startList();
     if(tab==='services')rows(c).forEach((r,i)=>catalogService(c,r,i));
-    else rows(c).forEach((r,i)=>info(c,r,i));
+    else rows(c).forEach((r,i)=>seedRow(c,r,i));
     if(!rows(c).length)c.empty();
+}
+function seedRow(c:PageCanvas,r:DisplayRow,i:number):void {
+    if(!r.animal||!r.link||typeof r.visual?.price!=='number'){info(c,r,i);return;}
+    const w=c.inner,n=card(c,'Row'+i,76,cream,6);
+    picture(n,'Icon',r.animal.art,-w/2+33,0,46,46,r.animal.stage);
+    animalSummary(n,r.animal,-w/2+65,w-156,0);
+    text(n,'Price',r.visual.price+' 金币',w/2-57,0,72,24,13,brown,'right',true);
+    text(n,'Arrow','›',w/2-11,0,14,40,20,green,'center');
+    tap(n,()=>c.ui.choose(r.link!));
 }
 function catalogService(c:PageCanvas,r:LedgerRow,i:number):void {
     const a=r.action!, w=c.inner;
@@ -218,7 +237,8 @@ function catalogService(c:PageCanvas,r:LedgerRow,i:number):void {
 const branchArt=['research-review','breeding-guide','research-market'];
 function research(c:PageCanvas):void {
     const v=pageVisual(c);
-    labMenu(c,'research');thumbTabs(c,c.p.tabs||[]);
+    if(!c.modal)banner(c,'lab','培育中心');
+    thumbTabs(c,c.p.tabs||[]);
     const w=c.inner,lev=v.levels||[0,0,0],h=59;
     const head=frame(c.body,'BookHeading',0,c.slot(h,0),w,h,'#FFF1CF','#B99C6C');
     heading(head,'Title',v.handbook||c.p.title,-43,9,w-107,26,19,green);
@@ -258,7 +278,7 @@ function researchDetail(c:PageCanvas):void {
             const cells=[r.title,r.visual?.benefit?.currentBonus||r.text||'',r.visual?.benefit?.currentValue||''];
             cells.forEach((s,j)=>text(n,['Label','Effect','Value'][j],s,coords[j],0,widths[j],24,13,j===2?green:ink,'center',selected));
             box(n,'Rule',0,-12,w,1,'#DDC99E');
-        });dock(c,[act('查看本分支','researchNode',c.args),{...back,label:'返回手册'}],-1);return;
+        });dock(c,[act('查看本分支','researchNode',c.args),act('返回手册','research',{species:c.args.species})],-1);return;
     }
     const current=list[0],next=list[1];
     if(!current)return;
@@ -436,7 +456,8 @@ function secondary(c:PageCanvas):void {
             if(price)text(n,'Price',price.replace(/（原价 (\d+) 金币）/,'（原$1）'),w/2-9-priceWidth/2,h/2-15,priceWidth,22,12,brown,'right');
             text(n,'Detail',detail,0,-13,w-18,dh+2,12,brown);
         });
-    }else rows(c).forEach((r,i)=>info(c,key==='credits'&&r.title==='已购余额'?{...r,art:'shop-modules/order-cancel'}:r,i));
+    }else if(key==='shelf')rows(c).forEach((r,i)=>seedRow(c,r,i));
+    else rows(c).forEach((r,i)=>info(c,key==='credits'&&r.title==='已购余额'?{...r,art:'shop-modules/order-cancel'}:r,i));
     if(!rows(c).length)c.empty();
     dock(c,c.p.actions||[]);
 }

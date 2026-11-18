@@ -1,5 +1,5 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import { BREEDS, SPECIES, TRAITS, breedName, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, stageEnd, stageNames, stageOf, stockStatus } from './care.mjs';
+import { BREEDS, SPECIES, TRAITS, breedName, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, specimen, stageEnd, stageNames, stageOf } from './care.mjs';
 import { bredValuePercent, researchBenefit } from './research-effects.mjs';
 
 const minute = 60_000;
@@ -397,9 +397,9 @@ function marketRoster(s, page, args, target, now) {
   for (const p of s.pets) {
     if (!target.eligible(p) || !rosterFilters[filter](s,p,now) || (stage!=='全部' && stageOf(p,now)!==stage)) continue;
     const reasons = saleBlocks(s,p,now,'market');
-    const number = p.id.slice(0,5).toUpperCase(), summary = petCaption(p,now,stockStatus(s,p));
-    const visual = {name:p.name, number, summary};
-    const row = {...linkRow(p.name,summary+' · #'+number,'pet',{id:p.id},petArt(p)), stage:stageOf(p,now), visual};
+    const animal=specimen(s,p,now), summary=petCaption(p,now,animal.status);
+    const visual = {name:animal.name, number:animal.number, summary};
+    const row = {...linkRow(p.name,summary+' · #'+animal.number,'pet',{id:p.id},animal.art), animal, stage:animal.stage, visual};
     if (reasons.length) {
       for (const reason of reasons) counts[reason]++;
       visual.blockedReason = reasons.join(' · ');
@@ -451,7 +451,8 @@ export function businessPage(s, page, args, now) {
         const price = salePrice(s, p, now, channel, target.rate);
         return { title: p.name + '  ·  ' + price + ' 金币', visual:{ name:p.name,price,summary:petCaption(p,now) },
           text: petCaption(p, now) + ' · #' + p.id.slice(0, 6).toUpperCase(),
-          art: petArt(p), stage: stageOf(p, now), select: p.id };
+          art: petArt(p), stage: stageOf(p, now), select: p.id,
+          ...(channel==='recycle'&&{animal:specimen(s,p,now)}) };
       }),
       actions: eligible.length ? [{ label: '核对所选报价', page: 'saleQuote', args: targetArgs, useSelection: true }] : [] };
   }

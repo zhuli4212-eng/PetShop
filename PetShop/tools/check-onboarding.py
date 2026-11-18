@@ -25,9 +25,11 @@ s.shopXp=36;
 s.coins=12000;
 s.visitBook.opening=false;
 s.pets[1].traits[1].grade='A';
+s.pets[0].retained=true;
 s.research.rabbit=[2,4,0];
 s.rooms.rabbit.items.guide=1;
 s.rooms.cat={...structuredClone(s.rooms.rabbit),shelf:null};
+s.pets.push({...structuredClone(s.pets[0]),id:'recycle-demo',name:'灰灰',retained:false,bornAt:Date.now()-6*86400000});
 store.save(s);
 const act=(type,args)=>{
   const {profileId,version}=store.shop();
@@ -107,6 +109,15 @@ def verify(browser, url, proc, width, output):
         tap("Back")
     touch.tap("Sign", scope="Hotspot_rooms")
     ready("rooms")
+    assert page.evaluate("""()=>{
+        const q=pairQA, desk=q.find('DeskPage'), button=q.find('Feed',desk);
+        const frame=q.box(button), room=q.box(q.find('FeedingStation',desk).parent), width=room.right-room.left;
+        const ink=button.getChildByName('Caption').getComponent(cc.Label).color;
+        return Math.abs(frame.right-frame.left-width*114*.8/512)<.1
+            &&Math.abs(frame.bottom-frame.top-width*50*.8/512)<.1
+            &&ink.r===68&&ink.g===58&&ink.b===41;
+    }""")
+    snap("黄色投喂按钮")
     touch.tap("Feed", scope="FeedingStation")
     ready("roomNutrition")
     assert page.evaluate("!pairQA.find('Tier',pairQA.find('DeskPage'))")
@@ -129,6 +140,12 @@ def verify(browser, url, proc, width, output):
     touch.wait("()=>!!pairQA.find('Picture',pairQA.find('Artwork'))?.getComponent(cc.Sprite)?.spriteFrame")
     assert page.evaluate("pairQA.visit().data.rows.map(r=>r.link.args.species)") == ["rabbit", "cat", "rabbit", "cat"]
     assert page.evaluate("()=>['种源','营养餐','服务单'].every(t=>pairQA.title(t,pairQA.find('DeskPage')))")
+    assert page.evaluate("""()=>{
+        const q=pairQA, a=q.visit().data.rows[0].animal, row=q.find('Row0',q.find('DeskPage'));
+        const text=name=>q.find(name,row).getComponent(cc.Label).string;
+        return text('Number')==='#'+a.number && text('Identity')===a.breed+' · '+a.coat
+            && text('Stage')===a.sex+' · 幼年 · 未繁育';
+    }""")
     snap("培育中心种源")
     tap("Row0")
     ready("offer")
@@ -148,11 +165,49 @@ def verify(browser, url, proc, width, output):
     assert page.evaluate("pairQA.visit().data.rows.map(r=>r.action.args.species)") == ["rabbit", "cat"] * 2
     buy("ServicePurchase1", "care.buyItem")
     touch.wait("()=>pairQA.ready()&&pairQA.visit().data.rows[1].title.includes('持有 1 张')")
+    assert page.evaluate("""()=>{
+        const a=pairQA.box(pairQA.find('LabResearch')),b=pairQA.box(pairQA.find('LabRecycle'));
+        return Math.abs(a.top-b.top)<1&&a.right<b.left;
+    }""")
     snap("培育中心服务单")
+    catalog_offset = page.evaluate("pairQA.offset()")
     tap("LabResearch")
     ready("research")
+    assert page.evaluate("!!pairQA.find('Shade')&&!!pairQA.find('UnderlyingPage')")
+    touch.wait("()=>!!pairQA.find('Icon',pairQA.find('Branch2'))?.getComponent(cc.Sprite)?.spriteFrame")
+    snap("研究弹窗")
+    tap("Branch0")
+    ready("researchNode")
+    touch.tap(text="核对升级", scope="DeskPage")
+    touch.wait("()=>!!pairQA.find('Confirm')")
+    touch.tap("Cancel",scope="Confirm")
+    ready("researchNode")
+    touch.tap(text="各级效果", scope="DeskPage")
+    ready("researchTable")
+    for key in ("researchNode", "research", "lab"):
+        tap("Back")
+        ready(key)
+    assert page.evaluate("pairQA.visit().args.tab") == "services"
+    assert abs(page.evaluate("pairQA.offset()") - catalog_offset) < 1
+
     tap("LabRecycle")
     ready("recycle")
+    assert page.evaluate("!!pairQA.find('Shade')&&!!pairQA.find('UnderlyingPage')")
+    snap("动物回收弹窗")
+    tap("Row0")
+    touch.tap(text="核对回收",scope="DeskPage")
+    ready("saleQuote")
+    touch.tap(text="修改选择",scope="DeskPage")
+    ready("recycle")
+    assert page.evaluate("pairQA.visit().selected.has('recycle-demo')")
+    touch.tap(text="核对回收",scope="DeskPage")
+    ready("saleQuote")
+    act("sale.commit","Action1")
+    ready("recycle")
+    assert page.evaluate("pairQA.visit().data.rows.length===0&&pairQA.visit().selected.size===0")
+    tap("Back")
+    ready("lab")
+    assert page.evaluate("pairQA.visit().args.tab") == "services"
     tap("Back")
     ready("tasks")
     row_done(1)
@@ -205,6 +260,18 @@ def verify(browser, url, proc, width, output):
     for row, key in ((4, "market"), (3, "orders")):
         tap("TaskRow"+str(row))
         ready(key)
+        if key == "market":
+            assert page.evaluate("""()=>{
+                const q=pairQA, rows=q.visit().data.rows, index=rows.findIndex(r=>r.select);
+                const item=rows[index], a=item.animal, row=q.find('Row'+index,q.find('DeskPage'));
+                const price=q.find('Price',row), y=price.position.y, x=price.position.x;
+                const width=row.getComponent('cc.UITransform').width;
+                const text=name=>q.find(name,row).getComponent(cc.Label).string;
+                return text('Number')==='#'+a.number && text('Identity')===a.breed+' · '+a.coat
+                    && text('Stage')===a.sex+' · '+a.stage+' · '+a.status
+                    && y===0 && x===width/2-92;
+            }""")
+            snap("自由市场动物信息")
         tap("Back")
         ready("tasks")
         row_done(row)

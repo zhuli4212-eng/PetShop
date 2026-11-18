@@ -104,6 +104,12 @@ export const petArt = p => 'pets/'+p.breedKey+'-coat'+String(p.coatIndex).padSta
 const coatName = p => BREEDS[p.breedKey].coats[p.coatIndex-1];
 const canBreed = (s,p,now) => !p.bred && !isBusy(s,p) && ['成年','老年'].includes(stageOf(p,now));
 const stockStatus = (s,p) => isBusy(s,p)?'繁育中':p.bred?'已繁育':'未繁育';
+export function specimen(s,p,now) {
+  const stage=stageOf(p,now);
+  return {id:p.id,number:p.id.slice(0,5).toUpperCase(),name:p.name,sex:p.sex,breed:breedName(p),
+    coat:coatName(p),stage,status:stage==='已故'?(p.retained?'种源保护':'待回收'):stockStatus(s,p),
+    art:petArt(p),retained:p.retained===true};
+}
 export const rosterFilters = {
   全部:()=>true, 种源:(_s,p)=>p.retained===true,
   未繁育:(s,p,now)=>stageOf(p,now)!=='已故'&&stockStatus(s,p)==='未繁育',

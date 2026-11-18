@@ -5,9 +5,13 @@ export interface Choice {
     label?:string; page?:string; type?:string; args?:Args; confirm?:string; locked?:boolean;
     go?:string; goArgs?:Args; useSelection?:boolean; allowEmptySelection?:boolean; disabled?:boolean; active?:boolean; replace?:boolean;
 }
+export interface Animal {
+    id:string; number:string; name:string; breed:string; coat:string; sex:string; stage:string; status:string; art:string;
+    retained?:boolean; stageEndsAt?:number|null;
+}
 export interface LedgerRow {
     title:string; text?:string; art?:string; select?:string; stage?:string;
-    link?:Choice; action?:Choice; done?:boolean; current?:boolean;
+    link?:Choice; action?:Choice; done?:boolean; current?:boolean; animal?:Animal;
 }
 export interface MutationPreview {
     enabled:boolean; level:number;

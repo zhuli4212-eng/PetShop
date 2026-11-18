@@ -1,13 +1,9 @@
 import { BlockInputEvents, Color, Graphics, Label, Node, UITransform } from 'cc';
-import type { Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
-import { animalFilters, box, caption, frame, heading, paper, picture, press, rect, tap, type PageCanvas } from './LedgerCanvas';
+import type { Animal, Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
+import { animalFilters, animalSummary, box, caption, frame, heading, paper, picture, press, rect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
 import { litterPositions } from './RoomFloor';
 
-interface Animal {
-    id:string; number:string; name:string; breed:string; coat:string; sex:string; stage:string; status:string; art:string;
-    retained?:boolean; stageEndsAt?:number|null;
-}
 interface ParentTrait { grade:string; label:string; }
 interface RoomPage {
     kind:string; species?:string; count?:number; matchedCount?:number; residents?:Animal[]; wait?:number; remaining?:number;
@@ -28,10 +24,6 @@ function floorArt(parent:Node,a:Animal,size:number,feet:number):Node {
     // All live canvases are 96×96; the resting canvases are 96×64.
     const centerToFeet=a.stage==='已故'?(58-32)/96:(90-48)/96;
     return animalArt(parent,a,0,feet+size*centerToFeet,size,size);
-}
-function stockBadge(parent:Node,x:number,y:number):void {
-    const badge=frame(parent,'StockBadge',x,y,36,20,'#DCE6C7','#95A77E',false);
-    caption(badge,'Caption','种源',0,0,34,18,11,'#36573D',true).isBold=true;
 }
 function section(c:PageCanvas,title:string,side=''):void {
     const h=30,y=c.slot(h,8);
@@ -77,14 +69,14 @@ function feedingStation(c:PageCanvas,scene:Node,h:number,effect?:NutritionEffect
     tap(station,open);
     if(effect)picture(station,'MealFill','rooms/nutrition-meal-fill',0,9*spriteScale,25*spriteScale,17*spriteScale);
     if(!effect){
-        const buttonWidth=114*spriteScale,buttonHeight=50*spriteScale;
+        const buttonWidth=114*spriteScale*.8,buttonHeight=50*spriteScale*.8;
         // This stretch of wall stays clear above the bowl in all three rooms.
         const hit=box(station,'FeedTarget',(372-px)*spriteScale,42*spriteScale,buttonWidth,Math.max(buttonHeight,44));
         tap(hit,open);
-        const button=press(hit,'Feed','投喂',0,0,buttonWidth,open,true,false,buttonHeight);
+        const button=press(hit,'Feed','投喂',0,0,buttonWidth,open,false,false,buttonHeight);
         const title=button.getChildByName('Caption')!.getComponent(Label)!;
-        title.fontSize=c.width<350?16:18;
-        title.lineHeight=23;
+        title.fontSize=c.width<350?13:14;
+        title.lineHeight=18;
         return;
     }
     // Keep the text above the bowl and clear of the right-side furnishings.
@@ -149,13 +141,8 @@ function petLine(c:PageCanvas,a:Animal,i:number,choose:(()=>void)|undefined,tail
     const textLeft=left+picWidth+19,bodyW=c.inner-picWidth-72;
     const target=(c.key==='rooms'||c.key==='roomRoster')&&Number.isFinite(a.stageEndsAt)?nextStage[a.stage]:'';
     const timerW=Math.min(92,Math.max(77,c.inner*.24)),right=c.inner/2-9;
-    const detailW=target?Math.min(bodyW,right-timerW-7-textLeft):bodyW,tx=textLeft+detailW/2;
-    const nameWidth=Math.min(bodyW-55-(a.retained?41:0),Math.max(34,a.name.length*17));
-    heading(card,'Name',a.name,textLeft+nameWidth/2,22,nameWidth,23,16,ink);
-    if(a.retained)stockBadge(card,textLeft+nameWidth+22,22);
-    caption(card,'Number','#'+a.number,textLeft+nameWidth+30+(a.retained?41:0),21,54,16,10,'#856E4D');
-    caption(card,'Identity',a.breed+' · '+a.coat,tx,0,detailW,19,12,muted);
-    caption(card,'Stage',a.sex+' · '+a.stage+' · '+a.status,tx,-19,detailW,19,12,muted);
+    const detailW=target?Math.min(bodyW,right-timerW-7-textLeft):bodyW;
+    animalSummary(card,a,textLeft,detailW,0);
     caption(card,'Tail',tail,c.inner/2-22,target?22:0,39,target?21:h-4,13,'#47604A',true).isBold=true;
     if(target){
         const x=right-timerW/2;
@@ -332,9 +319,7 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         if(start&&cancel){
             const buttonW=(c.inner-6)/2,buttonX=(buttonW+6)/2,buttonY=c.slot(48,6);
             press(c.body,'Action0',start.label!, -buttonX,buttonY,buttonW,()=>c.ui.choose(start),true);
-            const undo=frame(c.body,'CancelPair',buttonX,buttonY,buttonW,48,'#EBD3C6','#936252',false);
-            caption(undo,'Caption',cancel.label!,0,0,buttonW-8,44,14,'#873B32',true).isBold=true;
-            tap(undo,()=>c.ui.choose(cancel));
+            press(c.body,'CancelPair',cancel.label!,buttonX,buttonY,buttonW,()=>c.ui.choose(cancel),false,false,48,'#E6CCA2');
         }
         return;
     }

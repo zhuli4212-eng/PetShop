@@ -6,7 +6,7 @@ import { drawBusiness, nutritionStore } from './BusinessPresentation';
 
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean =>
-    ['saleQuote','researchNode','researchTable','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt'].includes(key);
+    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt'].includes(key);
 
 function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toTasks=false): void {
     const h = modal ? 54 : 64;
@@ -47,7 +47,7 @@ function paperGrain(parent: Node, width: number, height: number): void {
     g.fill();
 }
 
-function canvas(content: Node, width: number, key: string, args: Args, p: LedgerPage, ui: LedgerUI) {
+function canvas(content: Node, width: number, key: string, args: Args, p: LedgerPage, ui: LedgerUI, modal: boolean) {
     const pad=width<=350?9:12;
     const inner=width-2*pad;
     const gap=width<=350?8:10;
@@ -55,7 +55,7 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
     const startsWithScene=['orders','market','recycle','research','lab','credits','orderDesk'].includes(key)
         || (key==='sale' && ['order','market','recycle'].includes(args.channel))
         || (key==='shelf' && p.art==='shop-modules/lab');
-    let cursor=startsWithScene?0:pad;
+    let cursor=startsWithScene&&!modal?0:pad;
     const slot=(h:number,after=gap)=>{const y=-cursor-h/2;cursor+=h+after;return y;};
     const boundaries:{height:number;count:number}[]=[];
     let footer:{height:number;count:number}|undefined;
@@ -120,7 +120,7 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
         const h=Math.max(52,lines(p.empty,inner-24,15)*22+18);
         caption(content,'Empty',p.empty,0,slot(h),inner-24,h,15,paper.muted,true);
     }
-    const ctx:PageCanvas={key,args,p,body:content,width,inner,ui,slot,startList,startFooter,strip,row,action,actions,selection,empty};
+    const ctx:PageCanvas={key,args,p,body:content,width,inner,ui,modal,slot,startList,startFooter,strip,row,action,actions,selection,empty};
     return {ctx,boundaries,get footer(){return footer;},extent:()=>cursor+pad};
 }
 
@@ -324,7 +324,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     const content=box(viewport,'Content',0,0,width,1);
     const area=content.getComponent(UITransform)!;
     area.setAnchorPoint(.5,1);scroll.content=content;
-    const layout=canvas(content,width,key,args,p,ui);
+    const layout=canvas(content,width,key,args,p,ui,modal);
     const ctx=layout.ctx;
     if(opts.offline)press(content,'Retry','离线 · 重新连接',0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
     if(opts.pending)ctx.row({title:'有一笔操作等待确认',text:'查询原请求回执',action:{type:'ui.receipt'}},-1);

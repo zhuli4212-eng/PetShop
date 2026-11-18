@@ -1,5 +1,5 @@
 import { BlockInputEvents, Color, EventTouch, Graphics, isValid, Label, Node, resources, Sprite, SpriteFrame, UITransform, Vec3 } from 'cc';
-import type { Args, Choice, LedgerPage, LedgerRow } from './ShopConnection';
+import type { Animal, Args, Choice, LedgerPage, LedgerRow } from './ShopConnection';
 import type { RoomFloor } from './RoomFloor';
 
 export const paper = {
@@ -25,7 +25,7 @@ export interface LedgerUI {
 export interface FilterField { anchor: Node; options: Choice[]; }
 
 export interface PageCanvas {
-    key: string; args: Args; p: LedgerPage; body: Node; width: number; inner: number; ui: LedgerUI;
+    key: string; args: Args; p: LedgerPage; body: Node; width: number; inner: number; ui: LedgerUI; modal: boolean;
     slot(height: number, gap?: number): number;
     /** Everything drawn so far may stay above the scrolling list. Short screens use an earlier boundary. */
     startList(): void;
@@ -94,6 +94,22 @@ export function heading(parent: Node, name: string, value: string, x: number, y:
     return l;
 }
 
+export function stockBadge(parent:Node,x:number,y:number):void {
+    const badge=frame(parent,'StockBadge',x,y,36,20,'#DCE6C7','#95A77E',false);
+    caption(badge,'Caption','种源',0,0,34,18,11,'#36573D',true).isBold=true;
+}
+
+export function animalSummary(parent:Node,animal:Animal,left:number,width:number,y:number,muted=false):void {
+    const badgeWidth=animal.retained?41:0,numberWidth=50;
+    const nameWidth=Math.min(width-numberWidth-badgeWidth,Math.max(34,animal.name.length*17));
+    const detail=muted?'#625F56':'#725C42',main=muted?detail:'#493A27';
+    heading(parent,'Name',animal.name,left+nameWidth/2,y+22,nameWidth,23,16,main);
+    if(animal.retained)stockBadge(parent,left+nameWidth+20,y+22);
+    caption(parent,'Number','#'+animal.number,left+nameWidth+badgeWidth+numberWidth/2,y+21,numberWidth-4,16,10,muted?detail:'#856E4D');
+    caption(parent,'Identity',animal.breed+' · '+animal.coat,left+width/2,y,width,19,12,detail);
+    caption(parent,'Stage',animal.sex+' · '+animal.stage+' · '+animal.status,left+width/2,y-19,width,19,12,detail);
+}
+
 export function tap(n: Node, fn: () => void): void {
     n.on(Node.EventType.TOUCH_END, (e: EventTouch) => {
         const a = e.getUIStartLocation(), b = e.getUILocation();
@@ -104,9 +120,9 @@ export function tap(n: Node, fn: () => void): void {
 }
 
 export function press(parent: Node, name: string, title: string, x: number, y: number, w: number, fn: () => void,
-                      primary = false, disabled = false, h = 48): Node {
+                      primary = false, disabled = false, h = 48, secondaryFill = '#F0D6A3'): Node {
     const edge = disabled ? '#ABA58F' : primary ? '#254536' : '#A38252';
-    const fill = disabled ? '#D7CFB7' : primary ? paper.primary : '#F0D6A3';
+    const fill = disabled ? '#D7CFB7' : primary ? paper.primary : secondaryFill;
     const n = frame(parent, name, x, y, w, h, fill, edge, false);
     const g = n.getComponent(Graphics)!;
     if (!disabled) {

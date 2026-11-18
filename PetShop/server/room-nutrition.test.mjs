@@ -93,6 +93,9 @@ test('培育中心混排已开房间的在售种源、营养餐和服务单',()=
   assert.deepEqual(read('nutrition').map(r=>r.action.args.species),['rabbit','cat','rabbit','cat','rabbit','cat']);
   assert.deepEqual(read('services').map(r=>r.action.args.species),['rabbit','cat','rabbit','cat']);
   const cat=read('seed').find(r=>r.link.args.species==='cat');
+  assert.equal(cat.animal.stage,'幼年');
+  assert.equal(cat.animal.status,'未繁育');
+  assert.equal(cat.animal.number,cat.link.args.id.slice(0,5).toUpperCase());
   const buy=g.page('offer',cat.link.args).page.actions[0];
   assert.throws(()=>g.act(request(g,buy.type,{...buy.args,species:'dog'})),/请先开放/);
   g.act(request(g,buy.type,buy.args));

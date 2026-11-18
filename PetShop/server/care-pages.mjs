@@ -1,6 +1,6 @@
 import {
   SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
-  lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview,
+  lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview, specimen,
 } from './care.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
 import { activeNutrition, nutritionPage } from './room-nutrition.mjs';
@@ -10,10 +10,6 @@ const link = (title,text,page,args={},extra={}) => ({title,text,link:{page,args}
 const act = (label,type,args,confirm,page,goArgs={}) => ({label,type,args,confirm,go:page,goArgs});
 const number = p=>p.id.slice(0,5).toUpperCase();
 const options = (s,page,current)=>Object.entries(SPECIES).map(([species,c])=>({...go(c.name+'房',page,{species}),active:species===current,locked:!s.rooms[species]}));
-const specimen = (s,p,now)=>({
-  id:p.id,number:number(p),name:p.name,sex:p.sex,breed:breedName(p),coat:coatName(p),stage:stageOf(p,now),
-  status:stageOf(p,now)==='已故'?(p.retained?'种源保护':'待回收'):stockStatus(s,p),art:petArt(p),retained:p.retained===true,
-});
 const petRow = (s,p,now,page='pet',args={id:p.id})=>{
   const animal=specimen(s,p,now);
   return link(animal.name+' · '+animal.sex,[animal.breed,animal.coat,animal.stage,animal.status].join(' · '),
@@ -263,12 +259,13 @@ function shelves(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
   if(!room)return closedRoom(s,species,'shelf',now);
   return {title:cfg.name+'种源货架',art:'shop-modules/lab',subtitle:'本批剩余 '+describeRemaining(room.openedAt+(room.shelf.number+1)*1_800_000-now),
-    rows:room.shelf.offers.map((p,i)=>p?shelfRow(s,p,species):{title:(i===0?'公':'母')+'幼体 · 本批已售',text:'本批不再补货。下一批的品种和标签随机。'}),
+    rows:room.shelf.offers.map((p,i)=>p?shelfRow(s,p,species,now):{title:(i===0?'公':'母')+'幼体 · 本批已售',text:'本批不再补货。下一批的品种和标签随机。'}),
     tabs:options(s,'shelf',species)};
 }
-function shelfRow(s,p,species) {
-  return link(p.name+' · '+p.sex,breedName(p)+' · '+coatName(p)+' · '+purchasePrice(s,youngPurchaseBase(p))+' 金币',
-    'offer',{species,id:p.id},{art:petArt(p),stage:'幼年'});
+function shelfRow(s,p,species,now) {
+  const animal=specimen(s,{...p,bornAt:now},now),price=purchasePrice(s,youngPurchaseBase(p));
+  return link(p.name+' · '+p.sex,animal.breed+' · '+animal.coat+' · '+price+' 金币',
+    'offer',{species,id:p.id},{animal,art:animal.art,stage:animal.stage,visual:{price}});
 }
 function labCatalog(s,args,now) {
   const species=Object.keys(SPECIES).filter(key=>s.rooms[key]);
@@ -288,7 +285,7 @@ function labCatalog(s,args,now) {
   }
   const stock=species.map(key=>({key,offers:s.rooms[key].shelf.offers}));
   return {...page,subtitle:'每 30 分钟换批',empty:'本批种源已售完，请等下一批上架。',
-    rows:[0,1].flatMap(i=>stock.flatMap(({key,offers})=>offers[i]?[shelfRow(s,offers[i],key)]:[]))};
+    rows:[0,1].flatMap(i=>stock.flatMap(({key,offers})=>offers[i]?[shelfRow(s,offers[i],key,now)]:[]))};
 }
 function offerPage(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],p=room?.shelf.offers.find(x=>x?.id===a.id);

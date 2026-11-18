@@ -94,6 +94,9 @@ export class ShopSession {
     }
     private get current():Visit|undefined{return this.panel||this.feature;}
     private get stack():Visit[]{return this.feature?(this.panel?[this.feature,this.panel]:[this.feature]):[];}
+    private get confirmOverModal():boolean {
+        return this.panel?.key==='nutritionShop'||(this.feature?.key==='lab'&&this.panel?.key==='researchNode');
+    }
     private remember():void{if(this.renderedVisit&&this.scroll?.isValid)this.renderedVisit.offset=Math.max(0,this.scroll.getScrollOffset().y);}
     private closeFilter():void {
         if(!this.dropdown)return;
@@ -124,7 +127,8 @@ export class ShopSession {
         this.bonusVisit=undefined;
         if(key==='roomRoster')key='rooms';
         if(key==='sale'&&args.preselectId&&['market','recycle'].includes(args.channel))key=args.channel;
-        const dest=key==='checkinReceipt'&&this.feature?undefined:featureFor(key,args);
+        const labPopup=this.feature?.key==='lab'&&(key==='research'||key==='recycle');
+        const dest=labPopup||(key==='checkinReceipt'&&this.feature)?undefined:featureFor(key,args);
         const visit:Visit={key,args,selected:new Set(),offset:0};
         if(key==='tasks')this.taskReturn=undefined;
         else if(dest&&this.feature?.key==='tasks')this.taskReturn=this.feature;
@@ -150,6 +154,12 @@ export class ShopSession {
             const prior=this.panel;
             if(key==='nutritionDetail'||key==='nutritionShop'){
                 visit.returnPanel=prior?.key===key?prior.returnPanel:prior;
+            }
+            if(this.feature.key==='lab'){
+                if(key==='researchNode')visit.returnPanel=prior?.key==='researchTable'?prior.returnPanel?.returnPanel:
+                    prior?.key===key?prior.returnPanel:prior;
+                if(key==='researchTable'||(key==='saleQuote'&&prior?.key==='recycle'))
+                    visit.returnPanel=prior?.key===key?prior.returnPanel:prior;
             }
             if(key==='litter'){
                 const source=prior?.key==='litterKeep'?prior.returnPanel:prior;
@@ -178,7 +188,7 @@ export class ShopSession {
     back():void{
         if(this.dropdown){this.closeFilter();return;}
         if(this.bonusVisit){this.bonusVisit=undefined;this.render();return;}
-        if(this.confirm&&(this.panel?.data?.presentation?.kind==='pairConfirm'||this.panel?.key==='nutritionShop')){
+        if(this.confirm&&(this.panel?.data?.presentation?.kind==='pairConfirm'||this.confirmOverModal)){
             this.confirm=undefined;this.render(false);return;
         }
         if(!this.feature)return;
@@ -325,8 +335,7 @@ export class ShopSession {
         this.renderedVisit=undefined;this.scroll=null;
         clearLayer(this.host.layer);
         const modal=(!!this.panel||v.key==='checkinReceipt')&&ledgerModal(v.key);
-        const confirmingNutrition=!!this.confirm&&v.key==='nutritionShop';
-        const hidePanel=!!this.confirm&&!confirmingNutrition;
+        const hidePanel=!!this.confirm&&!this.confirmOverModal;
         const views=hidePanel?[v.data.presentation?.kind==='pairConfirm'?v:this.feature!]:modal?this.stack:[v];
         for(const view of views){
             if(!view.data)continue;
@@ -467,8 +476,11 @@ export class ShopSession {
                 this.receiptRoute={id:command.requestId,apply:()=>{
                     if(origin!==this.navigation)return;
                     if(a.type==='sale.commit'||a.type==='care.keepLitter'){
-                        for(const id of args.ids||[])this.feature?.selected.delete(id);
+                        const parent=this.panel?.returnPanel;
+                        const recycle=parent?.key==='recycle'?parent:undefined;
+                        for(const id of args.ids||[])(recycle||this.feature)?.selected.delete(id);
                         this.closePanel();
+                        this.panel=recycle;
                     }else if(a.type==='care.unlock'){
                         this.navigate('rooms',{species:args.species});
                         this.navigate('roomReceipt',{species:args.species});
