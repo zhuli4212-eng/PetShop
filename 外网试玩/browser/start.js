@@ -10,6 +10,8 @@ const allowedSites = ['https://play.zhu-li-4212.xyz', 'https://petshop-trial.pag
 const apiBase = location.origin + '/petshop-api/v1/';
 const entry = location.pathname;
 const mainVersion = '__PETSHOP_MAIN_SHA256__';
+const mainScript = './__PETSHOP_MAIN_SCRIPT__';
+const gameEntry = './__PETSHOP_GAME_ENTRY__';
 const form = byId('account-form');
 const nameInput = byId('username');
 const passwordInput = byId('password');
@@ -86,7 +88,7 @@ function loadScript(source) {
 }
 
 async function refreshGameMain() {
-  const url = new URL('./assets/main/index.js', document.baseURI);
+  const url = new URL(mainScript, document.baseURI);
   const key = 'petshop.trial.game-main:' + url.pathname;
   try { if (localStorage.getItem(key) === mainVersion) return; } catch {}
   const response = await fetch(url, {cache:'reload', credentials:'same-origin'});
@@ -111,7 +113,7 @@ async function launch(token) {
   byId('login-style').disabled = true;
   byId('game-style').media = 'all';
   document.title = '麦穗宠物店 · 外网试玩';
-  await window.System.import('./index.js');
+  await window.System.import(gameEntry);
 }
 
 async function showAccountForm() {

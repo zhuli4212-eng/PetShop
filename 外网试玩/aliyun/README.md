@@ -1,5 +1,7 @@
 # 宠物店阿里云香港服部署
 
+当前正式版为 `2026.11.19.1`，游戏源代码为 `22dc268`。发布时保留账号和密码，并重置 13 家店铺至新手开局。停写备份、上版目录、网页资源摘要和两个入口的核验结果见[正式发布记录](../../output/aliyun/deployment-20261119-hk.json)。
+
 2026-11-18 已在原香港实例发布 `9b3ec2b`。停写备份后重置了 13 家店铺，账号、密码哈希和会话逐行核对一致。两条试玩入口共用重置后的账号库。发布文件、入口核验和回退路径见[本次部署记录](../../output/aliyun/deployment-20261118-hk.json)。
 
 2026-11-17 已完成中国香港 ECS（Ubuntu 22.04，47.243.58.106）正式切换。游戏程序及账号数据库运行在香港；两个 Pages 入口通过 HTTPS 网关连接同一个上游。原 Cloudflare D1 已冻结，保留为迁移备份，不再承接玩家写入。
@@ -67,10 +69,14 @@ SQLite 采用 WAL 模式。备份运行中的店铺时，使用 SQLite 在线备
 
 ```powershell
 $pages = 'output/aliyun/本次候选/pages'
-node '外网试玩/browser/build.mjs' --client 'PetShop/build/web-mobile' --out $pages
+$version = '2026.11.19.1'
+$source = git rev-parse HEAD
+node '外网试玩/browser/build.mjs' --client 'PetShop/build/web-mobile' --out $pages --version $version --source $source
 node '云端经营版/node_modules/esbuild/bin/esbuild' '外网试玩/accounts/worker.mjs' --bundle --format=esm --platform=node --target=node24 --charset=utf8 "--outfile=$pages/_worker.js"
 python '外网试玩/aliyun/package.py' --candidate --production --pages $pages --out 'output/aliyun/本次候选/petshop.tar.gz'
 ```
+
+正式编号按北京时间使用 `YYYY.MM.DD.N`，同日发布时递增 `N`。打包时填入对应的完整游戏提交。登录页显示编号，两条入口各自的 `release.json` 返回版本、游戏提交和实际主包摘要。发布后核对 HTTPS 上的版本清单及清单指向的客户端，再将已验收的归档提交标为 `petshop-v<版本号>`。游戏主包、设置和入口使用带内容摘要的文件名，避免 CDN 继续返回上版脚本。
 
 将候选包与上一个正式包分别解到独立目录后，运行 `node 外网试玩/aliyun/check.mjs <候选目录> <上版目录>`。它在临时 SQLite 库中创建测试店，覆盖旧店读取、账号密码重登、新店引导、并发回执、重置及备份恢复。
 

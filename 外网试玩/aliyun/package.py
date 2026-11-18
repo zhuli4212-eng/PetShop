@@ -38,6 +38,8 @@ def manifest_digest(items):
 
 def public_files(pages, candidate):
     names = list(PUBLIC_ROOT_FILES)
+    if candidate and (pages / "release.json").is_file():
+        names.append("release.json")
     for prefix in ("assets", "cocos-js", "src"):
         directory = pages / prefix
         if not directory.is_dir() or directory.is_symlink():

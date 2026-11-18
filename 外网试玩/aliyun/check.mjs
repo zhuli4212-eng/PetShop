@@ -87,7 +87,7 @@ try {
     oldUser = {username:'旧版店主',password:randomUUID()};
     const old = await api('auth/register', {body:oldUser});
     const state = await api('shop', {token:old.token});
-    await api('action', {token:old.token,body:actionFor(state,'care.checkin')});
+    await api('action', {token:old.token,body:actionFor(state,state.onboarding?'onboarding.enter':'care.checkin')});
     oldShop = await api('shop', {token:old.token});
     await stop();
   }
@@ -96,8 +96,8 @@ try {
     const old = await api('auth/login', {body:oldUser});
     const shop = await api('shop', {token:old.token});
     assert.equal(shop.profileId, oldShop.profileId);
-    assert.equal(shop.dayClaimed, true);
-    assert.equal(shop.onboarding, undefined);
+    assert.equal(shop.dayClaimed, oldShop.dayClaimed);
+    assert.equal(shop.onboarding?.step, oldShop.onboarding?.step);
   }
   await api('shop', {status:401});
   const registered = await api('auth/register', {body:user});
@@ -172,7 +172,8 @@ try {
     const restored=await api('auth/login',{body:oldUser});
     const shop=await api('shop',{token:restored.token});
     assert.equal(shop.profileId,oldShop.profileId);
-    assert.equal(shop.dayClaimed,true);
+    assert.equal(shop.dayClaimed,oldShop.dayClaimed);
+    assert.equal(shop.onboarding?.step,oldShop.onboarding?.step);
     console.log('Passed: previous package upgrade, reset without changing account credentials, and database backup rollback.');
   }
 } finally {

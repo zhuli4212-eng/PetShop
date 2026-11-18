@@ -317,6 +317,8 @@ def verify(browser, url, width, output, scenario=None, login=None):
     action("onboarding.finish", "Action0")
     step(None)
     assert not page.evaluate("!!pairQA.find('GuideSpotlight')")
+    touch.wait("()=>!"+MAIN+".pulseBusy&&!"+MAIN+".session.busy")
+    main("return m.pulse()")
     touch.wait("()=>!pairQA.visit()||pairQA.ready()&&pairQA.visit().key==='visitBook'")
     if main("return m.session.current?.key==='visitBook'"):
         tap(text="合上账簿")

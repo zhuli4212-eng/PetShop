@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-19",
+  "version": "2026.11.19.1",
+  "region": "cn-hongkong",
+  "host": "47.243.58.106",
+  "upstream": "https://petshop.zhu-li-4212.xyz",
+  "gameSourceCommit": "22dc2686aab7f432151c3b7435b4261b2d770b8b",
+  "versionTag": "petshop-v2026.11.19.1",
+  "baselineTag": "production-baseline-2026-11-19",
+  "deploymentArchive": "output/aliyun/petshop-production-20261119-hk.tar.gz",
+  "deploymentSha256": "28c1b72ea492eb43c4de195f73f2dbbe45796336ded96d1cda5b5a4c2115c991",
+  "publicFiles": 2068,
+  "publicAssetManifestSha256": "18798bf439ad62e7c04c664e65d756d2dfe142045bf964c6da279e373094599b",
+  "accountServiceSha256": "07a0672a5b8b97ca7bda1b91f927ed01945ba66d95f46dcecbf8ab2d164b7046",
+  "releaseDirectory": "/opt/petshop/release.nGPkm1yJ",
+  "accountServiceStartedFrom": "/opt/petshop/release.nABpWseh",
+  "staticRollbackDirectory": "/opt/petshop/release.Bcetgovp",
+  "previousReleaseDirectory": "/opt/petshop/release.EULI2aVH",
+  "previousBaseline": "production-baseline-2026-11-18",
+  "productionDatabase": "/var/lib/petshop/shop.sqlite",
+  "reset": {
+    "shops": 13,
+    "stage": 0,
+    "coins": 680,
+    "shopXp": 0,
+    "accountIdentitiesMatched": true,
+    "passwordHashesMatched": true,
+    "sessionsMatched": true,
+    "authLimitsMatched": true,
+    "sqliteQuickCheckPassed": true,
+    "rollbackSnapshotMatchedSource": true,
+    "rollbackSnapshot": "/var/lib/petshop/rollback/22dc268.z1yzu5ol/shops-before-reset.sqlite",
+    "rollbackSnapshotSha256": "de11424f5d7d20bbe7a162e2f5b6f3ffb49a7c9eb5bbb4da37ffe0bbfd45195d"
+  },
+  "cacheCorrection": {
+    "versionedMainBundle": "assets/main/index.5be4838841ec0a09.js",
+    "versionedEntry": "src/entry.ec171d58fb4304f4.js",
+    "versionManifest": "release.json",
+    "versionManifestCacheControl": "no-store",
+    "accountServiceStayedRunning": true,
+    "databaseResetRuns": 1
+  },
+  "nginxConfigurationPassed": true,
+  "servicesActive": [
+    "petshop.service",
+    "petshop-web.service"
+  ],
+  "pagesGatewayDeploymentsReused": true,
+  "pagesGatewayDeployments": [
+    {
+      "project": "petshop-trial",
+      "id": "e8649e9f-42e4-4285-b959-0bf04ec8e81a",
+      "url": "https://e8649e9f.petshop-trial.pages.dev",
+      "origin": "https://petshop.zhu-li-4212.xyz",
+      "staticUnchanged": true
+    },
+    {
+      "project": "dream-hunter",
+      "id": "5763f880-f5ba-41cc-a275-3b05b9fa4d5c",
+      "url": "https://5763f880.dream-hunter.pages.dev",
+      "origin": "https://petshop.zhu-li-4212.xyz",
+      "staticUnchanged": true
+    }
+  ],
+  "localChecks": {
+    "step0AndCredentialsAfterReset": true,
+    "backupRollback": true,
+    "packagedBrowserGuideWithoutUnversionedMain": true
+  },
+  "liveChecks": {
+    "verifiedAt": "2026-11-19T00:46:45.646275+08:00",
+    "entrances": [
+      {
+        "url": "https://petshop-trial.pages.dev/",
+        "health": 200,
+        "anonymousShop": 401,
+        "passwordLogin": 200,
+        "onboardingStep": 0,
+        "logout": 200,
+        "publishedAssetHashes": {
+          "index.html": "f04daa369c57d5d30da9a14ee20c2f201184c3e1686f8a24fd2c5c349b65654b",
+          "trial-start.js": "d12da9da42d0342e624472d44267d60a6b0e65b7accf3142924b1451f8c8551b",
+          "trial-login.css": "4fe52d3a6a630049124a59651ee7be8409b4a30f96e68d1be1aaae88db2d9610",
+          "release.json": "087f4d9079345b105d5105d633d6967e724a40fec2110bf874042fa6d3595c67",
+          "assets/main/index.5be4838841ec0a09.js": "c8ad3a1964d6a09dc3e00bf09d73c763170c787cfc8876d055786a10220c306b",
+          "src/entry.ec171d58fb4304f4.js": "ec171d58fb4304f4ed6d3887b6a599372bec50dcb1dc74cbbb0f328195f187a9"
+        },
+        "audioMime": "audio/mpeg"
+      },
+      {
+        "url": "https://play.zhu-li-4212.xyz/petshop/",
+        "health": 200,
+        "anonymousShop": 401,
+        "passwordLogin": 200,
+        "onboardingStep": 0,
+        "logout": 200,
+        "publishedAssetHashes": {
+          "index.html": "f04daa369c57d5d30da9a14ee20c2f201184c3e1686f8a24fd2c5c349b65654b",
+          "trial-start.js": "d12da9da42d0342e624472d44267d60a6b0e65b7accf3142924b1451f8c8551b",
+          "trial-login.css": "4fe52d3a6a630049124a59651ee7be8409b4a30f96e68d1be1aaae88db2d9610",
+          "release.json": "087f4d9079345b105d5105d633d6967e724a40fec2110bf874042fa6d3595c67",
+          "assets/main/index.5be4838841ec0a09.js": "c8ad3a1964d6a09dc3e00bf09d73c763170c787cfc8876d055786a10220c306b",
+          "src/entry.ec171d58fb4304f4.js": "ec171d58fb4304f4ed6d3887b6a599372bec50dcb1dc74cbbb0f328195f187a9"
+        },
+        "audioMime": "audio/mpeg"
+      }
+    ],
+    "sameAccount": true,
+    "sameShop": true,
+    "version": "2026.11.19.1",
+    "browserTouchLoginVerifiedAt390px": true
+  }
+}

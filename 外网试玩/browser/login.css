@@ -56,6 +56,7 @@ button:disabled { opacity: .7; cursor: progress; }
 .legacy-option input { margin: 0; width: 19px; height: 19px; accent-color: #345b47; }
 .setup-link { display: flex; justify-content: center; margin: 3px 0 -7px; }
 #error { margin: 10px 0 0; color: #89341f; font-size: 14px; }
+.release-version { display: block; margin-top: 10px; text-align: right; }
 @media (min-width: 530px) {
   .ledger {
     width: clamp(310px,46.21svh,390px);
