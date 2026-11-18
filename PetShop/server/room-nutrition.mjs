@@ -1,13 +1,15 @@
 const meals = [
-  { key:'quality', label:'优质', badge:'低档', rate:1.5 },
-  { key:'select', label:'精选', badge:'中档', rate:1.8 },
-  { key:'premium', label:'臻选', badge:'高档', rate:2 },
+  { key:'quality', label:'优质', badge:'低档', rate:1.5, priceRatio:.8 },
+  { key:'select', label:'精选', badge:'中档', rate:1.8, priceRatio:.9 },
+  { key:'premium', label:'臻选', badge:'高档', rate:2, priceRatio:1 },
 ];
 const minutes = 30;
 export const nutritionDuration = minutes * 60_000;
 const animalNames = { rabbit:'兔', cat:'猫', dog:'狗' };
+const trialPremiumPrice = { rabbit:10, cat:40, dog:100 };
 const go = (label, page, args) => ({ label, page, args });
 export const nutritionTier = key => meals.find(meal => meal.key === key);
+export const nutritionPrice = (species, meal) => Math.round(trialPremiumPrice[species]*meal.priceRatio);
 
 export function nutritionWindow(room) {
   const effect = room?.nutrition;
@@ -41,12 +43,19 @@ export function nutritionPage(s, page, species, tier, now) {
       pick:go('选择', 'roomNutrition', {species,tier:m.key}),
       detail:go('查看详情', 'nutritionDetail', {species,tier:m.key}) } });
   if (page === 'nutritionShop') return {
-    title:'培育中心', subtitle:name, art,
+    title:'培育中心', subtitle:'营养餐 · 本地测试价',
     tabs:Object.entries(animalNames).map(([key,label])=>({
-      ...go(label+'房营养餐','nutritionShop',{species:key}),active:key===species,
+      ...go(label+'房','nutritionShop',{species:key}),active:key===species,
     })),
-    rows:[...meals.map(m=>({...row(m),text:'成长速度 ×'+m.rate+' · 库存 '+nutritionStock(roomState,m.key)+' 份'})),
-      { title:'暂未上架', text:'营养餐售价确定后开放购买。' }],
+    rows:meals.map(m=>{
+      const price=nutritionPrice(species,m);
+      const stock=nutritionStock(roomState,m.key);
+      const title=m.label+name;
+      const label=!roomState?'房间未开放':s.coins<price?'金币不足':'购买 1 份';
+      return { title, art:icon(m), current:m.key===tier, visual:{ rate:m.rate, price, stock },
+        action:{label,type:'care.buyNutrition',args:{species,tier:m.key,price},disabled:!roomState||s.coins<price,
+          confirm:'花费 '+price+' 金币购买 1 份'+title+'？'} };
+    }),
   };
   if (!s.rooms[species]) return { title:'营养餐', rows:[{ title:'请先开放'+room+'。' }] };
   if (page === 'nutritionDetail') return {
@@ -54,7 +63,7 @@ export function nutritionPage(s, page, species, tier, now) {
     rows:[row(meal),
       { title:'作用范围', text:'整间'+room },
       { title:'持续时间', text:minutes+' 分钟（测试基线）' },
-      { title:'价格', text:'待定' },
+      { title:'价格', text:nutritionPrice(species,meal)+' 金币（测试价）' },
       { title:'库存', text:count+' 份' }],
     visual:{rules:'只加速成年前成长，不影响繁育等待、衰老或死亡。\n离线继续计时，期间出生的幼体共享本房剩余时间。\n效果不叠加，到期后可再次投喂。新手首次投喂为单独的教学特例。'},
     actions:[{label:'返回选择',type:'ui.back'},buy],

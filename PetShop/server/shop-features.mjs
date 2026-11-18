@@ -19,7 +19,7 @@ const sections = {
   login:['payment'],
   orders:['orderDesk','credits','order.cancel','order.buyCredit'],
   lab:['shelf','offer','services','review','recycle','research','researchNode','researchTable','nutritionShop',
-    'care.buyPet','care.buyItem','care.review','research.upgrade'],
+    'care.buyPet','care.buyItem','care.buyNutrition','care.review','research.upgrade'],
   profile:['care.checkin'],
   breed:['litter','litterKeep','litterSale','care.breed','care.toggle','care.keepLitter'],
   decor:['decor.buy','decor.place'],

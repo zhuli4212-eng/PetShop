@@ -183,7 +183,32 @@ function tutorial(c:PageCanvas):boolean {
 interface NutritionRow extends LedgerRow {
     visual: { badge:string; rate:number; selected:boolean; pick:Choice; detail:Choice; };
 }
+interface NutritionStoreRow extends LedgerRow {
+    visual: { rate:number; price:number; stock:number; };
+    action: Choice;
+}
+function nutritionStore(c:PageCanvas):void {
+    const w=c.inner;
+    c.strip(c.p.tabs||[],'NutritionRoom');
+    caption(c.body,'NutritionSubtitle',c.p.subtitle||'营养餐',0,c.slot(28,4),w,28,14,paper.muted);
+    c.startList();
+    ((c.p.rows||[]) as NutritionStoreRow[]).forEach((r,i)=>{
+        const h=84, left=-w/2+57, textWidth=w-165, right=w/2-55;
+        const card=frame(c.body,'NutritionOffer'+i,0,c.slot(h,7),w,h,
+            r.current?'#E0E8CE':paper.card,r.current?'#75916A':paper.brass,false);
+        if(r.art)picture(card,'MealArt',r.art,-w/2+29,0,43,58);
+        const {rate,price,stock}=r.visual, textX=left+textWidth/2;
+        heading(card,'MealName',r.title,textX,21,textWidth,22,15,paper.green);
+        caption(card,'Growth','成长速度 '+rate+' 倍',textX,0,textWidth,20,13,paper.ink);
+        caption(card,'Stock','库存 '+stock+' 份',textX,-21,textWidth,20,13,paper.muted);
+        caption(card,'Price',price+' 金币',right,23,96,20,14,paper.ink,true).isBold=true;
+        press(card,'NutritionPurchase'+i,r.action.label!,right,-12,94,()=>c.ui.choose(r.action),true,!!r.action.disabled,42);
+    });
+}
 function nutrition(c:PageCanvas):boolean {
+    if(c.key==='nutritionShop'&&c.p.rows?.some(r=>r.action?.type==='care.buyNutrition')){
+        nutritionStore(c);return true;
+    }
     if(c.key!=='roomNutrition'&&c.key!=='nutritionDetail')return false;
     const rows=(c.p.rows||[]) as NutritionRow[];
     if(!rows[0]?.visual)return false;

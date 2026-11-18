@@ -184,7 +184,7 @@ export class ShopSession {
     back():void{
         if(this.dropdown){this.closeFilter();return;}
         if(this.bonusVisit){this.bonusVisit=undefined;this.render();return;}
-        if(this.confirm&&this.panel?.data?.presentation?.kind==='pairConfirm'){
+        if(this.confirm&&(this.panel?.data?.presentation?.kind==='pairConfirm'||this.panel?.key==='nutritionShop')){
             this.confirm=undefined;this.render(false);return;
         }
         if(!this.feature)return;
@@ -331,10 +331,12 @@ export class ShopSession {
         this.renderedVisit=undefined;this.scroll=null;
         clearLayer(this.host.layer);
         const modal=!!this.panel&&ledgerModal(v.key);
-        const views=this.confirm?[v.data.presentation?.kind==='pairConfirm'?v:this.feature!]:modal?this.stack:[v];
+        const confirmingNutrition=!!this.confirm&&v.key==='nutritionShop';
+        const hidePanel=!!this.confirm&&!confirmingNutrition;
+        const views=hidePanel?[v.data.presentation?.kind==='pairConfirm'?v:this.feature!]:modal?this.stack:[v];
         for(const view of views){
             if(!view.data)continue;
-            const backdrop=!!this.confirm||view!==v;
+            const backdrop=hidePanel||view!==v;
             const stageClocks:StageClock[]=[];
             const scroll=drawLedger(this.host.layer,view.data,this.host.height(),this.host.wallet().coins,{
                 back:()=>this.back(),choose:a=>this.choose(a),openFilter:(fields,index)=>this.showFilter(fields,index),

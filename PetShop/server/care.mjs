@@ -3,7 +3,7 @@ import { purchasePrice, youngPurchaseBase } from './business.mjs';
 import { rareRedrawPercent, scoreRiseChance } from './research-effects.mjs';
 import { GRADES, defectTrait, defectProbabilities } from './defect.mjs';
 import { occupiedPetNames, takePetName } from './pet-names.mjs';
-import { activeNutrition, nutritionDuration, nutritionStock, nutritionTier, nutritionWindow } from './room-nutrition.mjs';
+import { activeNutrition, nutritionDuration, nutritionPrice, nutritionStock, nutritionTier, nutritionWindow } from './room-nutrition.mjs';
 
 const MINUTE = 60_000, DAY = 24 * 60 * MINUTE, BATCH = 30 * MINUTE;
 export const SPECIES = {
@@ -330,7 +330,9 @@ function startLitter(s,args,now) {
   return '已开始繁育，预计 '+cfg.wait+' 分钟后出生。';
 }
 function charge(s,expected,base) {
-  const amount=purchasePrice(s,base);
+  chargeQuoted(s,expected,purchasePrice(s,base));
+}
+function chargeQuoted(s,expected,amount) {
   requireValue(expected===amount,'报价有变化，请返回重新核对。');
   requireValue(s.coins>=amount,'金币不足。需要 '+amount+' 金币。');
   s.coins-=amount;
@@ -392,6 +394,16 @@ export function careAction(s,type,args,now) {
     return cfg.name+'房已开放，两只幼体已入住。';
   }
   const room=roomOf(s,species);
+  if(type==='care.buyNutrition') {
+    const meal=nutritionTier(args.tier);
+    requireValue(meal,'请选择有效的营养餐档次。');
+    const count=nutritionStock(room,meal.key);
+    requireValue(count<Number.MAX_SAFE_INTEGER,'本房所选营养餐库存已满。');
+    chargeQuoted(s,args.price,nutritionPrice(species,meal));
+    room.nutritionStock??={};
+    room.nutritionStock[meal.key]=count+1;
+    return '已购入 1 份'+meal.label+cfg.name.repeat(2)+'营养餐。';
+  }
   if(type==='care.feed') {
     const meal=nutritionTier(args.tier);
     requireValue(meal,'请选择有效的营养餐档次。');
