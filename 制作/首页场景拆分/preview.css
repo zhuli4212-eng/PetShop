@@ -1,0 +1,193 @@
+:root {
+  color-scheme: light;
+  font: 15px/1.5 "Microsoft YaHei", sans-serif;
+  color: #293f31;
+  background: #e3dac6;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .55; }
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid #397259;
+  outline-offset: 2px;
+}
+.workspace {
+  width: min(100%, 828px);
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 409px) minmax(245px, 330px);
+  justify-content: center;
+  align-items: start;
+  gap: 24px;
+}
+.shop-frame {
+  border: 1px solid #465b46;
+  background: #244b42;
+  container-type: inline-size;
+}
+.shop-header {
+  height: 13cqw;
+  display: flex;
+  align-items: center;
+  gap: 2.4%;
+  padding: 0 3.4% 0 4.4%;
+  color: #f6de9b;
+  font: bold 5.4cqw SimSun, "Songti SC", serif;
+  border-bottom: 3px double #a68a5a;
+  background: #254d43;
+}
+.shop-header > img { width: 5.6%; }
+.coins {
+  display: inline-flex;
+  align-items: center;
+  gap: .65cqw;
+  margin-left: auto;
+  padding: .4cqw 1.1cqw;
+  font: bold 3.8cqw "Microsoft YaHei", sans-serif;
+  border: 1px solid #9b8959;
+  background: #183d35;
+}
+.coins img { width: 3.7cqw; }
+.shop-scene { position: relative; aspect-ratio: 4 / 7; overflow: hidden; }
+.pieces, .entrances, .curtain { position: absolute; inset: 0; }
+.pieces img, .shop-header img { image-rendering: pixelated; }
+.piece {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  position: absolute;
+  display: block;
+  appearance: none;
+  touch-action: none;
+}
+.piece img { width: 100%; height: 100%; display: block; pointer-events: none; }
+.piece.selected { outline: 2px dashed #fbe09a; outline-offset: -1px; cursor: grab; }
+.piece.selected:active { cursor: grabbing; }
+.edit .entrances { pointer-events: none; }
+.shop-sign {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  padding: .1cqw .8cqw .15cqw;
+  white-space: nowrap;
+  border: 1px solid #9e8954;
+  background: #315747;
+  color: #ffecb7;
+  font: bold clamp(8px, 2.96cqw, 12px)/1.2 SimSun, "Songti SC", serif;
+  box-shadow: 0 1px #73552d;
+}
+.keeper-sign {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  text-shadow: 1px 1px #49351e;
+}
+.hotspot {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.hotspot:focus-visible { outline-offset: -4px; outline-color: #ffe4a0; }
+.curtain {
+  display: grid;
+  align-items: center;
+  padding: 6%;
+  background: #181e18a6;
+}
+.in-game-dialog {
+  border: 2px solid #a98753;
+  box-shadow: inset 0 0 0 2px #ead3a4, 0 3px 0 #563e23;
+  background: #f9edca;
+  color: #3e3424;
+  padding: 14px;
+}
+.in-game-dialog > header, .section-heading { display: flex; align-items: center; justify-content: space-between; }
+.in-game-dialog > header { border-bottom: 1px solid #c8aa73; padding-bottom: 7px; }
+.in-game-dialog h2 { margin: 0; font: bold 20px SimSun, serif; color: #254d43; }
+.in-game-dialog #close-dialog { font-size: 19px; line-height: 1; padding: 4px 8px; }
+.in-game-dialog p { margin: 10px 0 0; }
+.toast {
+  margin: 0;
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  width: max-content;
+  max-width: 90%;
+  border: 1px solid #d3b879;
+  background: #21473c;
+  color: #ffedba;
+}
+.controls {
+  background: #fcf3dd;
+  border: 1px solid #b39a71;
+  box-shadow: 0 2px 0 #b3a17f;
+}
+.panel-heading {
+  padding: 15px 17px 13px;
+  color: #fae7ab;
+  border-bottom: 2px solid #ac915a;
+  background: #315747;
+}
+h1 { margin: 0; font: bold 22px SimSun, "Songti SC", serif; }
+.control-section { padding: 15px 17px; border-bottom: 1px solid #ddc9a4; }
+.control-section h2 { font-size: 15px; margin: 0 0 8px; }
+.control-section p, .control-section > label { font-size: 13px; margin: 0; }
+.section-heading h2 { margin-bottom: 5px; }
+.segmented, .actions, .layer-order {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.segmented.secondary { margin-top: 7px; }
+.actions { margin-top: 10px; }
+.actions button, .segmented button, .layer-order button, .in-game-dialog button {
+  border: 1px solid #b79b68;
+  padding: 6px;
+  background: #edd8a9;
+  color: #3c3827;
+  text-align: center;
+}
+.segmented button[aria-pressed="true"], .actions .primary {
+  border-color: #345745;
+  color: #faebc3;
+  background: #365a48;
+}
+.quiet {
+  border: 0;
+  background: transparent;
+  color: #315747;
+  text-decoration: underline;
+  padding: 0;
+}
+.coordinates {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin: 9px 0;
+}
+.coordinates label { display: flex; align-items: center; gap: 4px; }
+.visibility { white-space: nowrap; }
+select, input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  padding: 5px;
+  border: 1px solid #b79b68;
+  background: #fffaf0;
+  color: #293f31;
+}
+select { margin-top: 7px; }
+.control-section p.message:empty { display: none; }
+.control-section p.message { margin-top: 8px; }
+footer { padding: 12px 17px; display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
+footer a { color: #315747; }
+@media (max-width: 610px) {
+  .workspace { padding: 0 0 12px; gap: 12px; grid-template-columns: min(100%, 409px); }
+  .controls { margin-inline: 10px; }
+}

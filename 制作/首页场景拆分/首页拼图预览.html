@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>麦穗宠物店 · 首页拼图预览</title>
+  <link rel="stylesheet" href="preview.css">
+  <script src="scene-data.js" defer></script>
+  <script src="preview.js" defer></script>
+</head>
+<body>
+  <main class="workspace">
+    <section class="shop-frame" aria-label="店铺主界面">
+      <header class="shop-header">
+        <img src="图层/ui-home.png" alt="">
+        <span>麦穗宠物店</span>
+        <span class="coins"><img src="图层/ui-coin.png" alt="金币">680</span>
+      </header>
+      <div class="shop-scene" id="shop-scene">
+        <div class="pieces" id="pieces"></div>
+        <div class="entrances" id="entrances"></div>
+        <div class="curtain" id="curtain" hidden>
+          <section class="in-game-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+            <header>
+              <h2 id="dialog-title"></h2>
+              <button id="close-dialog" type="button" aria-label="关闭弹窗">×</button>
+            </header>
+            <div id="dialog-content"></div>
+          </section>
+        </div>
+        <p class="toast" id="toast" hidden></p>
+      </div>
+    </section>
+    <aside class="controls" aria-label="预览与图层工具">
+      <header class="panel-heading">
+        <h1>首页拼图预览</h1>
+      </header>
+      <section class="control-section">
+        <h2>场景</h2>
+        <div class="segmented" role="group" aria-label="切换场景">
+          <button type="button" data-preset="revised" aria-pressed="true">新版摆放</button>
+          <button type="button" data-preset="original" aria-pressed="false">原版复原</button>
+        </div>
+        <div class="segmented secondary" role="group" aria-label="操作方式">
+          <button type="button" data-mode="play" aria-pressed="true">点击试玩</button>
+          <button type="button" data-mode="edit" aria-pressed="false">摆放物件</button>
+        </div>
+      </section>
+      <section class="control-section" id="play-tools">
+        <h2>交互预览</h2>
+        <p>点店门口的礼物签到，点赛事柜的上下层分别查看赛事和荣誉。</p>
+        <div class="actions">
+          <button type="button" id="new-guest">模拟新来客</button>
+          <button type="button" id="reset-demo">重置演示</button>
+        </div>
+      </section>
+      <section class="control-section" id="edit-tools" hidden>
+        <div class="section-heading">
+          <h2>物件图层</h2>
+          <button type="button" id="reset-layout" class="quiet">恢复摆放</button>
+        </div>
+        <label for="piece-select">选中物件后拖动，或输入原图坐标。</label>
+        <select id="piece-select"></select>
+        <div class="coordinates">
+          <label>X <input id="piece-x" type="number" step="1" inputmode="numeric"></label>
+          <label>Y <input id="piece-y" type="number" step="1" inputmode="numeric"></label>
+          <label class="visibility"><input id="piece-visible" type="checkbox">显示</label>
+        </div>
+        <div class="layer-order">
+          <button type="button" id="layer-up">上移一层</button>
+          <button type="button" id="layer-down">下移一层</button>
+        </div>
+        <div class="actions file-actions">
+          <button type="button" id="export-layout">导出布局</button>
+          <button type="button" id="choose-layout">导入布局</button>
+          <input type="file" id="import-layout" accept=".json,application/json" hidden>
+        </div>
+        <p class="message" id="layout-message" role="status"></p>
+      </section>
+      <footer>
+        <a href="新版摆放.png" target="_blank" rel="noopener">新版场景 PNG</a>
+        <a href="原版复原.png" target="_blank" rel="noopener">原版场景 PNG</a>
+      </footer>
+    </aside>
+  </main>
+</body>
+</html>
