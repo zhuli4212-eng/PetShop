@@ -124,13 +124,44 @@ function fillWood(dest, x, y, stripStart, stripWidth) {
   original.copy(dest, to, from, from + 4);
 }
 
+// Match the exposed left floorboard joints in the original and the clean reference.
+// The reference supplies one continuous patch, including staggered board ends.
+const floorJoints = [
+  [610, 610], [612, 613], [631, 632], [650, 651], [670, 671], [693, 693],
+  [717, 717], [734, 734], [758, 758], [781, 781], [807, 808], [818, 817],
+];
+const decorFloor = specs.findIndex(item => item.id === 'old-decor');
+const decorFloorRows = new Map();
+for (let y = floorJoints[0][0]; y < floorJoints.at(-1)[0]; y++) {
+  const next = floorJoints.findIndex(([joint]) => joint > y);
+  const [top, referenceTop] = floorJoints[next - 1];
+  const [bottom, referenceBottom] = floorJoints[next];
+  const referenceY = Math.round(referenceTop + (y - top) * (referenceBottom - referenceTop) / (bottom - top));
+  const from = y * width;
+  const right = owners.subarray(from, from + width).lastIndexOf(decorFloor) + 1;
+  decorFloorRows.set(y, { referenceY, right });
+}
+
+function fillDecorFloor(dest, x, y) {
+  const { referenceY, right } = decorFloorRows.get(y);
+  const from = (referenceY * width + Math.max(22, x)) * 4;
+  const neighbor = (y * width + right) * 4;
+  const to = (y * width + x) * 4;
+  // Match the original wood color and soften the join by the visible boards.
+  const blend = Math.max(0, 1 - (right - x) / 7);
+  for (let channel = 0; channel < 3; channel++) {
+    const tone = Math.min(255, generated[from + channel] + channel);
+    dest[to + channel] = Math.round(tone * (1 - blend) + original[neighbor + channel] * blend);
+  }
+}
+
 const base = Buffer.from(original);
 const removed = new Set(['old-decor','old-guest','old-breed']);
 for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
   const i = y * width + x, owner = owners[i];
   if (owner < 0) continue;
   const { id } = specs[owner];
-  if (id === 'old-decor') fillWood(base, x, y, 180, 43);
+  if (id === 'old-decor') fillDecorFloor(base, x, y);
   else if (id === 'old-guest') fillWood(base, x, y, 200, 27);
   else if (id === 'old-breed') fillWood(base, x, y, 430, 59);
   else if (y >= 355 && !['lab','lab-plant','market'].includes(id)) {

@@ -2,6 +2,13 @@ const scene = globalThis.PETSHOP_SCENE;
 const $ = id => document.getElementById(id);
 const shop = $('shop-scene');
 const pieces = $('pieces');
+const sceneCanvas = document.createElement('canvas');
+sceneCanvas.width = scene.width;
+sceneCanvas.height = scene.height;
+sceneCanvas.className = 'scene-canvas';
+const painter = sceneCanvas.getContext('2d');
+painter.imageSmoothingEnabled = false;
+const textures = new Map();
 const entrances = $('entrances');
 const curtain = $('curtain');
 const select = $('piece-select');
@@ -44,12 +51,32 @@ function position(element, x, y, w, h) {
   if (h !== undefined) element.style.height = h / scene.height * 100 + '%';
 }
 
-function createImage(src) {
-  const image = new Image();
-  image.src = src;
-  image.alt = '';
-  image.draggable = false;
-  return image;
+function isVisible(item) {
+  return item.visible && !(mode === 'play' && signInClaimed && item.id === 'checkin-gift');
+}
+
+function paintScene() {
+  if (!textures.has(scene.wallFloor)) return;
+  painter.clearRect(0, 0, scene.width, scene.height);
+  painter.drawImage(textures.get(scene.wallFloor), 0, 0);
+  for (const item of current()) {
+    if (isVisible(item)) painter.drawImage(textures.get(item.src), item.x, item.y, item.w, item.h);
+  }
+}
+
+async function loadSceneTextures() {
+  const paths = new Set([
+    scene.wallFloor,
+    ...[...scene.original, ...scene.revised].map(item => item.src),
+  ]);
+  const loaded = await Promise.all([...paths].map(async src => {
+    const image = new Image();
+    image.src = src;
+    await image.decode();
+    return [src, image];
+  }));
+  for (const [src, image] of loaded) textures.set(src, image);
+  paintScene();
 }
 
 function selectPiece(id) {
@@ -61,18 +88,16 @@ function selectPiece(id) {
 }
 
 function renderPieces() {
-  const background = createImage(scene.wallFloor);
-  background.className = 'piece';
-  position(background, 0, 0, scene.width, scene.height);
-  pieces.replaceChildren(background);
+  // Composite the native pixels before scaling the room to the viewport.
+  pieces.replaceChildren(sceneCanvas);
+  paintScene();
   for (const item of current()) {
-    if (!item.visible || (mode === 'play' && signInClaimed && item.id === 'checkin-gift')) continue;
+    if (!isVisible(item)) continue;
     const movable = mode === 'edit' && !item.locked;
     const piece = document.createElement(movable ? 'button' : 'div');
     piece.className = 'piece';
     piece.dataset.id = item.id;
     piece.classList.toggle('selected', movable && item.id === selection);
-    piece.append(createImage(item.src));
     position(piece, item.x, item.y, item.w, item.h);
     if (movable) {
       piece.type = 'button';
@@ -160,8 +185,10 @@ function bounded(value, max, fallback) {
 function place(item, x, y, element) {
   item.x = bounded(x, scene.width - item.w, item.x);
   item.y = bounded(y, scene.height - item.h, item.y);
-  if (element) position(element, item.x, item.y, item.w, item.h);
-  else renderPieces();
+  if (element) {
+    position(element, item.x, item.y, item.w, item.h);
+    paintScene();
+  } else renderPieces();
   renderEntrances();
   syncControls();
 }
@@ -369,3 +396,8 @@ $('import-layout').addEventListener('change', importLayout);
 
 loadChoices();
 render();
+loadSceneTextures().catch(error => {
+  console.error(error);
+  $('toast').textContent = '场景素材加载失败，请检查预览文件是否完整。';
+  $('toast').hidden = false;
+});
