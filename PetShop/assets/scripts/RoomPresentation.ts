@@ -1,4 +1,4 @@
-import { BlockInputEvents, Color, Graphics, Node, UITransform } from 'cc';
+import { BlockInputEvents, Color, Graphics, Label, Node, UITransform } from 'cc';
 import type { Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
 import { animalFilters, box, caption, frame, heading, paper, picture, press, rect, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
@@ -75,11 +75,14 @@ function feedingStation(c:PageCanvas,scene:Node,h:number,effect?:NutritionEffect
     tap(station,open);
     if(effect)picture(station,'MealFill','rooms/nutrition-meal-fill',0,9*spriteScale,25*spriteScale,17*spriteScale);
     if(!effect){
-        const buttonX=47.5*spriteScale,buttonWidth=57*spriteScale;
-        const hit=box(station,'FeedTarget',buttonX,0,Math.max(buttonWidth,44),44);
-        hit.getComponent(UITransform)!.setAnchorPoint(.5,.25);
+        const buttonWidth=114*spriteScale,buttonHeight=50*spriteScale;
+        // This stretch of wall stays clear above the bowl in all three rooms.
+        const hit=box(station,'FeedTarget',(372-px)*spriteScale,42*spriteScale,buttonWidth,Math.max(buttonHeight,44));
         tap(hit,open);
-        press(hit,'Feed','投喂',0,0,buttonWidth,open,true,false,25*spriteScale);
+        const button=press(hit,'Feed','投喂',0,0,buttonWidth,open,true,false,buttonHeight);
+        const title=button.getChildByName('Caption')!.getComponent(Label)!;
+        title.fontSize=c.width<350?16:18;
+        title.lineHeight=23;
         return;
     }
     // Keep the text above the bowl and clear of the right-side furnishings.
