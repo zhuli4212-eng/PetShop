@@ -2,6 +2,7 @@ import { assetManager, isValid, Sprite, SpriteFrame, UITransform } from 'cc';
 import type { Choice, LedgerPage, LedgerRow } from './ShopConnection';
 import { animalFilters, animalSummary, box, caption, frame, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { banner, blocks, brown, buttons, card, cream, dock, edge, green, info, ink, note, section, text, thumbTabs } from './BusinessCards';
+import { guideNote } from './TutorialPresentation';
 
 interface ResearchBenefit {
     metric:string; bonusLabel:string; valueLabel:string; description:string; currentBonus:string; nextBonus:string|null;
@@ -9,7 +10,7 @@ interface ResearchBenefit {
 }
 interface RowVisual {
     condition?:string; difficulty?:string; available?:boolean; rate?:number; choices?:Choice[];
-    name?:string; number?:string; price?:number; summary?:string; blockedReason?:string; mode?:string; benefit?:ResearchBenefit; status?:string; uncollected?:boolean;
+    name?:string; number?:string; price?:number; summary?:string; blockedReason?:string; mode?:string; benefit?:ResearchBenefit; status?:string; uncollected?:boolean; bought?:boolean;
 }
 interface PageVisual {
     remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
@@ -29,11 +30,12 @@ function orders(c:PageCanvas):void {
     if(c.p.visual?.preview){
         section(c,'普通订单','新手预览');
         note(c,c.p.subtitle||'店铺达到 2 级后可交付或取消订单。');
-    }else section(c,'普通订单','免费取消 '+(pageVisual(c).remaining??'—')+' / 3');
+    }else section(c,'普通订单',c.p.guide?c.p.subtitle:'免费取消 '+(pageVisual(c).remaining??'—')+' / 3');
+    guideNote(c);
     c.startList();
     rows(c).forEach((r,i)=>{
         const v=r.visual;
-        if(!v?.choices){info(c,{...r,art:'shop-modules/order-clock'},i);return;}
+        if(!v?.choices){info(c,{...r,...(!c.p.guide&&{art:'shop-modules/order-clock'})},i);return;}
         const h=155,n=card(c,'Order'+i,h),w=c.inner-20;
         text(n,'Name',v.name||'收养委托',-46,h/2-22,w-92,25,16,ink,'left',true);
         text(n,'Slot','第 '+(i+1)+' 槽',w/2-40,h/2-22,80,24,12,brown,'right');
@@ -96,7 +98,7 @@ function sale(c:PageCanvas):void {
     const list=rows(c),ids=list.filter(r=>r.select).map(r=>r.select!);
     if(channel==='recycle'){
         if(!c.modal)banner(c,'lab','培育中心');
-        c.strip([['','全部'],['rabbit','兔'],['cat','猫'],['dog','狗']].map(([species,label])=>({
+        if(!c.p.visual?.singleSelect)c.strip([['','全部'],['rabbit','兔'],['cat','猫'],['dog','狗']].map(([species,label])=>({
             ...act(label,'recycle',species?{species}:{}),active:(c.args.species||'')===species,
         })),'RecycleSpecies');
     }
@@ -108,7 +110,8 @@ function sale(c:PageCanvas):void {
     const protection=protectedCount&&(channel==='recycle'||channel==='market')?' · 种源保护 '+protectedCount+' 只':'';
     const count=channel==='market'&&c.p.filters?.length ? '可售 '+ids.length+' / 共 '+list.length+' 只' : ids.length+' 只可选'+protection;
     section(c,channel==='recycle'?'回收已故动物':'选择'+mode+'的动物',count);
-    if(channel==='market')animalFilters(c);
+    if(channel==='market'&&!c.p.visual?.singleSelect)animalFilters(c);
+    guideNote(c);
     c.startList();
     for(const [i,r] of list.entries()){
         if(channel==='market'&&r.visual){marketRow(c,r,i);continue;}
@@ -139,7 +142,7 @@ function sale(c:PageCanvas):void {
     press(n,'Action0','核对'+mode,w/2-55,0,105,()=>{
         if(a)c.ui.choose(channel==='market'?{...a,useSelection:false,args:{...a.args,ids:selected}}:a);
     },true,!a||!selected.length,48);
-    buttons(c,[{label:all?'清空选择':'全选本页',type:'ui.selectAll',disabled:!ids.length,args:{ids,clear:all}}],-1);
+    if(!c.p.visual?.singleSelect)buttons(c,[{label:all?'清空选择':'全选本页',type:'ui.selectAll',disabled:!ids.length,args:{ids,clear:all}}],-1);
 }
 function quote(c:PageCanvas):void {
     const a=c.p.actions?.find(choice=>choice.type==='sale.commit');
@@ -162,6 +165,7 @@ function quote(c:PageCanvas):void {
         text(n,'Name',r.title,-50,0,w-112,30,15);
         text(n,'Price',amounts[i]+' 金币',w/2-52,0,96,30,15,brown,'right',true);
     });
+    if(typeof c.p.visual?.guideQuote==='string')note(c,c.p.visual.guideQuote);
     c.startFooter();
     const y=c.slot(45,8);
     const xp=pageVisual(c).saleExperience;
@@ -208,20 +212,23 @@ function lab(c:PageCanvas):void {
     const tab=c.args.tab||'seed';
     labMenu(c,tab);
     if(tab==='nutrition'){nutritionStore(c);return;}
-    if(tab==='seed')section(c,'本批种源',c.p.subtitle);
+    if(tab==='seed')section(c,c.p.guide?.target?.startsWith('Row')||c.p.guide?.next?'开店种源':'本批种源',c.p.subtitle);
+    guideNote(c);
     c.startList();
     if(tab==='services')rows(c).forEach((r,i)=>catalogService(c,r,i));
     else rows(c).forEach((r,i)=>seedRow(c,r,i));
     if(!rows(c).length)c.empty();
 }
 function seedRow(c:PageCanvas,r:DisplayRow,i:number):void {
-    if(!r.animal||!r.link||typeof r.visual?.price!=='number'){info(c,r,i);return;}
-    const w=c.inner,n=card(c,'Row'+i,76,cream,6);
+    if(!r.animal||typeof r.visual?.price!=='number'){info(c,r,i);return;}
+    const bought=!!r.visual.bought,w=c.inner,n=card(c,'Row'+i,76,bought?'#E8E5DB':cream,6);
     picture(n,'Icon',r.animal.art,-w/2+33,0,46,46,r.animal.stage);
     animalSummary(n,r.animal,-w/2+65,w-156,0);
-    text(n,'Price',r.visual.price+' 金币',w/2-57,0,72,24,13,brown,'right',true);
-    text(n,'Arrow','›',w/2-11,0,14,40,20,green,'center');
-    tap(n,()=>c.ui.choose(r.link!));
+    text(n,'Price',bought?'已购入':r.visual.price+' 金币',w/2-57,0,72,24,13,brown,'right',true);
+    if(r.link){
+        text(n,'Arrow','›',w/2-11,0,14,40,20,green,'center');
+        tap(n,()=>c.ui.choose(r.link!));
+    }
 }
 function catalogService(c:PageCanvas,r:LedgerRow,i:number):void {
     const a=r.action!, w=c.inner;

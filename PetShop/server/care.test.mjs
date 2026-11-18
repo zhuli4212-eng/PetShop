@@ -190,7 +190,10 @@ test('开始时才扣当前物种的指导单，出生沿用当时五维选育�
 });
 
 test('新房核价与入住记录按成交时刻保存，之后的消费与动物离店不改回执',()=>{
-  const s=fresh(); s.ratingBps=10000; s.coins=2850;
+  const s=fresh();
+  assert.equal(carePage(s,'rooms',{species:'cat'},T).presentation.price,6000);
+  assert.equal(carePage(s,'rooms',{species:'dog'},T).presentation.price,60000);
+  s.ratingBps=10000;s.coins=5700;
   const offer=carePage(s,'rooms',{species:'cat'},T);
   assert.equal(offer.presentation.estimate,beijingTime(T+90*M).slice(0,16));
   const open=offer.actions[0];
@@ -201,7 +204,7 @@ test('新房核价与入住记录按成交时刻保存，之后的消费与动�
   const receipt=carePage(s,'roomReceipt',receiptArgs,T+M);
   for(const pet of cats)assert.ok(receipt.rows.some(row=>row.title.includes(pet.id.slice(0,5).toUpperCase())&&row.title.includes(pet.sex)));
   assert.ok(receipt.rows.some(r=>r.text===beijingTime(T+91*M)));
-  assert.match(receipt.rows.at(-1).text,/2850 金币.*余额 0/);
+  assert.match(receipt.rows.at(-1).text,/5700 金币.*余额 0/);
   assert.ok(carePage(s,'rooms',receiptArgs,T+M).rows.some(r=>r.link?.page==='roomReceipt'));
   s.pets=s.pets.filter(p=>p.species!=='cat');s.coins=865;
   assert.deepEqual(carePage(structuredClone(s),'roomReceipt',receiptArgs,T+D),receipt);
@@ -294,7 +297,7 @@ test('五只兔的出生记录按序保留至最后一只，交易后仍展示�
 });
 
 test('兔猫狗房间名册逐只给出生长阶段的截止毫秒，临界时刻切换，寿终后为 null',()=>{
-  const s=fresh();s.coins=50_000;
+  const s=fresh();s.coins=SPECIES.cat.roomCost+SPECIES.dog.roomCost;
   careAction(s,'care.checkin',{},T);
   for(const species of ['cat','dog'])careAction(s,'care.unlock',{species,price:SPECIES[species].roomCost},T);
   const phases=['幼年','成长','成年','老年','已故'];
@@ -352,7 +355,7 @@ test('房间共用名册和筛选，选择两只亲本后才显示核对入口',
   assert.ok(buy.disabled);assert.equal(buy.args.species,'cat');
   const shelfGate=carePage(s,'shelf',{species:'cat'},T);
   assert.deepEqual(shelfGate.actions.map(a=>[a.page,a.args.species]),[['rooms','cat']]);
-  s.coins=4000;careAction(s,buy.type,buy.args,T);
+  s.coins=buy.args.price;careAction(s,buy.type,buy.args,T);
   assert.equal(carePage(s,'rooms',{species:'cat'},T).art,SPECIES.cat.art);
   assert.deepEqual(carePage(s,'rooms',{species:'cat'},T).tabs.map(t=>t.locked),[false,false,true]);
   assert.ok(!(carePage(s,'roomRoster',{species:'cat'},T).actions||[]).some(a=>a.type==='care.unlock'));
@@ -392,8 +395,8 @@ test('房景按登记顺序取筛选后名册前十只，死者、种源与未�
   const s=fresh(),[mother,father]=s.pets;
   careAction(s,'care.retain',{id:mother.id,retained:true},T);
   careAction(s,'care.breed',{species:'rabbit',mother:mother.id,father:father.id},T);
-  s.coins=3000;
-  careAction(s,'care.unlock',{species:'cat',price:3000},T);
+  s.coins=6000;
+  careAction(s,'care.unlock',{species:'cat',price:6000},T);
   const make=(id,sex,extra={})=>({...structuredClone(father),id,name:id,sex,retained:false,...extra});
   const dead=make('held-dead','母',{bornAt:T-5*D,retained:true});
   const unmarkedDead=make('unmarked-dead','公',{bornAt:T-5*D});
@@ -496,7 +499,7 @@ test('一生一窝、等待跨寿终和重启离线补生，幼体从计划出�
 });
 
 test('三物种独立房间、幼体成熟时间、双亲快照与指导',()=>{
-  const s=fresh();s.coins=40000;
+  const s=fresh();s.coins=SPECIES.cat.roomCost+SPECIES.dog.roomCost+SPECIES.cat.guide+SPECIES.dog.guide;
   for(const species of ['cat','dog']){
     const cfg=SPECIES[species],args={species,price:purchasePrice(s,cfg.roomCost)};
     const before=s.coins;

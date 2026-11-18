@@ -6,7 +6,7 @@ import { petNames, takePetName } from './pet-names.mjs';
 
 const now=Date.UTC(2026,10,16), minute=60_000, day=24*60*minute;
 function shop() {
-  const s={coins:40000,ratingBps:0};
+  const s={coins:SPECIES.cat.roomCost+SPECIES.dog.roomCost+20_000,ratingBps:0};
   initCare(s,now);
   s.care.seed='test-shop-name-seed';
   s.rooms.rabbit.shelf=null;

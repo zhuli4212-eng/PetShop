@@ -84,7 +84,8 @@ async function readBody(req) {
 }
 
 export function createPetShopServer(webRoot = defaultWebRoot, options = {}) {
-  const game=options.store || new GameStore(options.saveDirectory || process.env.PETSHOP_SAVE_DIR || defaultSave);
+  const game=options.store || new GameStore(options.saveDirectory || process.env.PETSHOP_SAVE_DIR || defaultSave,
+    {onboarding:options.onboarding??process.env.PETSHOP_ONBOARDING==='1'});
   let restoreError, operatorCredential;
   const pulse=setInterval(()=>{try {game.checkpoint();} catch(err) {console.error('结算失败',err.message);}},15_000);
   pulse.unref();

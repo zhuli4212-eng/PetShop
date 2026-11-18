@@ -9,6 +9,7 @@ export const paper = {
 
 export interface LedgerUI {
     roomFloor?: RoomFloor;
+    playGrowth?: boolean;
     back: () => void;
     choose: (choice: Choice) => void;
     bindBirthCountdown: (label: Label, endsAt: number) => void;
@@ -242,6 +243,12 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
         for(const row of page.rows||[])if(row.art)paths.add(stageArt(row.art,row.stage||''));
     }
     if(key==='rooms'&&page.presentation?.nutrition)paths.add('rooms/nutrition-meal-fill');
+    if(page.visual?.openingRoom){
+        paths.add('pet-young/domestic-coat01_female');
+        paths.add('pet-young/domestic-coat01_male');
+    }
+    if(page.visual?.grownIds)paths.add('onboarding/growth-spark');
+    if(page.guide||page.visual?.guideDialog!==undefined||page.visual?.tutorialMeal)paths.add('onboarding/focus-corner');
     await Promise.all(Array.from(paths,art=>{
         const path=art+'/spriteFrame';
         if(resources.get(path,SpriteFrame))return;

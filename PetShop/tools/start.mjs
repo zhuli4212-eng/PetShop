@@ -36,6 +36,7 @@ async function startServer() {
     const child = spawn(process.execPath, [server], {
         cwd: root, detached: true, windowsHide: true, stdio: 'ignore',
         env: { ...process.env, PETSHOP_HOST: '127.0.0.1', PETSHOP_PORT: port,
+            PETSHOP_ONBOARDING:process.env.PETSHOP_ONBOARDING??'1',
             PETSHOP_WEB_ROOT: dirname(index) },
     });
     await once(child, 'spawn');

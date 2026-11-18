@@ -6,6 +6,8 @@ import { shopProgress, saleExperience, shopRaceAccess } from './shop-progression
 import { featureNames, featureAccess, operationFeature, shopRules } from './shop-features.mjs';
 import { initVisitBook, recordMilestone, seedRecoveryRows, unreadLetter, updateVisit, visitHistoryPage } from './visit-book.mjs';
 import { initTasks, recordTaskAction, recordTaskVisit, taskAction, taskShortcut, tasksPage } from './shop-tasks.mjs';
+import { initOnboarding, onboardingSnapshot, guideAccess, rabbitWaitingForOpening, settleOnboarding,
+  onboardingPage, decorateGuidePage, recordGuideVisit, guideAction, recordGuideAction } from './onboarding.mjs';
 
 export { shopRules };
 const legacyEntrances = Object.keys(featureNames).filter(key=>key!=='collection');
@@ -16,14 +18,15 @@ export class GameError extends Error {
   constructor(message, status = 409) { super(message); this.status = status; }
 }
 
-function newState(now) {
+function newState(now,onboarding) {
   const id = randomUUID();
   const state = { schema: 1, mode:'local_sim', profileId:id, profile_id:id, rootSeed:randomBytes(32).toString('hex'),
     createdAt:now, clock:now, version:1, coins:680, shopXp:0, receipts:{}, journal:[] };
-  initCare(state,now);
+  initCare(state,now,{onboarding});
   initShow(state,now);
   initBusiness(state,now);
   initVisitBook(state,false);
+  if(onboarding)initOnboarding(state);
   return state;
 }
 
@@ -33,9 +36,14 @@ function canonical(value) {
   if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])]));
   return value;
 }
+function shopAccess(s,rules,level) {
+  const access=featureAccess(rules,level);
+  for(const key of ['lab','orders'])if(guideAccess(s,key))access[key].unlocked=true;
+  return access;
+}
 function publicShop(s,now,rules) {
   const {level,...shopExperience}=shopProgress(rules,s.shopXp);
-  const access=featureAccess(rules,level);
+  const access=shopAccess(s,rules,level),onboarding=onboardingSnapshot(s);
   const hints=[];
   const dayClaimed=s.care.signedDay===dayAt(now);
   const guest=access.guest.unlocked&&s.visitors.active;
@@ -48,9 +56,12 @@ function publicShop(s,now,rules) {
   return { protocol:1, profileId:s.profileId, version:s.version, mode:s.mode, name:'宠物店', coins:s.coins,
     shopLevel:level, shopExperience, ...shopRaceAccess(rules,s.createdAt,now),
     featureAccess:access, entrances:legacyEntrances.filter(key=>access[key].unlocked),
-    ...(guest&&{guest:{id:guest.id,endsAt:guest.endsAt}}),
-    now, hints, dayClaimed, taskShortcut:taskShortcut(s,access), decor:Object.keys(s.decor || {}).filter(k=>s.decor[k]?.placed),
-    rooms:Object.keys(s.rooms || {}).filter(k=>s.rooms[k]), notice:s.journal.at(-1) ?? null };
+    ...(guest&&!onboarding&&{guest:{id:guest.id,endsAt:guest.endsAt}}),
+    now, hints:onboarding?[]:hints, dayClaimed, onboarding,
+    taskShortcut:s.onboarding?{completed:4,total:4,choice:{page:'tasks',label:'查看开店任务'}}:taskShortcut(s,access),
+    decor:Object.keys(s.decor || {}).filter(k=>s.decor[k]?.placed),
+    rooms:Object.keys(s.rooms || {}).filter(k=>s.rooms[k]&&!(k==='rabbit'&&rabbitWaitingForOpening(s))),
+    notice:s.journal.at(-1) ?? null };
 }
 function accountPage(s,now,access) {
   return {title:'店主登记簿',subtitle:'本机经营档',art:'shop-modules/opening',
@@ -80,15 +91,16 @@ export function validateState(s) {
   return s;
 }
 export class ShopEngine {
-  constructor({wall=Date.now, monotonic=()=>performance.now(), rules=shopRules}={}) {
+  constructor({wall=Date.now, monotonic=()=>performance.now(), rules=shopRules, onboarding=false}={}) {
     this.wall=wall; this.monotonic=monotonic; this.rules=rules;
+    this.onboarding=onboarding;
     this.readers=new Map();
   }
   ensure() {
     if(!this.state)this.initialize(null);
   }
   initialize(restored,{fromBackup=false,resetConnections=false}={}) {
-    const s=restored ?? newState(this.wall());
+    const s=restored ?? newState(this.wall(),this.onboarding);
     const checkParents=s.care.parentRetentionChecked!==true;
     if(checkParents){
       if(repairLegacyParentRetention(s))s.version++;
@@ -128,7 +140,7 @@ export class ShopEngine {
     const s=structuredClone(this.state);
     const world=({receipts,clock,...fields})=>JSON.stringify(fields);
     const before=world(s);
-    tickCare(s,now);tickShow(s,now);tickBusiness(s,now);
+    tickCare(s,now);settleOnboarding(s);tickShow(s,now);tickBusiness(s,now);
     if(this.clockChange)s.clockEvent=this.clockChange;
     const changed=before!==world(s);
     if(changed || now-this.savedAt>=minute || (forceCheckpoint&&now!==this.savedAt)) {s.clock=now;if(changed)s.version++;this.save(s);}
@@ -136,15 +148,15 @@ export class ShopEngine {
     return now;
   }
   shop() {const now=this.advance();return publicShop(this.state,now,this.rules);}
-  requireFeature(level,key) {
-    if(key&&level<this.rules.featureLevels[key]) {
+  requireFeature(level,key,s=this.state) {
+    if(key&&level<this.rules.featureLevels[key]&&!guideAccess(s,key)) {
       throw new GameError(featureNames[key]+'需要店铺达到 '+this.rules.featureLevels[key]+' 级。',403);
     }
   }
   page(page,args={}) {
     const now=this.advance(), s=this.state;
     const level=shopProgress(this.rules,s.shopXp).level;
-    const access=featureAccess(this.rules,level);
+    const access=shopAccess(s,this.rules,level);
     if(args.fromTasks===true&&['lab','orders'].includes(page)&&!access[page].unlocked){
       const {name,requiredLevel}=access[page];
       return {shop:publicShop(s,now,this.rules),page:{title:name,presentation:{kind:'featureLocked'},
@@ -153,10 +165,11 @@ export class ShopEngine {
     this.requireFeature(level,operationFeature(page,args));
     // Rendering cannot mutate the authoritative store.
     const data=structuredClone(s);
-    let view=page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access);
-    if(page==='tasks')view=tasksPage(data,access);
+    let view=onboardingPage(data,page,args,now)??(page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access));
+    if(page==='tasks'&&!view)view=tasksPage(data,access);
     for(const get of pageHandlers) {if(view) break;view=get(data,page,args,now,this.rules);}
     if(!view) throw new GameError('这个页面暂不可用，请返回店铺。',404);
+    decorateGuidePage(data,page,args,view,now);
     if(page==='orders'||page==='guest'){
       view.tabs=[
         {label:'普通订单',page:'orders',active:page==='orders'},
@@ -172,7 +185,7 @@ export class ShopEngine {
       view.visual={...view.visual,saleExperience:xp};
       if(xp)view.subtitle+=' · 店铺经验 +'+xp;
     }
-    const viewed=recordTaskVisit(s,page);
+    const viewed=s.onboarding?recordGuideVisit(s,page,args,now):recordTaskVisit(s,page);
     if(viewed!==s){viewed.clock=now;this.save(viewed);}
     return {shop:publicShop(viewed,now,this.rules),page:view};
   }
@@ -199,8 +212,8 @@ export class ShopEngine {
     this.requireFeature(level,operationFeature(type,args));
     if(type==='sale.commit'&&args.litterRetention)this.requireFeature(level,'breed');
     const s=structuredClone(current);
-    let message;
-    for(const run of actionHandlers) {message=run(s,type,args,now,this.rules);if(message!==undefined) break;}
+    let message=guideAction(s,type,args,now);
+    if(message===undefined)for(const run of actionHandlers) {message=run(s,type,args,now,this.rules);if(message!==undefined) break;}
     if(message===undefined) throw new GameError('未识别的经营操作。',400);
     if(typeof message!=='string' || !Number.isSafeInteger(s.coins)||s.coins<0) throw Error('经营数据校验失败。');
     let awarded,levelUp;
@@ -220,7 +233,8 @@ export class ShopEngine {
       }
     }
     recordMilestone(s,type,args,now);
-    recordTaskAction(s,type,args);
+    if(s.onboarding)recordGuideAction(s,type,args,now);
+    else recordTaskAction(s,type,args);
     s.clock=now;s.version++;
     const result={requestId,message,version:s.version,...(awarded!==undefined&&{saleExperience:awarded}),...(levelUp&&{levelUp})};
     s.receipts[requestId]={key,result};
@@ -244,7 +258,7 @@ export class ShopEngine {
     s.clock=now;this.save(s);
     this.readers=readers;
     const shop=publicShop(s,now,this.rules);
-    if(reader&&foreground)shop.letter=unreadLetter(s,now,shop.featureAccess);
+    if(reader&&foreground)shop.letter=shop.onboarding?null:unreadLetter(s,now,shop.featureAccess);
     return shop;
   }
   checkpoint(force=false) {if(this.state)this.advance(force);}

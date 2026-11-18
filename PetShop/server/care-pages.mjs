@@ -2,6 +2,7 @@ import {
   SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
   lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview, specimen,
 } from './care.mjs';
+import { rabbitWaitingForOpening } from './onboarding.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
 import { activeNutrition, nutritionPage } from './room-nutrition.mjs';
 
@@ -9,7 +10,8 @@ const go = (label,page,args={}) => ({label,page,args});
 const link = (title,text,page,args={},extra={}) => ({title,text,link:{page,args},...extra});
 const act = (label,type,args,confirm,page,goArgs={}) => ({label,type,args,confirm,go:page,goArgs});
 const number = p=>p.id.slice(0,5).toUpperCase();
-const options = (s,page,current)=>Object.entries(SPECIES).map(([species,c])=>({...go(c.name+'房',page,{species}),active:species===current,locked:!s.rooms[species]}));
+const options = (s,page,current)=>Object.entries(SPECIES).map(([species,c])=>({...go(c.name+'房',page,{species}),active:species===current,
+  locked:!s.rooms[species]||(species==='rabbit'&&rabbitWaitingForOpening(s))}));
 const petRow = (s,p,now,page='pet',args={id:p.id})=>{
   const animal=specimen(s,p,now);
   return link(animal.name+' · '+animal.sex,[animal.breed,animal.coat,animal.stage,animal.status].join(' · '),
@@ -19,6 +21,13 @@ const describeRemaining = ms=>ms<60_000?Math.max(1,Math.ceil(ms/1000))+' 秒':ms
 const empty = (title,text,page='rooms')=>({title,rows:[{title:text}],actions:[go('查看名册',page)]});
 const speciesKey = a=>a.species&&Object.hasOwn(SPECIES,a.species)?a.species:'rabbit';
 function closedRoom(s,species,page,now) {
+  if(species==='rabbit'&&rabbitWaitingForOpening(s)){
+    return {title:'动物小屋',art:SPECIES.rabbit.art,visual:{openingRoom:true},
+      presentation:{kind:'locked',species:'兔',breed:BREEDS.domestic.name,youngArt:'pets/domestic-coat01_female'},
+      tabs:options(s,page,species),rows:[],
+      actions:page==='rooms'?[act('免费开放兔房','onboarding.openRoom',{},undefined,'rooms',{species})]:
+        [go('查看兔房','rooms',{species})]};
+  }
   const c=SPECIES[species],cost=purchasePrice(s,c.roomCost),breed=BREEDS[c.breeds[0]].name;
   const estimate=beijingTime(lifeDates({species,bornAt:now}).adultAt).slice(0,16);
   const balance=s.coins-cost;
@@ -43,7 +52,7 @@ function openingReceipt(s,species) {
 }
 function roster(s,a,now) {
   const species=speciesKey(a), cfg=SPECIES[species],room=s.rooms[species];
-  if(!room) return closedRoom(s,species,'rooms',now);
+  if(!room||(species==='rabbit'&&rabbitWaitingForOpening(s))) return closedRoom(s,species,'rooms',now);
   const all=s.pets.filter(p=>p.species===species);
   const filter=rosterFilter(a.filter);
   const stage=rosterStage(a.stage,a.filter);
@@ -128,7 +137,7 @@ function detail(s,a,now) {
 }
 function pairPage(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
-  if(!room) return closedRoom(s,species,'breed',now);
+  if(!room||(species==='rabbit'&&rabbitWaitingForOpening(s))) return closedRoom(s,species,'breed',now);
   if(room.job) return {title:'繁育台',art:cfg.art,subtitle:'繁育进行中',
     presentation:{kind:'breeding',species:cfg.name,endsAt:room.job.endsAt,remaining:room.job.endsAt-now,
       parents:[room.job.mother,room.job.father].map(p=>specimen(s,p,now))},

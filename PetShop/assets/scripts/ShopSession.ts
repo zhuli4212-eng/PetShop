@@ -79,6 +79,8 @@ export class ShopSession {
     private closed=false;
     private lastRead=0;
     private dismissLetter?:()=>void;
+    private enteredGuideDialog='';
+    private grownProfile='';
     constructor(private host:Host){this.browser=new GameBrowserBack(()=>this.active,()=>this.back());}
     get active():boolean{return !!this.feature;}
     claimDailyGift():void {
@@ -123,9 +125,13 @@ export class ShopSession {
         await this.read();
     }
     private navigate(key:string,args:Args):void{
+        if(key==='home'){this.toHome();return;}
         this.remember();this.closeFilter();this.navigation++;
         this.bonusVisit=undefined;
         if(key==='roomRoster')key='rooms';
+        if(!this.feature&&(key==='litter'||key==='pet')){
+            this.navigate(key==='litter'?'breed':'rooms',{species:'rabbit'});
+        }
         if(key==='sale'&&args.preselectId&&['market','recycle'].includes(args.channel))key=args.channel;
         const labPopup=this.feature?.key==='lab'&&(key==='research'||key==='recycle');
         const dest=labPopup||(key==='checkinReceipt'&&this.feature)?undefined:featureFor(key,args);
@@ -180,7 +186,15 @@ export class ShopSession {
             this.panel=visit;
         }
         if(key==='payment')this.paymentStage='start';
-        this.host.activate(true,this.feature?.key==='checkinReceipt');this.browser.sync();
+        this.host.activate(true,this.feature?.key==='checkinReceipt'||this.feature?.key==='onboarding');this.browser.sync();
+    }
+    private toHome():void {
+        this.closeFilter();
+        this.navigation++;this.serial++;this.reading=false;
+        this.closePanel();
+        this.feature=undefined;this.taskReturn=undefined;this.bonusVisit=undefined;
+        this.renderedVisit=undefined;this.scroll=null;
+        this.browser.sync();clearLayer(this.host.layer);this.host.activate(false);
     }
     private closePanel():void {
         this.panel=undefined;this.confirm=undefined;this.editDraft=undefined;
@@ -334,12 +348,19 @@ export class ShopSession {
         if(remember)this.remember();
         this.renderedVisit=undefined;this.scroll=null;
         clearLayer(this.host.layer);
-        const modal=(!!this.panel||v.key==='checkinReceipt')&&ledgerModal(v.key);
+        const modal=(!!this.panel||v.key==='checkinReceipt'||v.key==='onboarding')&&ledgerModal(v.key);
         const hidePanel=!!this.confirm&&!this.confirmOverModal;
         const views=hidePanel?[v.data.presentation?.kind==='pairConfirm'?v:this.feature!]:modal?this.stack:[v];
         for(const view of views){
             if(!view.data)continue;
             const backdrop=hidePanel||view!==v;
+            const profile=this.host.wallet().profileId;
+            const playGrowth=!backdrop&&!!view.data.visual?.grownIds?.length&&this.grownProfile!==profile;
+            if(playGrowth)this.grownProfile=profile;
+            const guideDialog=view.data.visual?.guideDialog;
+            const entrance=guideDialog===undefined?'':profile+':'+guideDialog;
+            const playEntrance=!backdrop&&!!entrance&&this.enteredGuideDialog!==entrance;
+            if(playEntrance)this.enteredGuideDialog=entrance;
             const stageClocks:StageClock[]=[];
             const scroll=drawLedger(this.host.layer,view.data,this.host.height(),this.host.wallet().coins,{
                 back:()=>this.back(),choose:a=>this.choose(a),openFilter:(fields,index)=>this.showFilter(fields,index),
@@ -349,18 +370,22 @@ export class ShopSession {
                 },
                 bindBirthCountdown:(label,endsAt)=>this.bindBirthCountdown(view,label,endsAt),
                 bindStageCountdown:(label,endsAt,progress)=>stageClocks.push({label,endsAt,shown:-1,progress}),
-                selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,
+                selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,playGrowth,
                 detailPage:view.detailPage||0,turnPage:index=>{
                     if(view!==this.current||this.confirm)return;
                     view.detailPage=index;this.render(false);
                 },
                 toggle:id=>{
                     if(this.busy||this.confirm)return;
-                    if(v.selected.has(id))v.selected.delete(id);else v.selected.add(id);
+                    if(v.selected.has(id))v.selected.delete(id);
+                    else {
+                        if(v.data?.visual?.singleSelect)v.selected.clear();
+                        v.selected.add(id);
+                    }
                     this.render();
                 }
             },view.key,view.args,{
-                backdrop,modal:!backdrop&&modal,
+                backdrop,modal:!backdrop&&modal,playEntrance,
                 backToTasks:!backdrop&&!this.panel&&!!this.taskReturn,
                 ready:view.version!==undefined||view.key==='payment',
                 pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
@@ -396,6 +421,7 @@ export class ShopSession {
         const v=this.current;if(!v||this.confirm)return;
         if(a.type==='ui.retry'){void this.read();return;}
         if(a.type==='ui.back'){this.back();return;}
+        if(a.type==='ui.home'){this.toHome();return;}
         if(a.type==='ui.editSelection'){this.editSelection();return;}
         const args={...(a.args||{})};if(a.useSelection)args.ids=Array.from(v.selected);
         if(a.page){void this.open(a.page,args);return;}
@@ -481,6 +507,7 @@ export class ShopSession {
                         for(const id of args.ids||[])(recycle||this.feature)?.selected.delete(id);
                         this.closePanel();
                         this.panel=recycle;
+                        if(a.go)this.navigate(a.go,a.goArgs||{});
                     }else if(a.type==='care.unlock'){
                         this.navigate('rooms',{species:args.species});
                         this.navigate('roomReceipt',{species:args.species});
@@ -491,6 +518,7 @@ export class ShopSession {
                     }else if(a.go)this.navigate(a.go,a.goArgs||{});
                 }};
                 feedback=(await this.send(command)).message;
+                if(['onboarding.enter','onboarding.proceed','onboarding.feed'].includes(command.type))feedback='';
                 this.finishReceipt(command.requestId,true);
             }
         } catch(e){

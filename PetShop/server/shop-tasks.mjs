@@ -2,6 +2,10 @@ import { nutritionStock } from './room-nutrition.mjs';
 
 const rabbitPairTask='rabbit-pair';
 const reward={coins:40,tier:'premium',quantity:2};
+export const openingReward=[
+  {name:'金币',quantity:reward.coins},
+  {name:'臻选兔兔营养餐',quantity:reward.quantity,art:'rooms/rabbit-nutrition-premium'},
+];
 const isPurchasedRabbit=p=>p?.species==='rabbit'&&p.source==='研究所采购';
 
 export function initTasks(s) {
@@ -84,7 +88,7 @@ export function tasksPage(s,access) {
   const rows=taskRows(s,access);
   const claimed=s.tasks[rabbitPairTask]?.claimedAt!==undefined;
   return {title:'任务',subtitle:rows.filter(r=>r.done).length+' / '+rows.length+' 已完成',rows,
-    visual:{rewards:[{name:'金币',quantity:reward.coins},{name:'臻选兔兔营养餐',quantity:reward.quantity,art:'rooms/rabbit-nutrition-premium'}]},
+    visual:{rewards:openingReward},
     actions:[{label:claimed?'已领取':'领取',type:'task.claim',args:{id:rabbitPairTask},disabled:claimed||!complete(s)}]};
 }
 
@@ -94,12 +98,17 @@ export function taskAction(s,type,args,now) {
   const task=s.tasks[rabbitPairTask];
   if(task?.claimedAt!==undefined)throw new Error('这项任务的奖励已领取。');
   if(!complete(s))throw new Error('请先完成全部任务。');
+  const message=grantOpeningReward(s);
+  task.claimedAt=now;
+  return message;
+}
+
+export function grantOpeningReward(s) {
   const room=s.rooms.rabbit;
   const stock=nutritionStock(room,reward.tier)+reward.quantity;
   if(!Number.isSafeInteger(stock))throw new Error('兔房对应营养餐库存已满。');
   s.coins+=reward.coins;
   room.nutritionStock??={};
   room.nutritionStock[reward.tier]=stock;
-  task.claimedAt=now;
   return '已领取 '+reward.coins+' 金币和 '+reward.quantity+' 份臻选兔兔营养餐。';
 }

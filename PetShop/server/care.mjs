@@ -8,8 +8,8 @@ import { activeNutrition, nutritionDuration, nutritionPrice, nutritionStock, nut
 const MINUTE = 60_000, DAY = 24 * 60 * MINUTE, BATCH = 30 * MINUTE;
 export const SPECIES = {
   rabbit: { name:'兔', breeds:['domestic','lop','angora','lionhead'], young:12, growth:18, adult:3, old:1, wait:2, min:3, litter:[25,50,25], roomCost:0, review:40, guide:250, art:'shop-modules/rabbit-room' },
-  cat: { name:'猫', breeds:['british','american','persian','maine'], young:30, growth:60, adult:4, old:2, wait:7, min:2, litter:[20,55,25], roomCost:3000, review:300, guide:350, art:'rooms/cat-room' },
-  dog: { name:'狗', breeds:['shiba','corgi','poodle','dachshund'], young:40, growth:80, adult:5, old:2, wait:10, min:2, litter:[15,35,35,15], roomCost:20000, review:330, guide:400, art:'rooms/dog-room' },
+  cat: { name:'猫', breeds:['british','american','persian','maine'], young:30, growth:60, adult:4, old:2, wait:7, min:2, litter:[20,55,25], roomCost:6000, review:300, guide:350, art:'rooms/cat-room' },
+  dog: { name:'狗', breeds:['shiba','corgi','poodle','dachshund'], young:40, growth:80, adult:5, old:2, wait:10, min:2, litter:[15,35,35,15], roomCost:60000, review:330, guide:400, art:'rooms/dog-room' },
 };
 export const BREEDS = {};
 const catalog = {
@@ -127,7 +127,7 @@ export function rosterStage(value,filter) {
 function fixedTraits(first='温顺') {
   return [first,'清秀','柔软','匀称','紧凑'].map((label,i)=>({type:fields[i],label,rarity:'普通',grade:'B'})).concat(defectTrait('B'));
 }
-function makePet(usedNames,species,breedKey,sex,now,source,data={}) {
+export function makePet(usedNames,species,breedKey,sex,now,source,data={}) {
   const name=takePetName(usedNames,Math.random(),data.name);
   return {id:randomUUID(),species,breedKey,sex,bornAt:now,source,coatIndex:1,mixed:false,
     bred:false,traits:fixedTraits(),honor:0,reviews:0,motherId:null,fatherId:null,...data,name};
@@ -153,12 +153,12 @@ function shelfBatch(s,species,number,usedNames) {
   });
   return {number,offers};
 }
-export function initCare(s,now) {
+export function initCare(s,now,{onboarding=false}={}) {
   if (s.care) return;
   s.care={seed:randomBytes(16).toString('hex'),signedDay:null,claimIds:[],parentRetentionChecked:true,defectGradesUpdated:true};
   s.rooms={rabbit:newRoom(now)};
   const usedNames=new Set();
-  s.pets=[
+  s.pets=onboarding?[]:[
     makePet(usedNames,'rabbit','angora','母',now-30*MINUTE,'开店种兔',{name:'小花'}),
     makePet(usedNames,'rabbit','angora','公',now-30*MINUTE,'开店种兔',{name:'小白',coatIndex:2,traits:fixedTraits('好奇')}),
   ];
@@ -304,7 +304,7 @@ function inherit(mother,father,options,defect) {
   traits.push(defectTrait(GRADES[weighted(defect.gradePercents)]));
   return traits;
 }
-function startLitter(s,args,now) {
+export function startLitter(s,args,now,waitMs) {
   const species=speciesOf(args.species), room=roomOf(s,species), cfg=SPECIES[species];
   requireValue(!room.job,'这间房已有一窝正在培育。');
   const mother=s.pets.find(p=>p.id===args.mother), father=s.pets.find(p=>p.id===args.father);
@@ -318,7 +318,7 @@ function startLitter(s,args,now) {
   }
   const [rare=0,mutation=0]=s.research?.[species]??[];
   const options={rare,positive:room.mutationEnabled?mutation:0,guide};
-  const endsAt=now+cfg.wait*MINUTE, n=cfg.min+weighted(cfg.litter);
+  const endsAt=now+(waitMs??cfg.wait*MINUTE), n=cfg.min+weighted(cfg.litter);
   const mixed=mixedOffspring(mother,father);
   const defect=defectProbabilities(mother.traits,father.traits);
   const usedNames=occupiedPetNames(s);
@@ -333,7 +333,7 @@ function startLitter(s,args,now) {
   });
   if(guide>=0)room.items.guide--;
   room.job={motherId:mother.id,fatherId:father.id,mother:structuredClone(mother),father:structuredClone(father),options,endsAt,offspring};
-  return '已开始繁育，预计 '+cfg.wait+' 分钟后出生。';
+  return waitMs?'已开始首窝繁育，预计 '+waitMs/1000+' 秒后出生。':'已开始繁育，预计 '+cfg.wait+' 分钟后出生。';
 }
 function charge(s,expected,base) {
   chargeQuoted(s,expected,purchasePrice(s,base));

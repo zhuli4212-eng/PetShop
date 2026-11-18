@@ -3,10 +3,11 @@ import type { Animal, Choice, LedgerRow, MutationPreview, NutritionEffect } from
 import { animalFilters, animalSummary, box, caption, frame, heading, paper, picture, press, rect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
 import { litterPositions } from './RoomFloor';
+import { guideNote, growthSpark } from './TutorialPresentation';
 
 interface ParentTrait { grade:string; label:string; }
 interface RoomPage {
-    kind:string; species?:string; count?:number; matchedCount?:number; residents?:Animal[]; wait?:number; remaining?:number;
+    kind:string; species?:string; count?:number; matchedCount?:number; residents?:Animal[]; wait?:number; waitText?:string; remaining?:number;
     maturity?:number; estimate?:string; youngArt?:string; price?:number; breed?:string; coins?:number; signed?:boolean; date?:string;
     parents?:(Animal|null)[]; candidates?:Animal[]; confirm?:Choice; animal?:Animal; bornAt?:number; endsAt?:number;
     guide?:{count:number;index:number};
@@ -119,6 +120,7 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
         const y=spot?.y??h*(.5-[.79,.84,.94][i])+sh/2;
         const resident=box(scene,'Resident'+i,x,y,w,sh);
         const figure=spot?floorArt(resident,a,spot.size,spot.feet):animalArt(resident,a,0,0,w,sh);
+        if(c.ui.playGrowth&&c.p.visual?.grownIds?.includes(a.id))growthSpark(scene,x+w*.31,y+sh*.36);
         if(a.stage==='已故') {
             const badgeY=spot?spot.feet+spot.size*.52+4:-sh*.37;
             const badge=box(resident,'AtRest',0,badgeY,33,15,'#544E44');
@@ -167,15 +169,21 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     tabs(c,true);
     // Older servers returned three unfiltered residents alongside a complete filtered roster.
     const scene=roomScene(c,c.p.art!,c.p.rows?all:m.residents||[],name,true);
-    feedingStation(c,scene,c.width*9/16,m.nutrition);
+    if(c.p.visual?.grownIds){
+        const status=frame(scene,'TutorialMatured',c.width*.21,c.width*.21,109,26,paper.card,paper.brass,false);
+        caption(status,'Text','首对幼兔已成年',0,0,105,24,12,paper.green,true).isBold=true;
+    }else feedingStation(c,scene,c.width*9/16,m.nutrition);
     c.startList();
     const count=m.count??all.length,matched=m.matchedCount??all.length;
     const countText=count===matched?count+' 只登记':'符合 '+matched+' / 共 '+count+' 只';
     section(c,name+'房名册',countText);
+    guideNote(c);
     const status=c.p.filters?.[0]?.find(option=>option.active)?.args?.filter||c.args.filter||'全部';
     const stage=c.p.filters?.[1]?.find(option=>option.active)?.args?.stage||'全部';
-    buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,filter:status,stage},label:'挑选出售'}]);
-    animalFilters(c);
+    if(!c.p.guide){
+        buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,filter:status,stage},label:'挑选出售'}]);
+        animalFilters(c);
+    }
     c.startList();
     all.forEach((a,i)=>petLine(c,a,i,openPet(c,a),'›',i===all.length-1));
     if(!all.length)note(c,c.p.empty||'当前筛选下没有动物。');
@@ -184,8 +192,24 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
 }
 function locked(c:PageCanvas,m:RoomPage):void {
     tabs(c,true);
-    roomScene(c,c.p.art!,[],m.species!,false);
+    const scene=roomScene(c,c.p.art!,[],m.species!,!!c.p.visual?.openingRoom);
     c.startList();
+    if(c.p.visual?.openingRoom){
+        const shade=box(scene,'Unopened',0,0,c.width,c.width*9/16).addComponent(Graphics);
+        rect(shade,-c.width/2,-c.width*9/32,c.width,c.width*9/16,'#433E3180');
+        section(c,'兔房待开放','免费');
+        guideNote(c);
+        section(c,'开房可获得','原色幼兔 × 2');
+        const pair=book(c,'OpeningPair',89);
+        for(const [i,side] of ['母','公'].entries()){
+            const x=c.inner*(i?.24:-.24);
+            picture(pair,'Young'+i,'pets/domestic-coat01_'+(i?'male':'female'),x,9,65,60,'幼年');
+            caption(pair,'Sex'+i,'原色兔 · '+side,x,-27,c.inner*.4,23,13,ink,true);
+        }
+        c.startFooter();
+        buttons(c,c.p.actions||[]);
+        return;
+    }
     section(c,'开放'+m.species+'房','房间与种源一并获得');
     const card=book(c,'RoomOffer',104);
     picture(card,'Young',m.youngArt!,-c.inner/2+47,0,72,70,'幼年');
@@ -324,6 +348,7 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         return;
     }
     section(c,'选择亲本','成年或老年 · 一公一母');
+    guideNote(c);
     c.startList();
     const candidates=m.candidates!;
     candidates.forEach((p,i)=>{
@@ -336,9 +361,9 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     if(!candidates.length)note(c,'当前没有可配对的亲本。');
     c.startFooter();
     const dock=frame(c.body,'PairDock',0,c.slot(76,8),c.inner,76,'#F7E7C5','#AA9169');
-    caption(dock,'Rule',m.species+'一生仅能繁育一窝，预计 '+m.wait+' 分钟后出生。',0,24,c.inner-20,20,13,muted);
+    caption(dock,'Rule',m.species+'一生仅能繁育一窝，预计 '+(m.waitText||m.wait+' 分钟')+'后出生。',0,24,c.inner-20,20,13,muted);
     press(dock,'Review','核对亲本',0,-11,c.inner-20,()=>{if(m.confirm)c.ui.choose(m.confirm);},true,!m.confirm);
-    c.actions((c.p.actions||[]).filter(a=>a.page==='litter'));
+    if(!c.p.guide?.next)c.actions((c.p.actions||[]).filter(a=>a.page==='litter'));
     tabs(c);
 }
 function breeding(c:PageCanvas,m:RoomPage):void {
@@ -350,6 +375,7 @@ function breeding(c:PageCanvas,m:RoomPage):void {
     const remaining=heading(card,'Remaining','',0,2,w,34,21,green);
     c.ui.bindBirthCountdown(remaining,m.endsAt!);
     caption(card,'Parents',m.parents!.filter(a=>a).map(a=>a!.name).join(' × '),0,-32,w,24,13,muted);
+    guideNote(c);
     c.startFooter();
     tabs(c);
     buttons(c,c.p.actions||[]);
@@ -411,6 +437,7 @@ function litter(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     roomScene(c,c.p.art!,animals,m.species!,true,true,links);
     c.startList();
     section(c,'这一窝',m.count+' 只出生');
+    guideNote(c);
     if(c.p.subtitle)note(c,c.p.subtitle);
     c.startList();
     members.forEach((r,i)=>{

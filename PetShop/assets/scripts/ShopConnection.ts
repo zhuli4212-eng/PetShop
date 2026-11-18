@@ -20,6 +20,7 @@ export interface MutationPreview {
 export interface NutritionEffect {
     rate:number; startsAt:number; endsAt:number;
 }
+export interface GuideCue {text:string;target?:string;next?:Choice;}
 export interface LedgerPage {
     readNoteIds?:string[];
     visual?:Args;
@@ -27,6 +28,7 @@ export interface LedgerPage {
     presentation?:{kind:string; bornAt?:number; endsAt?:number; nextStageAt?:number|null; remaining?:number; mutationPreview?:MutationPreview; nutrition?:NutritionEffect; archived?:boolean};
     tabs?:Choice[]; filters?:Choice[][]; selectionLabel?:string;
     rows?:LedgerRow[]; actions?:Choice[]; empty?:string; initialSelection?:string[];
+    guide?:GuideCue;
 }
 export interface ShopSnapshot {
     protocol:1; profileId:string; version:number; name:string; coins:number;
@@ -36,6 +38,7 @@ export interface ShopSnapshot {
     featureAccess?:Record<string,{name:string;requiredLevel:number;unlocked:boolean}>;
     notice?:{key:string,text:string,at:number}; hints?:{id:string,text:string}[];
     taskShortcut?:{completed:number;total:number;choice:Choice};
+    onboarding?:{step:number;choice:Choice;entrance?:string};
     guest?:{id:string;endsAt:number};
     letter?:ShopLetter|null;
 }

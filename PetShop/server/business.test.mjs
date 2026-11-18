@@ -65,8 +65,8 @@ test('确认繁育显示选育方向，复评风险和采购报价仍按现行�
   assert.equal(carePage(s,'review',{species:'rabbit',id:mother.id},t0+3*24*60*min).stage,'老年');
   assert.match(review.rows[0].text,/70%、20%、10%.*同词或稀有度降低.*无法选回/);
   assert.match(review.rows[1].action.confirm,/降档也消耗.*无法选回/);
-  s.coins=5000;
-  careAction(s,'care.unlock',{species:'cat',price:3000},t0);
+  s.coins=6000;
+  careAction(s,'care.unlock',{species:'cat',price:6000},t0);
   s.ratingBps=10000;
   const services=carePage(s,'services',{species:'cat'},t0);
   assert.match(services.actions.find(a=>a.args.item==='review').confirm,/基准 300 金币，实付 290 金币/);

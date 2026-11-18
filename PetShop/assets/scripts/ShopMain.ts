@@ -49,6 +49,7 @@ export class ShopMain extends Component {
     private pageHeight = 844;
     private features!:ShopHomeFeatures;
     private levelProgress!:Label;
+    private lastAutoGuide='';
 
     onLoad(): void {
         this.home = this.node.getChildByName('ShopHome')!;
@@ -66,6 +67,11 @@ export class ShopMain extends Component {
         this.keeperWalk=this.room.getChildByName('Keeper')!.addComponent(ShopkeeperWalk);
         this.features=new ShopHomeFeatures(this.room,(key,args)=>{
             if(this.state!=='open'||this.session.active)return;
+            const guide=this.shop.onboarding;
+            if(guide){
+                if(key===guide.entrance&&guide.choice.page)void this.session.open(guide.choice.page,guide.choice.args);
+                return;
+            }
             if(key==='profile')this.session.claimDailyGift();
             else void this.session.open(key,args);
         });
@@ -77,7 +83,7 @@ export class ShopMain extends Component {
         this.nextTask.isBold=true;
         caption(this.taskShortcut,'Arrow','›',79,-5,17,29,20,'#496944',true);
         tap(this.taskShortcut,()=>{
-            const next=this.shop?.taskShortcut?.choice;
+            const next=this.shop?.onboarding?.choice??this.shop?.taskShortcut?.choice;
             if(this.state==='open'&&!this.session.active&&next?.page)void this.session.open(next.page,next.args);
         });
         this.layout();
@@ -121,6 +127,7 @@ export class ShopMain extends Component {
         this.state = 'open';this.showPage();
         try {const msg=await this.session.recover();if(msg){this.applyShop(await connectShop(this.serverOrigin));this.notify(msg);}}
         catch {this.notify('上次请求尚待确认，重连后会核对原回执。');}
+        this.showHomeNotes();
         void this.pulse();
     }
 
@@ -164,9 +171,13 @@ export class ShopMain extends Component {
         this.features.update(shop);
         const xp=shop.shopExperience;
         this.levelProgress.string=xp?'店铺 '+shop.shopLevel+' 级 · '+(xp.toNext?'经验 '+xp.intoLevel+'/'+xp.toNext:'已满级'):'';
-        const tasks=shop.taskShortcut;
-        this.taskShortcut.active=!!tasks;
-        if(tasks){
+        const tasks=shop.taskShortcut,guide=shop.onboarding;
+        this.taskShortcut.active=!!guide||!!tasks;
+        if(guide){
+            this.taskProgress.string='开店引导 '+(guide.step+1)+'/18';
+            this.nextTask.string=guide.choice.label||'继续开店';
+            if(!this.session.active&&this.state==='open')this.scheduleOnce(()=>this.showHomeNotes(),0);
+        }else if(tasks){
             this.taskProgress.string='任务完成 '+tasks.completed+'/'+tasks.total;
             this.nextTask.string=tasks.choice.label||'查看任务';
         }
@@ -227,6 +238,16 @@ export class ShopMain extends Component {
     private showHomeNotes():void {
         if(this.state!=='open'||!this.foreground||this.session.active)return;
         const profile=this.shop.profileId;
+        const guide=this.shop.onboarding;
+        if(guide){
+            this.closeGuestPopup();
+            const key=profile+':'+guide.step;
+            if(guide.choice.page==='onboarding'&&this.lastAutoGuide!==key){
+                this.lastAutoGuide=key;
+                void this.session.open('onboarding');
+            }
+            return;
+        }
         const letter=this.letter;
         if(letter){
             this.session.showLetter(letter,()=>this.markNotesRead(profile,letter.ids));
