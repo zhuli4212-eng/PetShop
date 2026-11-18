@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-18",
+  "region": "cn-hongkong",
+  "host": "47.243.58.106",
+  "upstream": "https://petshop.zhu-li-4212.xyz",
+  "gameSourceCommit": "9b3ec2b65f1c14d9bdebd3e82053760d7f4bf3b4",
+  "baselineTag": "production-baseline-2026-11-18",
+  "deploymentArchive": "output/aliyun/petshop-production-20261118-hk.tar.gz",
+  "deploymentSha256": "065cdb2a9acfe1666ccbe1536d2159845e139262691db5993d9bcb25facc771f",
+  "releaseDirectory": "/opt/petshop/release.EULI2aVH",
+  "previousReleaseDirectory": "/opt/petshop/release.0Ky1vDXG",
+  "previousBaseline": "production-baseline-2026-11-17",
+  "productionDatabase": "/var/lib/petshop/shop.sqlite",
+  "reset": {
+    "shops": 13,
+    "stage": 0,
+    "coins": 680,
+    "accountIdentitiesMatched": true,
+    "passwordHashesMatched": true,
+    "sessionsMatched": true,
+    "sqliteQuickCheckPassed": true,
+    "rollbackSnapshot": "/var/lib/petshop/rollback/9b3ec2b.qyYdfjrK/shops-before-reset.sqlite",
+    "rollbackSnapshotSha256": "997536583da931334c9c612b03bb2d06b75c95c96ee2ea2fc0dace675e949746",
+    "rollbackSnapshotMatchedSource": true
+  },
+  "releaseRecovery": {
+    "firstAttempt": "Rolled back before swapping the production database because the candidate SQLite copy retained journal sidecars.",
+    "finalization": "Checkpointed the isolated copy and switched it to DELETE journal mode before the atomic swap."
+  },
+  "nginxConfigurationPassed": true,
+  "servicesActive": [
+    "petshop.service",
+    "petshop-web.service"
+  ],
+  "pagesGatewayDeployments": [
+    {
+      "project": "petshop-trial",
+      "id": "e8649e9f-42e4-4285-b959-0bf04ec8e81a",
+      "url": "https://e8649e9f.petshop-trial.pages.dev",
+      "origin": "https://petshop.zhu-li-4212.xyz",
+      "staticUnchanged": true
+    },
+    {
+      "project": "dream-hunter",
+      "id": "5763f880-f5ba-41cc-a275-3b05b9fa4d5c",
+      "url": "https://5763f880.dream-hunter.pages.dev",
+      "origin": "https://petshop.zhu-li-4212.xyz",
+      "staticUnchanged": true
+    }
+  ],
+  "gatewayDeploymentsReused": true,
+  "liveChecks": {
+    "verifiedAt": "2026-11-18T23:23:30.505675+08:00",
+    "entrances": [
+      {
+        "url": "https://petshop-trial.pages.dev/",
+        "health": 200,
+        "anonymousShop": 401,
+        "passwordLogin": 200,
+        "onboardingStep": 0,
+        "logout": 200,
+        "publishedAssetHashes": {
+          "index.html": "fb04e83eb22a8fb21c5be7293317631299050b7866854e1b3ed3d3dfba6493d3",
+          "trial-start.js": "900da11b8b47030fccd78f3c4a1a036dfb765fcf414d1b2567757ddb3c595c05",
+          "trial-login.css": "f579c2fc19635e0942cb7c90932caf7dda4f2aa46eff49050b070c38bcc1f0d6",
+          "assets/main/index.js": "b2860f0a3cb341f91ba54cfe0cf106dc21351ac9a66118b6e4cdcbe56a7c8923"
+        },
+        "audioMime": "audio/mpeg"
+      },
+      {
+        "url": "https://play.zhu-li-4212.xyz/petshop/",
+        "health": 200,
+        "anonymousShop": 401,
+        "passwordLogin": 200,
+        "onboardingStep": 0,
+        "logout": 200,
+        "publishedAssetHashes": {
+          "index.html": "fb04e83eb22a8fb21c5be7293317631299050b7866854e1b3ed3d3dfba6493d3",
+          "trial-start.js": "900da11b8b47030fccd78f3c4a1a036dfb765fcf414d1b2567757ddb3c595c05",
+          "trial-login.css": "f579c2fc19635e0942cb7c90932caf7dda4f2aa46eff49050b070c38bcc1f0d6",
+          "assets/main/index.js": "b2860f0a3cb341f91ba54cfe0cf106dc21351ac9a66118b6e4cdcbe56a7c8923"
+        },
+        "audioMime": "audio/mpeg"
+      }
+    ],
+    "sameAccount": true,
+    "sameShop": true
+  }
+}

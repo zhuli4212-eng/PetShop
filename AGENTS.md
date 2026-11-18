@@ -7,8 +7,9 @@
 
 ## 香港正式版基准
 
-2026-11-17 上线版本用 `production-baseline-2026-11-17` 定位。标签指向包含产物和回执的归档提交 `88a0fa9`，正式服基准以部署包和对应部署记录为准。
+2026-11-18 上线的游戏代码为 `9b3ec2b`。使用 `production-baseline-2026-11-18` 查找含正式部署包和回执的归档提交。正式服基准以实际部署包和部署记录为准。
 
-- 部署包为 `output/aliyun/petshop-production.tar.gz`，SHA-256 为 `af6e53391d51d4d5e9d9a5b201879fea1baa0c67921a5719c6ac1a328ae34eaf`。
-- Pages 部署 ID、服务器位置和当时验证结果见 [`output/aliyun/deployment-20261117-hk.json`](output/aliyun/deployment-20261117-hk.json)及[香港部署说明](外网试玩/aliyun/README.md)。2026-11-18 已核对两个正式入口的首页、启动脚本和登录样式均与该包一致。
-- 后续发布前保留能对应上一版的部署产物和记录，确认其可供回退。发布完成后核对线上版本并更新部署记录。
+- 部署包为 `output/aliyun/petshop-production-20261118-hk.tar.gz`，SHA-256 为 `065cdb2a9acfe1666ccbe1536d2159845e139262691db5993d9bcb25facc771f`。
+- 服务器目录、正式入口核验及回退备份见 [`output/aliyun/deployment-20261118-hk.json`](output/aliyun/deployment-20261118-hk.json)及[香港部署说明](外网试玩/aliyun/README.md)。
+- 2026-11-17 的上版继续由 `production-baseline-2026-11-17` 定位，归档提交为 `88a0fa9`，部署记录为 [`deployment-20261117-hk.json`](output/aliyun/deployment-20261117-hk.json)。
+- 后续发布前保留对应上一版的部署产物和记录，确认其可供回退。发布完成后核对线上版本并更新部署记录。
