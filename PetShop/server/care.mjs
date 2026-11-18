@@ -67,8 +67,9 @@ export function lifeDates(p) {
   const cfg=SPECIES[p.species];
   const naturalGrowth=p.bornAt+cfg.young*MINUTE, naturalAdult=naturalGrowth+cfg.growth*MINUTE;
   const oldAt=naturalAdult+cfg.adult*DAY;
+  const deathAt=p.tutorialDeathAt??(p.tutorialLifeGuard?Infinity:oldAt+cfg.old*DAY);
   return {growthAt:p.maturation?.growthAt??naturalGrowth,adultAt:p.maturation?.adultAt??naturalAdult,
-    oldAt,deathAt:oldAt+cfg.old*DAY};
+    oldAt:Math.min(oldAt,deathAt),deathAt};
 }
 function accelerateMaturation(p,effect,arrivedAt) {
   if(!effect)return;
@@ -90,7 +91,7 @@ function ageBand(p,now) {
   const {growthAt,adultAt,oldAt,deathAt}=lifeDates(p);
   const ends=[growthAt,adultAt,oldAt,deathAt];
   const i=ends.findIndex(end=>now<end);
-  return i<0?['已故',null]:[stageNames[i],ends[i]];
+  return i<0?['已故',null]:[stageNames[i],Number.isFinite(ends[i])?ends[i]:null];
 }
 export const stageOf = (p,now) => ageBand(p,now)[0];
 export const stageEnd = (p,now) => ageBand(p,now)[1];
@@ -304,7 +305,7 @@ function inherit(mother,father,options,defect) {
   traits.push(defectTrait(GRADES[weighted(defect.gradePercents)]));
   return traits;
 }
-export function startLitter(s,args,now,waitMs) {
+export function startLitter(s,args,now,{waitMs,plannedSexes}={}) {
   const species=speciesOf(args.species), room=roomOf(s,species), cfg=SPECIES[species];
   requireValue(!room.job,'这间房已有一窝正在培育。');
   const mother=s.pets.find(p=>p.id===args.mother), father=s.pets.find(p=>p.id===args.father);
@@ -318,15 +319,16 @@ export function startLitter(s,args,now,waitMs) {
   }
   const [rare=0,mutation=0]=s.research?.[species]??[];
   const options={rare,positive:room.mutationEnabled?mutation:0,guide};
-  const endsAt=now+(waitMs??cfg.wait*MINUTE), n=cfg.min+weighted(cfg.litter);
+  const endsAt=now+(waitMs??cfg.wait*MINUTE), n=plannedSexes?.length??(cfg.min+weighted(cfg.litter));
   const mixed=mixedOffspring(mother,father);
   const defect=defectProbabilities(mother.traits,father.traits);
   const usedNames=occupiedPetNames(s);
-  const offspring=Array.from({length:n},()=>{
+  const lineage={motherId:mother.id,fatherId:father.id,motherName:mother.name,fatherName:father.name,mixed};
+  const offspring=Array.from({length:n},(_,i)=>{
+    if(plannedSexes)return makePet(usedNames,species,mother.breedKey,plannedSexes[i],endsAt,'本店繁育',lineage);
     const look=Math.random()<.5?mother:father;
     return makePet(usedNames,species,look.breedKey,Math.random()<.5?'公':'母',endsAt,'本店繁育',{
-      motherId:mother.id,fatherId:father.id,motherName:mother.name,fatherName:father.name,
-      mixed,
+      ...lineage,
       coatIndex:Math.random()<.85?look.coatIndex:weighted(coatWeights)+1,
       traits:inherit(mother,father,options,defect),
     });

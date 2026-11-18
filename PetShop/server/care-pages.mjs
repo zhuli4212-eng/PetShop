@@ -119,7 +119,8 @@ function detail(s,a,now) {
   const history=p.reviewHistory??[],unrecorded=p.reviews-history.length;
   return {title:'个体档案',art:petArt(p),stage,subtitle:breedName(p)+' · '+coatName(p)+' · '+p.sex,
     presentation:{kind:'pet',species:SPECIES[p.species].name,speciesKey:p.species,animal:specimen(s,p,now),traits:p.traits},
-    rows:[{title:stage+' · '+stockStatus(s,p),text:until?'距离下一阶段约 '+describeRemaining(until-now):p.retained?'取消留种后可前往动物回收。':'已故个体可在培育中心回收。'},
+    rows:[{title:stage+' · '+stockStatus(s,p),text:until?'距离下一阶段约 '+describeRemaining(until-now):
+      stage!=='已故'?'仍在房内。':p.retained?'取消留种后可前往动物回收。':'已故个体可在培育中心回收。'},
       {title:'身份 #'+number(p),text:p.source+(p.motherId?' · 母 '+p.motherName+' / 父 '+p.fatherName:'')+(p.mixed?' · 外形 '+BREEDS[p.breedKey].name:'')},
       ...p.traits.map(t=>({title:t.type+' · '+t.grade,text:t.label+' · '+t.rarity})),
       {title:'复评 '+p.reviews+' / 3 次',text:'已获最高荣誉系数 '+p.honor},

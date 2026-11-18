@@ -7,6 +7,8 @@ const rabbit={species:'rabbit'};
 const seedPrice=200;
 export const firstLitterWait=5_000;
 const mealArt='rooms/rabbit-nutrition-premium';
+const openingLetter='街角的麦穗宠物店交给你了。过去，街坊常把小动物托付到这里，也来为它们找一个新家。兔房已经收拾好，先接一对小兔住下，把这间小店重新开起来吧。';
+const firstLitterSexes=['母','公','母','公'];
 const adultOffer=(offer,now)=>({...offer,bornAt:now-(lifeDates(offer).adultAt-offer.bornAt)});
 const pair=(s,breed,now,source)=> {
   const names=occupiedPetNames(s);
@@ -38,18 +40,25 @@ export function onboardingSnapshot(s) {
   if(!g)return;
   const destinations=[
     ['进入店铺','onboarding'],['阅读交接信','onboarding'],
-    ['免费开放兔房','rooms',rabbit,'rooms'],['首次投喂','rooms',rabbit,'rooms'],
-    ['挑选首窝亲本','breed',rabbit,'breed'],['查看首窝进度','breed',rabbit,'breed'],
-    ['查看首窝出生','litter',rabbit,'breed'],['查看第一只幼兔','litter',rabbit,'breed'],
-    ['前往自由市场','market',{},'market'],['出售一只亲本','market',{},'market'],
-    ['查看个体档案','pet',{id:g.remainingId},'rooms'],
-    ['前往培育中心','lab',{},'lab'],['回收已故亲本','recycle',{},'lab'],
-    ['购买成年种源','lab',{},'lab'],['用新种源繁育','rooms',rabbit,'rooms'],
-    ['领取开店任务奖励','tasks',{},'tasks'],['完成第一张订单','orders',{},'orders'],
+    ['免费开放兔房','rooms',rabbit,'rooms','点击「动物小屋」，免费开放兔房。'],
+    ['首次投喂','rooms',rabbit,'rooms','进动物小屋，给第一对幼兔投喂。'],
+    ['挑选首窝亲本','breed',rabbit,'breed','点击「繁育」，挑选首窝的亲本。'],
+    ['查看首窝进度','breed',rabbit,'breed','点击「繁育」，查看首窝进度。'],
+    ['查看首窝出生','litter',rabbit,'breed','点击「繁育」，查看首窝出生记录。'],
+    ['查看第一只幼兔','litter',rabbit,'breed','回到首窝出生记录，查看第一只幼兔。'],
+    ['前往自由市场','market',{},'market','点击「自由市场」，挑选一只已繁育的亲本。'],
+    ['出售一只亲本','market',{},'market','到自由市场出售一只已繁育的亲本。'],
+    ['查看个体档案','pet',{id:g.remainingId},'rooms','点击「动物小屋」，查看另一只亲本的档案。'],
+    ['前往培育中心','lab',{},'lab','点击「培育中心」，找到动物回收。'],
+    ['回收已故亲本','recycle',{},'lab','进入动物回收，处理已故的亲本。'],
+    ['购买成年种源','lab',{},'lab','到培育中心，购入一公一母成年垂耳兔。'],
+    ['用新种源繁育','rooms',rabbit,'rooms','回到兔房，用新购的垂耳兔繁育。'],
+    ['领取开店任务奖励','tasks',{},'tasks','点击「任务」，领取开店奖励。'],
+    ['完成第一张订单','orders',{},'orders','点击「普通订单」，完成第一单。'],
     ['回到店铺','onboarding'],
   ];
-  const [label,page,args,entrance]=destinations[g.step];
-  return {step:g.step,choice:choice(label,page,args),entrance};
+  const [label,page,args,entrance,hint]=destinations[g.step];
+  return {step:g.step,choice:choice(label,page,args),entrance,hint};
 }
 
 export function guideAccess(s,key) {
@@ -58,40 +67,81 @@ export function guideAccess(s,key) {
 }
 export const rabbitWaitingForOpening=s=>Boolean(active(s)?.step<3);
 
-export function settleOnboarding(s) {
+export function settleOnboarding(s,now) {
   const g=active(s), litter=s.rooms.rabbit.lastLitter;
+  if(!g)return;
   if(g?.step===5&&litter?.bornAt===g.firstLitterAt){
     g.litterIds=[...litter.ids];
     g.step=6;
   }
+  if(g?.step===10)settleUnsoldParent(s,g);
+  protectGuideAnimals(s,g,now);
 }
 
-function tutorialTaskPage(s) {
-  const g=s.onboarding;
-  const rows=[
+function settleUnsoldParent(s,g) {
+  const remaining=findPet(s,g.remainingId);
+  if(!remaining?.bred||remaining.tutorialDeathAt!==undefined)return;
+  const soldId=g.starters.find(id=>id!==remaining.id);
+  const sale=s.sales.findLast(record=>record.channel==='market'&&record.lines.some(line=>line.id===soldId));
+  if(sale&&stageOf(remaining,sale.at)!=='已故'){
+    remaining.tutorialDeathAt=sale.at;
+    delete remaining.tutorialLifeGuard;
+  }
+}
+
+// While a shop is in the guide, preserve the actual individuals needed by its remaining actions.
+// Their age and room timers continue to use store time.
+function protectGuideAnimals(s,g,now) {
+  const needed=new Set(g?.purchased??[]);
+  if(g&&g.step<10)for(const id of g.starters??[])needed.add(id);
+  if(g&&g.step<=16){
+    const delivery=g.litterIds?.find(id=>s.pets.some(p=>p.id===id&&!p.retained&&p.tutorialDeathAt===undefined));
+    if(delivery)needed.add(delivery);
+  }
+  for(const pet of s.pets){
+    if(needed.has(pet.id)){
+      pet.tutorialLifeGuard=true;
+    }else if(pet.tutorialLifeGuard){
+      delete pet.tutorialLifeGuard;
+      if(lifeDates(pet).deathAt<now)pet.tutorialDeathAt=now;
+    }
+  }
+}
+
+function tutorialTaskRows(g) {
+  return [
     ['开放兔房','让第一对幼兔入住。','rooms',!!g.starters],
     ['完成首窝繁育','在出生记录查看第一窝。','litter',g.step>=7],
     ['购入一公一母种源','在培育中心购买两只成年垂耳兔。','lab',g.purchased?.length===2],
     ['用新种源继续繁育','从兔房用新购种源开始繁育。','breed',g.step>=15],
   ].map(([title,text,page,done])=>({title,text,done,link:{page,args:rabbit}}));
+}
+
+function tutorialTaskPage(s) {
+  const g=s.onboarding,rows=tutorialTaskRows(g);
   const earned=g.claimedAt!==undefined;
   return {title:'任务',subtitle:rows.filter(row=>row.done).length+' / '+rows.length+' 已完成',
     rows,visual:{rewards:openingReward},
-    actions:[{...action(earned?'已领取':'领取','onboarding.claim',{},'home'),disabled:earned||g.step!==15}]};
+    actions:[{...action(earned?'已领取':'领取','onboarding.claim',{},'home'),disabled:earned||rows.some(row=>!row.done)}]};
 }
 
 export function onboardingPage(s,key,args,now) {
   const g=active(s);
   if(key==='tasks'&&s.onboarding)return tutorialTaskPage(s);
   if(key==='openingGuide'&&s.onboarding){
-    return {title:'交接信',art:'onboarding/handover-envelope',visual:{guideDialog:1},
+    return {title:'交接信',subtitle:openingLetter,visual:{guideDialog:1,letterOpened:true},
       actions:[{label:'返回',type:'ui.back'}]};
   }
   if(key==='onboarding'&&s.onboarding){
     if(g?.step===0)return {title:'欢迎来到你的小店',visual:{guideDialog:0},
       actions:[action('进入店铺','onboarding.enter',{},'onboarding')]};
-    if(g?.step===1)return {title:'交接信',art:'onboarding/handover-envelope',visual:{guideDialog:1},
-      actions:[action('跳过','onboarding.proceed',{},'home'),action('继续','onboarding.proceed',{},'home')]};
+    if(g?.step===1){
+      const opened=g.letterOpened===true;
+      return {title:'交接信',...(opened?{subtitle:openingLetter}:{art:'onboarding/handover-envelope'}),
+        visual:{guideDialog:1,letterOpened:opened},
+        actions:[opened?action('继续','onboarding.proceed',{},'home'):
+          action('拆开交接信','onboarding.openLetter',{},'onboarding')]};
+    }
     if(g?.step===17){
       const room=s.rooms.rabbit;
       return {title:'引导完成',subtitle:'小店交给你了，接下来由你决定留种、出售和培育方向。',
@@ -127,10 +177,11 @@ function candidates(s,g,channel,now) {
   if(channel==='market'&&[8,9].includes(g.step))return g.starters;
   if(channel==='recycle'&&[11,12].includes(g.step))return [g.remainingId];
   if(channel==='order'&&g.step===16){
-    return g.litterIds.filter(id=>{
+    const id=g.litterIds.find(id=>{
       const pet=findPet(s,id);
       return pet&&stageOf(pet,now)!=='已故'&&!pet.retained;
     });
+    return id?[id]:[];
   }
 }
 function checkSale(s,g,args,now) {
@@ -143,6 +194,15 @@ export function decorateGuidePage(s,key,args,view,now) {
   const g=active(s);
   if(!g)return;
   const teach=(text,target,next)=>{view.guide={text,target,next};};
+  if(key==='onboarding'){
+    if(g.step===0)teach('点击「进入店铺」，开始开店引导。','Action0');
+    if(g.step===1)teach(g.letterOpened?'读完信后，点击「继续」。':'点击「拆开交接信」，看看旧店主的留言。','Action0');
+    if(g.step===17)teach(view.subtitle,'Action0');
+  }
+  if(key==='roomNutrition'&&view.visual?.tutorialMeal)teach(view.subtitle,'Action1');
+  if(key==='offer'&&g.step===13&&view.actions?.some(a=>a.type==='onboarding.buy')){
+    teach('核对这只成年种源的信息，再点击「核对购买」。','Action0');
+  }
   if(key==='rooms'&&(args.species??'rabbit')==='rabbit'){
     view.title='动物小屋';
     if(g.step===2)teach('先打开兔房，让第一对小兔住进来。','Action0');
@@ -165,7 +225,7 @@ export function decorateGuidePage(s,key,args,view,now) {
     if(g.step===4){
       if(p?.kind==='pair'||p?.kind==='pairConfirm'){
         p.waitText='5 秒';
-        if(p.kind==='pairConfirm')view.rows[0].text=view.rows[0].text.replace('2 分钟','5 秒');
+        if(p.kind==='pairConfirm')view.rows[0].text='开始后不能取消或更换亲本。5 秒后出生 4 只原色幼兔。';
       }
       teach('挑选首对原色兔作为母本和父本。',parentTarget(p));
     }
@@ -175,12 +235,16 @@ export function decorateGuidePage(s,key,args,view,now) {
       teach('挑选刚买回的两只成年垂耳兔。',parentTarget(p));
     }
   }
+  if(key==='breed'&&g.step===15){
+    teach('第二窝按正常时间培育，现在可以去领取开店奖励。','GuideNext',home('返回店铺'));
+  }
   if(key==='litter'&&[6,7].includes(g.step))teach('小兔出生了，点开第一只看看它的特点。','Animal0');
   if(key==='pet'&&[7,8].includes(g.step)&&args.id===g.litterIds[0]){
     teach('这六项记录了它的特点，选种和经营都会用到。','GuideNext',home('返回店铺'));
   }
   if(key==='pet'&&[10,11].includes(g.step)&&args.id===g.remainingId&&view.stage==='已故'){
     view.actions=view.actions.map(a=>a.page==='recycle'?choice('前往培育中心','lab'):a);
+    teach('接下来，点击「前往培育中心」。','Action0');
   }
   if(key==='market'&&[8,9].includes(g.step))teach('选一只已繁育的亲本。确认后，这只动物会离开店铺。','Row0');
   if(key==='lab'&&g.step===11)teach('去培育中心的动物回收处理这只已故的兔子。','LabRecycle');
@@ -204,30 +268,41 @@ export function decorateGuidePage(s,key,args,view,now) {
       {...row,visual:{...row.visual,choices:row.visual.choices.slice(0,1)}}:
       {title:row.title,text:row.text});
     view.actions=[];
-    teach('订单会为符合条件的动物支付更高的价格。请选择第一单。','Order0');
+    teach('点击第一单的「选择交付」，挑一只首窝原色兔。','Deliver');
   }
-  if(key==='orderDesk'&&g.step===16&&args.id===g.orderId)view.actions=view.actions.slice(0,1);
+  if(key==='orderDesk'&&g.step===16&&args.id===g.orderId){
+    view.actions=view.actions.slice(0,1);
+    teach('点击「选择交付动物」，挑一只首窝原色兔。','Action0');
+  }
   const channel=key==='market'||key==='recycle'?key:key==='sale'?args.channel:null;
   const available=channel&&candidates(s,g,channel,now);
   if(available){
     view.rows=view.rows.filter(row=>available.includes(row.select));
+    if(channel==='market')view.rows.forEach(row=>delete row.link);
     view.visual={...view.visual,eligibleCount:view.rows.length,singleSelect:true};
     view.filters=undefined;
-    if(!view.rows.length)view.actions=[];
-    if(channel==='order')teach('选择一只首窝原色兔，核对本单和市场报价。','Row0');
+    if(!view.rows.length){view.actions=[];if(view.guide)view.guide.target=undefined;}
+    if(channel==='order')teach('选择首窝的第一只原色兔，核对市场与订单估价。','Row0');
+    if(view.guide&&view.rows.length){
+      view.guide.selectedText='选好了，点击「核对'+{market:'出售',recycle:'回收',order:'交付'}[channel]+'」。';
+    }
   }
   if(key==='saleQuote'){
     checkSale(s,g,args,now);
     const commit=view.actions[0];
     view.title={market:'核对出售',recycle:'核对回收',order:'首单核对'}[args.channel];
     commit.label={market:'确认出售',recycle:'确认回收',order:'确认交付'}[args.channel]+' · '+commit.args.amounts[0]+' 金币';
+    teach({market:'核对售价后，点击「确认出售」。',recycle:'核对报价后，点击「确认回收」。',
+      order:'比对市场与订单报价后，点击「确认交付」。'}[args.channel],
+      view.actions.some(a=>a.type==='ui.editSelection')?'Action1':'Action0');
     if(args.channel==='market'){
       commit.go='pet';commit.goArgs={id:g.starters.find(id=>id!==args.ids[0])};
     }
     if(args.channel==='recycle')commit.go='lab';
     if(args.channel==='order'){
-      const market=salePrice(s,findPet(s,args.ids[0]),now,'market');
-      view.visual={...view.visual,guideQuote:'自由市场 '+market+' 金币 · 本订单 '+commit.args.amounts[0]+' 金币（×1.35）'};
+      const pet=findPet(s,args.ids[0]),market=salePrice(s,pet,pet.bornAt,'market');
+      view.visual={...view.visual,guideQuote:'出生时市场估价 '+market+' 金币 · 本订单 '+commit.args.amounts[0]+' 金币（×1.35）'};
+      view.guide.text='出生估价 '+market+' 金币，本单报价 '+commit.args.amounts[0]+' 金币。点击「确认交付」。';
       commit.go='home';
     }
   }
@@ -263,8 +338,11 @@ export function guideAction(s,type,args,now) {
   if(type==='onboarding.enter'){
     expect(g.step===0);g.step=1;return '欢迎来到你的小店。';
   }
+  if(type==='onboarding.openLetter'){
+    expect(g.step===1&&!g.letterOpened);g.letterOpened=true;return '已拆开交接信。';
+  }
   if(type==='onboarding.proceed'){
-    expect(g.step===1);g.step=2;return '现在可以打开兔房。';
+    expect(g.step===1&&g.letterOpened);g.step=2;return '现在可以打开兔房。';
   }
   if(type==='onboarding.openRoom'){
     expect(g.step===2);
@@ -288,7 +366,7 @@ export function guideAction(s,type,args,now) {
   if(type==='care.breed'){
     expect([4,14].includes(g.step)&&matchesPair(guidePair(g),args),'请选择当前引导指定的一公一母。');
     if(g.step===4){
-      const result=startLitter(s,args,now,firstLitterWait);
+      const result=startLitter(s,args,now,{waitMs:firstLitterWait,plannedSexes:firstLitterSexes});
       g.firstLitterAt=s.rooms.rabbit.job.endsAt;g.step=5;
       return result;
     }
@@ -312,12 +390,14 @@ export function guideAction(s,type,args,now) {
     return acquired.name+'已入住兔房。';
   }
   if(type==='onboarding.claim'){
-    expect(g.step===15);
+    expect(g.step===15&&tutorialTaskRows(g).every(row=>row.done));
     const message=grantOpeningReward(s);g.claimedAt=now;g.step=16;
     return message;
   }
   if(type==='onboarding.finish'){
-    expect(g.step===17);g.finishedAt=now;return '引导完成，可以继续经营。';
+    expect(g.step===17);g.finishedAt=now;
+    protectGuideAnimals(s,undefined,now);
+    return '引导完成，可以继续经营。';
   }
   if(type==='care.toggle'&&[4,14].includes(g.step)&&(args.species??'rabbit')==='rabbit')return;
   throw guideError('这项操作在完成开店引导后开放。');
@@ -330,6 +410,7 @@ export function recordGuideAction(s,type,args,now) {
   if(type!=='sale.commit')return;
   if(g.step===9){
     g.remainingId=g.starters.find(id=>id!==args.ids[0]);g.step=10;
+    settleUnsoldParent(s,g);
   }else if(g.step===12){
     g.offers=pair(s,'lop',now,'开店种源');
     g.offerIds=idsOf(g.offers);g.purchased=[];g.step=13;

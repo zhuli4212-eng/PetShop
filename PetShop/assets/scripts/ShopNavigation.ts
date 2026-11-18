@@ -1,4 +1,20 @@
 import type { Args } from './ShopConnection';
+import type { Node } from 'cc';
+
+let guideActive=false;
+let guideTarget:{owner:Node;target:Node}|undefined;
+
+export function setGuideMode(active:boolean):void {
+    guideActive=active;
+    if(!active)guideTarget=undefined;
+}
+
+export function claimGuideTarget(owner:Node,target:Node):void {guideTarget={owner,target};}
+export function releaseGuideTarget(owner:Node):void {if(guideTarget?.owner===owner)guideTarget=undefined;}
+
+export function allowsGuideTap(node:Node):boolean {
+    return !guideActive||!!(guideTarget?.owner.activeInHierarchy&&guideTarget.target===node);
+}
 
 // A section replaces the current level-two view. Other destinations share one
 // work window owned by the section that opened it.

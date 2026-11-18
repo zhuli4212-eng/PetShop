@@ -68,7 +68,7 @@ export class ShopSession {
     private browser:GameBrowserBack;
     private scroll:ScrollView|null=null;
     private renderedVisit?:Visit;
-    private confirm?:{text:string;submit:()=>void};
+    private confirm?:{text:string;submit:()=>void;guide:boolean};
     private bonusVisit?:Visit;
     private bonusPending?:boolean;
     private dropdown:Node|null=null;
@@ -83,7 +83,9 @@ export class ShopSession {
     private dismissLetter?:()=>void;
     private enteredGuideDialog='';
     private grownProfile='';
-    constructor(private host:Host){this.browser=new GameBrowserBack(()=>this.active,()=>this.back());}
+    constructor(private host:Host){
+        this.browser=new GameBrowserBack(()=>this.active,()=>{if(!this.host.wallet()?.onboarding)this.back();});
+    }
     get active():boolean{return !!this.feature;}
     claimDailyGift():void {
         const shop=this.host.wallet();
@@ -371,7 +373,7 @@ export class ShopSession {
             const playGrowth=!backdrop&&!!view.data.visual?.grownIds?.length&&this.grownProfile!==profile;
             if(playGrowth)this.grownProfile=profile;
             const guideDialog=view.data.visual?.guideDialog;
-            const entrance=guideDialog===undefined?'':profile+':'+guideDialog;
+            const entrance=guideDialog===undefined?'':profile+':'+guideDialog+':'+!!view.data.visual?.letterOpened;
             const playEntrance=!backdrop&&!!entrance&&this.enteredGuideDialog!==entrance;
             if(playEntrance)this.enteredGuideDialog=entrance;
             const stageClocks:StageClock[]=[];
@@ -399,6 +401,8 @@ export class ShopSession {
                 }
             },view.key,view.args,{
                 backdrop,modal:!backdrop&&modal,playEntrance,
+                suppressGuide:!!this.confirm||this.bonusVisit===v,
+                guideMode:!!this.host.wallet().onboarding,
                 backToTasks:!backdrop&&!this.panel&&!!this.taskReturn,
                 ready:view.version!==undefined||view.key==='payment',
                 pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
@@ -410,7 +414,7 @@ export class ShopSession {
         if(confirm)confirmBox(this.host.layer,confirm.text,()=>{
             if(this.confirm!==confirm||this.busy)return;
             this.confirm=undefined;this.render(false);confirm.submit();
-        },()=>this.back());
+        },()=>this.back(),confirm.guide);
         if(this.bonusVisit===v){
             const toggle=v.data.actions?.find(a=>a.type==='care.toggle');
             if(v.data.presentation?.kind!=='pairConfirm'||!toggle){this.bonusVisit=undefined;return;}
@@ -468,7 +472,7 @@ export class ShopSession {
         const agreedVersion=v.version;
         const proceed=()=>{void this.commit(a,args,agreedVersion);};
         if(a.confirm){
-            this.remember();this.confirm={text:a.confirm,submit:proceed};this.render(false);
+            this.remember();this.confirm={text:a.confirm,submit:proceed,guide:!!v.data?.guide?.target};this.render(false);
         } else proceed();
     }
     private async send(command:Command):Promise<ResponseReceipt>{
@@ -558,7 +562,7 @@ export class ShopSession {
                     }else if(a.go)this.navigate(a.go,a.goArgs||{});
                 }};
                 feedback=(await this.send(command)).message;
-                if(['onboarding.enter','onboarding.proceed','onboarding.feed'].includes(command.type))feedback='';
+                if(['onboarding.enter','onboarding.openLetter','onboarding.proceed','onboarding.feed'].includes(command.type))feedback='';
                 await this.finishReceipt(command.requestId,true);
             }
         } catch(e){

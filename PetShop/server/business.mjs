@@ -259,7 +259,10 @@ function saleTarget(s, args, now) {
   if (channel === 'order') {
     const slot = s.orders.find(entry => entry.order?.id === args.targetId);
     requireValue(slot, '这张委托已经结束，请返回订单夹。');
+    const onboarding=s.onboarding;
+    const quoteAtBirth=onboarding?.step===16&&onboarding.orderId===slot.order.id;
     return { channel, rate: slot.order.rate, condition: orderCondition(slot.order), slot,
+      quoteAtBirth,
       eligible: p => matchesOrder(p, slot.order) };
   }
   if (channel === 'guest') {
@@ -328,7 +331,7 @@ function quoteSelection(s, args, now, agreedAmounts) {
       continue;
     }
     if (!target) continue;
-    const amount = salePrice(s, p, now, args.channel, target.rate);
+    const amount = salePrice(s, p, target.quoteAtBirth?p.bornAt:now, args.channel, target.rate);
     if (Array.isArray(agreedAmounts) && agreedAmounts[index] !== amount) {
       issues.push(name + '现价 ' + amount + ' 金币');
     }
@@ -448,7 +451,7 @@ export function businessPage(s, page, args, now) {
       empty: (channel === 'recycle' ? '当前没有可回收的已故动物。' : '当前没有符合收购条件的动物。') +
         (omitted.种源保护 ? '种源不可出售，可在个体档案中取消留种。' : ''),
       rows: eligible.map(p => {
-        const price = salePrice(s, p, now, channel, target.rate);
+        const price = salePrice(s, p, target.quoteAtBirth?p.bornAt:now, channel, target.rate);
         return { title: p.name + '  ·  ' + price + ' 金币', visual:{ name:p.name,price,summary:petCaption(p,now) },
           text: petCaption(p, now) + ' · #' + p.id.slice(0, 6).toUpperCase(),
           art: petArt(p), stage: stageOf(p, now), select: p.id,

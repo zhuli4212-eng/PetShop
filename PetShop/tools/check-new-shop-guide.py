@@ -12,26 +12,15 @@ ROOT = Path(__file__).resolve().parents[1]
 QA = import_module("check-breeding-controls")
 MAIN = "window.cc?.director?.getScene()?.getChildByName('Canvas')?.getComponent('ShopMain')"
 SERVER = """
-import {createInterface} from 'node:readline';
 import {GameStore} from './server/game-store.mjs';
 import {createPetShopServer} from './server/main.mjs';
-import {lifeDates} from './server/care.mjs';
 const store = new GameStore(process.argv[1],{onboarding:true});
 const server = createPetShopServer(process.argv[2],{store});
 server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
-createInterface({input:process.stdin}).on('line',line=>{
-  if(line!=='expired-fixture'||store.state.onboarding.step!==10)throw Error('预期为步骤 10');
-  const s=structuredClone(store.state);
-  const pet=s.pets.find(p=>p.id===s.onboarding.remainingId);
-  pet.bornAt-=lifeDates(pet).deathAt-Date.now()+5;
-  delete pet.maturation;
-  s.version++;store.save(s);
-  console.log('expired-fixture');
-});
 """
 
 
-def verify(browser, url, proc, width, output):
+def verify(browser, url, width, output):
     page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
                             is_mobile=True, has_touch=True,
                             reduced_motion="reduce" if width == 320 else "no-preference")
@@ -77,7 +66,10 @@ def verify(browser, url, proc, width, output):
             page.screenshot(path=output / (name + ".png"))
 
     def focus(scope):
-        touch.wait("scope=>!!pairQA.find(scope)?.getChildByName('GuideFocus')", scope)
+        touch.wait("""name=>{
+            const node=pairQA.find('GuideSpotlight'),cue=node?.getComponent('GuideSpotlight');
+            return cue?.target?.name===name&&!!node.getChildByName('GuideNote')&&cue.prior?.right>cue.prior?.left;
+        }""", scope)
 
     def back():
         tap("Back")
@@ -86,6 +78,11 @@ def verify(browser, url, proc, width, output):
         touch.wait("name=>window.guideSounds.includes(name)", name)
 
     def audio_settings():
+        touch.wait("()=>!"+MAIN+".pulseBusy&&!"+MAIN+".session.busy")
+        main("return m.pulse()")
+        if main("return m.session.current?.key==='visitBook'"):
+            tap(text="合上账簿")
+        touch.wait("()=>!pairQA.visit()")
         tap("Sign", scope="Hotspot_login")
         ready("login")
         tap(text="声音设置")
@@ -96,6 +93,7 @@ def verify(browser, url, proc, width, output):
 
     def pairing(first):
         touch.kind("pair")
+        focus("Animal0")
         tap("Animal0")
         touch.wait("()=>pairQA.ready()&&pairQA.visit().data.presentation.parents.filter(Boolean).length===1")
         tap("Animal1")
@@ -104,6 +102,7 @@ def verify(browser, url, proc, width, output):
         touch.kind("pairConfirm")
         tap("Action0")
         touch.wait("()=>!!pairQA.find('Confirm')")
+        focus("Accept")
         action("care.breed", "Accept", scope="Confirm")
         touch.kind("breeding")
         remaining = main("return m.session.current.data.presentation.endsAt-m.shop.now")
@@ -129,8 +128,17 @@ def verify(browser, url, proc, width, output):
     step(1)
     music_playing()
     touch.wait("()=>!!pairQA.find('HandoverEnvelope')?.getComponent(cc.Sprite)?.spriteFrame")
-    focus("Action1")
+    focus("Action0")
     snap("01-交接信")
+    action("onboarding.openLetter", "Action0")
+    touch.wait("()=>!!pairQA.find('OpenedLetter')")
+    assert main("return m.session.current.data.subtitle.includes('麦穗宠物店')")
+    touch.wait("()=>(pairQA.find('DeskPage').getComponent('cc.UIOpacity')?.opacity??255)===255")
+    snap("01-拆开交接信")
+    open_page(reload=True)
+    ready("onboarding")
+    step(1)
+    assert main("return m.session.current.data.visual.letterOpened")
     page.evaluate(r"""() => {
         const open=XMLHttpRequest.prototype.open,send=XMLHttpRequest.prototype.send;
         window.staleGuideRequests=0;
@@ -149,46 +157,30 @@ def verify(browser, url, proc, width, output):
             XMLHttpRequest.prototype.send=send;
         };
     }""")
-    action("onboarding.proceed", "Action1" if width == 390 else "Action0")
+    action("onboarding.proceed", "Action0")
     step(2)
     touch.wait("()=>!pairQA.visit()")
     assert page.evaluate("staleGuideRequests") == 0
     page.evaluate("restoreGuideRequests()")
     main("return m.session.open('onboarding')")
     assert page.evaluate("!pairQA.visit()")
-    if width == 390:
-        audio_settings()
-        tap("Action0")
-        music_playing(False)
-        tap("Action1")
-        assert page.evaluate("""() => ['music','effects'].every(
-          key=>localStorage.getItem('petshop.audio.'+key)==='off')""")
-        count = page.evaluate("guideSounds.length")
-        back()
-        ready("login")
-        assert page.evaluate("guideSounds.length") == count
-        open_page(reload=True)
-        audio_settings()
-        assert main("return m.session.current.data.actions.every(a=>a.label.includes('已关闭'))")
-        tap("Action0")
-        tap("Action1")
-        music_playing()
-        main("m.hideGame()")
-        music_playing(False)
-        main("m.showGame()")
-        music_playing()
-        back()
-        ready("login")
-        back()
+    focus("Sign")
+    tap("Sign", scope="Hotspot_login")
+    tap("TaskShortcut", scope="ShopHome")
+    assert page.evaluate("!pairQA.visit()")
+    snap("02-首页引导")
     tap("Sign", scope="Hotspot_rooms")
     ready("rooms")
     focus("Action0")
+    back()
+    page.keyboard.press("Escape")
+    ready("rooms")
     snap("02-免费开放兔房")
     action("onboarding.openRoom", "Action0")
     step(3)
     open_page(reload=True)
     step(3)
-    tap("TaskShortcut", scope="ShopHome")
+    tap("Sign", scope="Hotspot_rooms")
     ready("rooms")
     focus("Feed")
     tap("Feed")
@@ -211,40 +203,25 @@ def verify(browser, url, proc, width, output):
     tap("GuideNext")
     ready("litter")
     step(7)
-    assert main("return m.session.current.data.rows.filter(r=>r.litterMember).length") >= 3
+    assert main("return m.session.current.data.rows.filter(r=>r.litterMember).map(r=>r.animal.sex)") == ["母","公","母","公"]
     tap("Animal0")
     ready("pet")
     step(8)
     assert main("return m.session.current.data.presentation.traits.length") == 6
-    back()
-    ready("litter")
-    back()
-    ready("breed")
-    back()
+    focus("GuideNext")
+    tap("GuideNext")
     tap("Sign", scope="Hotspot_market")
     ready("market")
     step(9)
     assert main("return m.session.current.data.rows.length") == 2
     sale("market")
     ready("pet")
-    step(10)
-    sound("coins")
-    assert main("return m.session.current.data.presentation.animal.stage") == "成年"
-
-    proc.stdin.write("expired-fixture\n")
-    proc.stdin.flush()
-    assert proc.stdout.readline().strip() == "expired-fixture"
-    open_page(reload=True)
-    tap("TaskShortcut", scope="ShopHome")
-    ready("pet")
     step(11)
+    sound("coins")
     assert main("return m.session.current.data.presentation.animal.stage") == "已故"
-    assert not page.evaluate("!!pairQA.find('GuideNote')")
     snap("10-已故档案")
-    back()
-    ready("rooms")
-    back()
-    tap("Sign", scope="Hotspot_lab")
+    focus("Action0")
+    tap("Action0")
     ready("lab")
     focus("LabRecycle")
     tap("LabRecycle")
@@ -261,13 +238,20 @@ def verify(browser, url, proc, width, output):
         action("onboarding.buy", "Accept", scope="Confirm")
         ready("lab")
         assert main("return m.session.current.data.subtitle") == f"已购买 {index+1} / 2"
+        if index == 0:
+            open_page(reload=True)
+            step(13)
+            tap("Sign", scope="Hotspot_lab")
+            ready("lab")
+            assert main("return m.session.current.data.subtitle") == "已购买 1 / 2"
     step(14)
     tap("GuideNext")
     ready("rooms")
     tap("GuideNext")
     pairing(False)
     step(15)
-    back()
+    focus("GuideNext")
+    tap("GuideNext")
     tap("Sign", scope="Hotspot_tasks")
     ready("tasks")
     assert main("return m.session.current.data.rows.filter(r=>r.done).length") == 4
@@ -280,12 +264,35 @@ def verify(browser, url, proc, width, output):
     assert main("return m.session.current.data.rows.length") == 3
     tap("Deliver", scope="Order0")
     ready("sale")
+    assert main("return m.session.current.data.rows.length") == 1
     sale("order")
     step(17)
     ready("onboarding")
     snap("17-引导完成")
     action("onboarding.finish", "Action0")
     step(None)
+    assert not page.evaluate("!!pairQA.find('GuideSpotlight')")
+    if width == 390:
+        audio_settings()
+        tap("Action0")
+        music_playing(False)
+        tap("Action1")
+        assert page.evaluate("""() => ['music','effects'].every(
+          key=>localStorage.getItem('petshop.audio.'+key)==='off')""")
+        count = page.evaluate("guideSounds.length")
+        back()
+        ready("login")
+        assert page.evaluate("guideSounds.length") == count
+        open_page(reload=True)
+        audio_settings()
+        assert main("return m.session.current.data.actions.every(a=>a.label.includes('已关闭'))")
+        tap("Action0")
+        tap("Action1")
+        music_playing()
+        main("m.hideGame()")
+        music_playing(False)
+        main("m.showGame()")
+        music_playing()
     assert not errors, errors
     page.close()
 
@@ -300,10 +307,10 @@ def main():
             with TemporaryDirectory(prefix="petshop-guide-web-") as directory:
                 with subprocess.Popen(["node", "--input-type=module", "-e", SERVER,
                         directory, str(ROOT/"build"/"web-mobile")], cwd=ROOT,
-                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding="utf-8") as proc:
+                        stdout=subprocess.PIPE, text=True, encoding="utf-8") as proc:
                     try:
                         port = int(proc.stdout.readline().strip())
-                        verify(browser, f"http://127.0.0.1:{port}/", proc, width, args.output)
+                        verify(browser, f"http://127.0.0.1:{port}/", width, args.output)
                         print(f"{width} px 触屏引导检查通过", flush=True)
                     finally:
                         proc.terminate()

@@ -1,9 +1,9 @@
 import { BlockInputEvents, Color, Graphics, Mask, Node, ScrollView, UITransform, Vec2 } from 'cc';
-import type { Args, Choice, LedgerPage, LedgerRow } from './ShopConnection';
+import type { Args, Choice, GuideCue, LedgerPage, LedgerRow } from './ShopConnection';
 import { box, caption, frame, heading, lines, paper, picture, press, rect, tap, type LedgerUI, type PageCanvas } from './LedgerCanvas';
 import { drawRoom } from './RoomPresentation';
 import { drawBusiness, nutritionStore } from './BusinessPresentation';
-import { guideDialog, guideEntrance, guideFocus, guideNote, guideTarget } from './TutorialPresentation';
+import { guideDialog, guideEntrance, guideNote, guideTarget, revealGuideTarget, showGuideSpotlight } from './TutorialPresentation';
 
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean =>
@@ -283,7 +283,7 @@ function generic(ctx:PageCanvas):void {
     }
 }
 
-interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;backToTasks?:boolean;playEntrance?:boolean;}
+interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;backToTasks?:boolean;playEntrance?:boolean;suppressGuide?:boolean;guideMode?:boolean;}
 
 // Keep explanatory cards whole when they do not fit, while animal and transaction lists can scroll.
 function paginateDetails(content:Node,sheet:Node,ui:LedgerUI,width:number,top:number,height:number):boolean {
@@ -319,11 +319,8 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     const modal=!!opts.modal, width=modal?Math.min(378,bounds.width-18):bounds.width;
     const headerHeight=modal?54:64;
     const maxHeight=modal?Math.min(height-28,Math.floor(height*.93)):height;
-    if(modal) {
-        const veil=box(parent,'Shade',0,0,bounds.width,height);
-        const g=veil.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);g.rect(-bounds.width/2,-height/2,bounds.width,height);g.fill();
-        veil.addComponent(BlockInputEvents);
-    }
+    const veil=modal?box(parent,'Shade',0,0,bounds.width,height):undefined;
+    veil?.addComponent(BlockInputEvents);
     const sheet=box(parent,opts.backdrop?'UnderlyingPage':'DeskPage',0,0,width,maxHeight);
     const viewport=box(sheet,'Viewport',0,0,width,1);
     viewport.addComponent(Mask);
@@ -397,16 +394,25 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
         g.rect(-width/2+1.5,-actualHeight/2+1.5,width-3,actualHeight-3);g.stroke();
     }
     scroll.scrollToOffset(new Vec2(0,Math.max(0,Math.min(ui.offset,listHeight-vh))),0);
-    if(!opts.backdrop&&p.guide?.target){
-        const name=p.visual?.singleSelect&&ui.selected.size?'Action0':p.guide.target;
-        const target=guideTarget(sheet,name);
-        if(target)guideFocus(target);
+    const canGuide=!opts.backdrop&&!opts.suppressGuide;
+    const recovery=opts.guideMode&&(opts.offline?{target:'Retry',text:'重新连接后，继续当前引导。'}:
+        opts.pending?{target:'Row-1',text:'查询操作结果，继续当前引导。'}:
+        p.title==='重新核对'?{target:'Action0',text:'返回后重新打开当前引导。'}:undefined);
+    const guide:GuideCue|undefined=canGuide?(recovery||(opts.ready!==false?p.guide:undefined)):undefined;
+    const selected=!!(p.visual?.singleSelect&&ui.selected.size&&guide?.selectedText);
+    const target=guide?.target?guideTarget(sheet,selected?'Action0':guide.target):undefined;
+    if(target&&guide){
+        revealGuideTarget(target,scroll);
+        showGuideSpotlight(parent,target,selected?guide.selectedText:guide.text,modal,guideTarget(sheet,'OpenedLetter'));
+    }else if(veil){
+        const g=veil.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);
+        g.rect(-bounds.width/2,-height/2,bounds.width,height);g.fill();
     }
     if(opts.playEntrance)guideEntrance(sheet);
     return scroll;
 }
 
-export function drawConnection(parent:Node,height:number,failed:boolean,retry:()=>void):void {
+export function drawConnection(parent:Node,height:number,failed:boolean,retry:()=>void,guide=false):void {
     const bounds=parent.getComponent(UITransform)!;
     const w=bounds.width,h=bounds.height||height;
     const sheet=box(parent,'Connection',0,0,w,h,paper.green);
@@ -414,22 +420,28 @@ export function drawConnection(parent:Node,height:number,failed:boolean,retry:()
     const sign=frame(sheet,'Sign',0,10,width,failed?192:105,paper.page);
     heading(sign,'Title','宠物店',0,failed?53:17,width-24,39,23,paper.green,true);
     caption(sign,'Status',failed?'店铺服务器未连接，请检查服务后重试。':'正在打开经营账簿…',0,failed?8:-20,width-24,40,15,paper.ink,true);
-    if(failed)press(sign,'Retry','重新连接',0,-52,150,retry,true);
+    if(failed){
+        const button=press(sign,'Retry','重新连接',0,-52,150,retry,true);
+        if(guide)showGuideSpotlight(parent,button,'重新连接后，继续当前引导。');
+    }
 }
 
-export function confirmBox(parent:Node,title:string,onYes:()=>void,onNo:()=>void):Node {
+export function confirmBox(parent:Node,title:string,onYes:()=>void,onNo:()=>void,guide=false):Node {
     const bounds=parent.getComponent(UITransform)!;
     const overlay=box(parent,'Confirm',0,0,bounds.width,bounds.height);
     overlay.addComponent(BlockInputEvents);
-    const g=overlay.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);
-    g.rect(-bounds.width/2,-bounds.height/2,bounds.width,bounds.height);g.fill();
+    if(!guide){
+        const g=overlay.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);
+        g.rect(-bounds.width/2,-bounds.height/2,bounds.width,bounds.height);g.fill();
+    }
     const w=Math.min(356,bounds.width-24), inner=w-28;
     const h=Math.max(152,Math.min(bounds.height-24,lines(title,inner,15)*22+105));
     const panel=frame(overlay,'ConfirmPanel',0,0,w,h,paper.card,'#866846',true);
-    caption(panel,'Question',title,0,28,inner,h-76,15,paper.ink);
+    if(!guide)caption(panel,'Question',title,0,28,inner,h-76,15,paper.ink);
     const bw=(inner-8)/2;
     press(panel,'Cancel','返回',-(bw+8)/2,-h/2+38,bw,onNo);
-    press(panel,'Accept','确认',(bw+8)/2,-h/2+38,bw,onYes,true);
+    const accept=press(panel,'Accept','确认',(bw+8)/2,-h/2+38,bw,onYes,true);
+    if(guide)showGuideSpotlight(parent,accept,title);
     return overlay;
 }
 

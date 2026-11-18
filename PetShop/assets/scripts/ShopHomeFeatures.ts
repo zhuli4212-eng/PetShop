@@ -1,7 +1,6 @@
 import { Label, Node, UITransform } from 'cc';
 import type { Args, ShopSnapshot } from './ShopConnection';
 import { caption, frame, picture, tap } from './LedgerCanvas';
-import { guideFocus } from './TutorialPresentation';
 
 interface Entrance {
     key:string;
@@ -46,9 +45,6 @@ export class ShopHomeFeatures {
             const rule=shop.featureAccess?.[entry.key];
             entry.target.active=entry.key==='tasks'||!!rule||entry.key==='collection'||shop.entrances.includes(entry.key);
             if(entry.key==='profile'&&(shop.dayClaimed||shop.onboarding))entry.target.active=false;
-            const focus=entry.sign.getChildByName('GuideFocus');
-            if(shop.onboarding?.entrance===entry.key)guideFocus(entry.sign);
-            else if(focus){focus.removeFromParent();focus.destroy();}
             if(rule&&!rule.unlocked&&!entry.label) {
                 const tag=frame(entry.sign,'LevelLock',0,-16,64,17,'#66513A','#BBA17A',false);
                 picture(tag,'LockIcon','shop-modules/node-lock',-23,0,13,13);
@@ -62,6 +58,8 @@ export class ShopHomeFeatures {
             }
         }
     }
+
+    signFor(key:string):Node|undefined {return this.props.get(key)?.sign;}
 
     resize(roomScale:number,minWidth:number,minHeight:number):void {
         this.props.forEach(({ui,sign,width,height})=>{

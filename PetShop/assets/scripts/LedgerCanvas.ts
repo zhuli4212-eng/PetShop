@@ -2,6 +2,7 @@ import { BlockInputEvents, Color, EventTouch, Graphics, isValid, Label, Node, re
 import type { Animal, Args, Choice, LedgerPage, LedgerRow } from './ShopConnection';
 import type { RoomFloor } from './RoomFloor';
 import { playTap } from './ShopAudio';
+import { allowsGuideTap } from './ShopNavigation';
 
 export const paper = {
     ink: '#443A29', muted: '#6C5E46', page: '#F6E9CB', card: '#FFF1D2',
@@ -117,6 +118,7 @@ export function tap(n: Node, fn: () => void): void {
         const a = e.getUIStartLocation(), b = e.getUILocation();
         if (Math.hypot(a.x-b.x, a.y-b.y) > 14) return;
         e.propagationStopped = true;
+        if(!allowsGuideTap(n))return;
         playTap();
         fn();
     });
@@ -250,7 +252,6 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
         paths.add('pet-young/domestic-coat01_male');
     }
     if(page.visual?.grownIds)paths.add('onboarding/growth-spark');
-    if(page.guide||page.visual?.guideDialog!==undefined||page.visual?.tutorialMeal)paths.add('onboarding/focus-corner');
     await Promise.all(Array.from(paths,art=>{
         const path=art+'/spriteFrame';
         if(resources.get(path,SpriteFrame))return;

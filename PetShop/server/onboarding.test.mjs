@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GameStore } from './game-store.mjs';
+import { ShopEngine } from './shop-engine.mjs';
 import { lifeDates, stageOf } from './care.mjs';
 
 test('开店引导按经营事件推进，保存每一步及成交回执，只有首窝使用 5 秒', t=>{
@@ -29,6 +30,10 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.throws(()=>act('onboarding.openRoom'),/当前引导/);
   act('onboarding.enter');reopen();
   assert.equal(page('onboarding').art,'onboarding/handover-envelope');
+  assert.throws(()=>act('onboarding.proceed'),/当前引导/);
+  act('onboarding.openLetter');reopen();
+  assert.equal(page('onboarding').visual.letterOpened,true);
+  assert.match(page('onboarding').subtitle,/麦穗宠物店/);
   act('onboarding.proceed');
   assert.equal(page('onboarding').visual.returnHome,true);
   const open=command('onboarding.openRoom');
@@ -56,6 +61,8 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   const job=structuredClone(store.state.rooms.rabbit.job);
   assert.equal(step(),5);
   assert.equal(job.endsAt-now,5000);
+  assert.deepEqual(job.offspring.map(p=>p.sex),['母','公','母','公']);
+  assert.ok(job.offspring.every(p=>p.breedKey==='domestic'&&p.traits.every(t=>t.grade==='B')));
   now+=4000;reopen();
   assert.equal(step(),5);
   assert.deepEqual(store.state.rooms.rabbit.job.offspring,job.offspring);
@@ -74,21 +81,21 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.deepEqual(market.rows.map(r=>r.select),[mother,father]);
   assert.throws(()=>page('saleQuote',{channel:'market',ids:[mother,father]}),/指定的一只/);
   const quote=page('saleQuote',{channel:'market',ids:[mother]});
-  choose(quote.actions[0]);reopen();
+  const parentBefore=structuredClone(store.state.pets.find(p=>p.id===father));
+  const marketSale=command(quote.actions[0].type,quote.actions[0].args);
+  const sold=store.act(marketSale);
   assert.equal(step(),10);
   assert.equal(store.state.onboarding.remainingId,father);
-  assert.equal(page('pet',{id:father}).presentation.animal.stage,'成年');
-  assert.equal(step(),10);
-  assert.equal(page('recycle').rows.length,0);
-  assert.equal(step(),10);
-
-  // Fixture only. Present the naturally expired individual without moving store time
-  // or changing any other animal's age.
-  const expired=structuredClone(store.state);
-  const remaining=expired.pets.find(p=>p.id===father);
-  remaining.bornAt-=lifeDates(remaining).deathAt-now+1;
-  delete remaining.maturation;
-  store.save(expired);
+  const unSold=()=>store.state.pets.find(p=>p.id===father);
+  assert.equal(lifeDates(unSold()).deathAt,now);
+  assert.equal(unSold().bornAt,parentBefore.bornAt);
+  assert.ok(store.state.pets.filter(p=>p.id!==father).every(p=>p.tutorialDeathAt===undefined));
+  // Reopen a save that reached step 10 before the special settlement was added.
+  const oldStep=structuredClone(store.state);
+  delete oldStep.pets.find(p=>p.id===father).tutorialDeathAt;
+  store.save(oldStep);reopen();
+  assert.equal(lifeDates(unSold()).deathAt,now);
+  assert.deepEqual(store.act(marketSale),sold);
   assert.equal(page('pet',{id:father}).presentation.animal.stage,'已故');
   assert.equal(step(),11);
   const recycle=page('recycle');
@@ -127,9 +134,10 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.equal(orders.rows.length,3);
   const targetId=orders.rows[0].link.args.id;
   const suitable=page('sale',{channel:'order',targetId}).rows;
-  assert.ok(suitable.length>0&&suitable.every(r=>children.some(c=>c.animal.id===r.select)));
+  assert.deepEqual(suitable.map(r=>r.select),[children[0].animal.id]);
   const orderQuote=page('saleQuote',{channel:'order',targetId,ids:[suitable[0].select]});
-  assert.match(orderQuote.visual.guideQuote,/自由市场 \d+ 金币 · 本订单 \d+ 金币（×1\.35）/);
+  assert.equal(orderQuote.visual.guideQuote,'出生时市场估价 80 金币 · 本订单 108 金币（×1.35）');
+  assert.deepEqual(orderQuote.actions[0].args.amounts,[108]);
   choose(orderQuote.actions[0]);
   assert.equal(step(),17);
   assert.equal(store.state.orders[0].readyAt,now+30*60_000);
@@ -152,4 +160,52 @@ test('已存在的本机店铺不被改成新手档', t=>{
   assert.equal(restored.shop().profileId,profileId);
   assert.equal(restored.shop().onboarding,undefined);
   assert.deepEqual(restored.state.pets.map(p=>p.id),known);
+});
+
+test('多次长时间离线后，保留引导目标并按原时刻结算繁育',()=>{
+  let now=Date.UTC(2026,10,18,1);
+  const shop=new ShopEngine({wall:()=>now,monotonic:()=>0,onboarding:true});
+  const read=(page,args={})=>shop.page(page,args).page;
+  const act=(type,args={})=>{
+    const {profileId,version}=shop.shop();
+    return shop.act({requestId:randomUUID(),profileId,version,type,args});
+  };
+  const click=a=>act(a.type,a.args);
+  const away=()=>{
+    now+=5*86_400_000;
+    return shop.shop().onboarding.step;
+  };
+  const pet=id=>shop.state.pets.find(p=>p.id===id);
+  for(const type of ['enter','openLetter','proceed','openRoom','feed'])act('onboarding.'+type);
+  const [mother,father]=shop.state.onboarding.starters;
+  assert.equal(away(),4);
+  assert.ok([mother,father].every(id=>stageOf(pet(id),now)==='老年'));
+  act('care.breed',{mother,father});
+  const firstEnds=shop.state.rooms.rabbit.job.endsAt;
+  assert.equal(away(),6);
+  assert.equal(shop.state.rooms.rabbit.lastLitter.bornAt,firstEnds);
+  const litter=read('litter').rows.filter(row=>row.litterMember).map(row=>row.animal);
+  assert.deepEqual(litter.map(p=>p.stage),['老年','已故','已故','已故']);
+  read('pet',{id:litter[0].id});
+  read('market');
+  click(read('saleQuote',{channel:'market',ids:[mother]}).actions[0]);
+  assert.equal(lifeDates(pet(father)).deathAt,now);
+  read('pet',{id:father});read('recycle');
+  click(read('saleQuote',{channel:'recycle',ids:[father]}).actions[0]);
+  const [female,male]=read('lab').rows.map(row=>row.animal.id);
+  click(read('offer',{id:female}).actions[0]);
+  assert.equal(away(),13);
+  assert.equal(stageOf(pet(female),now),'老年');
+  click(read('offer',{id:male}).actions[0]);
+  act('care.breed',{mother:female,father:male});
+  assert.equal(away(),15);
+  click(read('tasks').actions[0]);
+  const targetId=read('orders').rows[0].link.args.id;
+  assert.deepEqual(read('sale',{channel:'order',targetId}).rows.map(row=>row.select),[litter[0].id]);
+  const confirm=read('saleQuote',{channel:'order',targetId,ids:[litter[0].id]}).actions[0];
+  assert.deepEqual(confirm.args.amounts,[108]);
+  click(confirm);
+  click(read('onboarding').actions[0]);
+  assert.equal(shop.shop().onboarding,undefined);
+  assert.ok(shop.state.pets.every(p=>!p.tutorialLifeGuard));
 });

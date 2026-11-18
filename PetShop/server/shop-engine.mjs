@@ -140,7 +140,7 @@ export class ShopEngine {
     const s=structuredClone(this.state);
     const world=({receipts,clock,...fields})=>JSON.stringify(fields);
     const before=world(s);
-    tickCare(s,now);settleOnboarding(s);tickShow(s,now);tickBusiness(s,now);
+    tickCare(s,now);settleOnboarding(s,now);tickShow(s,now);tickBusiness(s,now);
     if(this.clockChange)s.clockEvent=this.clockChange;
     const changed=before!==world(s);
     if(changed || now-this.savedAt>=minute || (forceCheckpoint&&now!==this.savedAt)) {s.clock=now;if(changed)s.version++;this.save(s);}

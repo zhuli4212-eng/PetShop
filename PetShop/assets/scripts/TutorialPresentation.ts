@@ -1,28 +1,151 @@
-import { Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Mask, Node, ScrollView, tween, UIOpacity, UITransform, Vec2, Vec3 } from 'cc';
 import { box, caption, frame, lines, paper, picture, press, type PageCanvas } from './LedgerCanvas';
+import { claimGuideTarget, releaseGuideTarget } from './ShopNavigation';
 
 const still=():boolean=>typeof window!=='undefined'&&!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-export function guideFocus(target:Node):void {
-    if(target.getChildByName('GuideFocus'))return;
-    const ui=target.getComponent(UITransform);
-    if(!ui?.width||!ui.height)return;
-    const x=(.5-ui.anchorX)*ui.width,y=(.5-ui.anchorY)*ui.height;
-    const w=ui.width+4,h=ui.height+4;
-    const ring=box(target,'GuideFocus',x,y,w,h);
-    box(ring,'Top',0,h/2,w,1,'#FFE4A3');
-    box(ring,'Bottom',0,-h/2,w,1,'#FFE4A3');
-    box(ring,'Left',-w/2,0,1,h,'#FFE4A3');
-    box(ring,'Right',w/2,0,1,h,'#FFE4A3');
-    picture(ring,'Corner', 'onboarding/focus-corner',-w/2+4,h/2-4,12,12);
-    picture(ring,'CornerOpposite','onboarding/focus-corner',w/2-4,-h/2+4,12,12).setRotationFromEuler(0,0,180);
-    if(!still()){
-        const opacity=ring.addComponent(UIOpacity);
-        tween(ring).repeatForever(tween<Node>().to(.62,{}, {
-            onUpdate:(_node,ratio=0)=>{opacity.opacity=Math.round(255-75*ratio);},
-        }).to(.62,{}, {
-            onUpdate:(_node,ratio=0)=>{opacity.opacity=Math.round(180+75*ratio);},
-        })).start();
+interface Area {left:number;right:number;bottom:number;top:number;}
+const clamp=(n:number,lo:number,hi:number):number=>Math.min(Math.max(n,lo),hi);
+const shade=new Color(17,29,26,168);
+const gold=new Color(255,225,155,255);
+
+function bounds(node:Node,space:UITransform,pad=0):Area {
+    const ui=node.getComponent(UITransform)!;
+    const left=-ui.width*ui.anchorX,bottom=-ui.height*ui.anchorY;
+    const lo=space.convertToNodeSpaceAR(ui.convertToWorldSpaceAR(new Vec3(left,bottom)));
+    const hi=space.convertToNodeSpaceAR(ui.convertToWorldSpaceAR(new Vec3(left+ui.width,bottom+ui.height)));
+    return {left:lo.x-pad,right:hi.x+pad,bottom:lo.y-pad,top:hi.y+pad};
+}
+
+export function revealGuideTarget(target:Node,scroll:ScrollView):void {
+    if(!scroll.vertical||!scroll.content||!target.isChildOf(scroll.content))return;
+    const viewport=scroll.node.getComponent(UITransform)!;
+    const area=bounds(target,viewport,4);
+    const bottom=-viewport.height*viewport.anchorY,top=bottom+viewport.height;
+    const move=area.bottom<bottom?bottom-area.bottom:area.top>top?top-area.top:0;
+    if(move){
+        const y=clamp(scroll.getScrollOffset().y+move,0,scroll.getMaxScrollOffset().y);
+        scroll.scrollToOffset(new Vec2(0,y),0);
+    }
+}
+
+@_decorator.ccclass('GuideSpotlight')
+class GuideSpotlight extends Component {
+    target!:Node;
+    copy='';
+    private reading?:Node;
+    private preferBelow=false;
+    private paint!:Graphics;
+    private prompt?:Node;
+    private promptWidth=0;
+    private promptHeight=0;
+    private prior:Area|null=null;
+    private priorWidth=0;
+    private priorHeight=0;
+
+    setup(target:Node,copy:string,preferBelow:boolean,reading?:Node):void {
+        this.target=target;
+        this.copy=copy;
+        this.preferBelow=preferBelow;
+        this.reading=reading;
+        this.paint=this.node.addComponent(Graphics);
+        claimGuideTarget(this.node,target);
+        this.lateUpdate();
+    }
+
+    onDestroy():void {releaseGuideTarget(this.node);}
+
+    lateUpdate():void {
+        const parent=this.node.parent;
+        if(!parent||!this.target?.isValid)return;
+        const ui=parent.getComponent(UITransform)!;
+        const {width,height}=ui;
+        const emphasis=bounds(this.target,ui,4);
+        const reading=this.reading?.activeInHierarchy?bounds(this.reading,ui,4):undefined;
+        const area=reading?{
+            left:Math.min(emphasis.left,reading.left),right:Math.max(emphasis.right,reading.right),
+            bottom:Math.min(emphasis.bottom,reading.bottom),top:Math.max(emphasis.top,reading.top),
+        }:emphasis;
+        let left=Math.max(-width/2,area.left),right=Math.min(width/2,area.right);
+        let bottom=Math.max(-height/2,area.bottom),top=Math.min(height/2,area.top);
+        for(let p=this.target.parent;p&&p!==parent;p=p.parent){
+            if(!p.getComponent(Mask))continue;
+            const clip=bounds(p,ui);
+            left=Math.max(left,clip.left);right=Math.min(right,clip.right);
+            bottom=Math.max(bottom,clip.bottom);top=Math.min(top,clip.top);
+        }
+        if(!this.target.activeInHierarchy||right<=left||top<=bottom){
+            left=0;right=0;bottom=0;top=0;
+        }
+        const prior=this.prior;
+        if(prior&&width===this.priorWidth&&height===this.priorHeight&&
+            Math.abs(left-prior.left)<.5&&Math.abs(right-prior.right)<.5&&
+            Math.abs(bottom-prior.bottom)<.5&&Math.abs(top-prior.top)<.5)return;
+        this.prior={left,right,bottom,top};
+        this.priorWidth=width;this.priorHeight=height;
+        const g=this.paint;
+        g.clear();
+        g.fillColor=shade;
+        if(right>left&&top>bottom){
+            g.rect(-width/2,top,width,height/2-top);
+            g.rect(-width/2,-height/2,width,bottom+height/2);
+            g.rect(-width/2,bottom,left+width/2,top-bottom);
+            g.rect(right,bottom,width/2-right,top-bottom);
+            g.fill();
+            g.strokeColor=gold;
+            g.lineWidth=3;
+            const x=Math.max(left,emphasis.left),y=Math.max(bottom,emphasis.bottom);
+            g.rect(x,y,Math.min(right,emphasis.right)-x,Math.min(top,emphasis.top)-y);
+            g.stroke();
+        }else{
+            g.rect(-width/2,-height/2,width,height);
+            g.fill();
+        }
+        this.placePrompt(width,height);
+    }
+
+    private placePrompt(width:number,height:number):void {
+        const {left,right,bottom,top}=this.prior!;
+        const w=Math.min(314,width-24);
+        if(w!==this.promptWidth||!this.prompt){
+            this.prompt?.destroy();
+            const h=Math.max(49,22*lines(this.copy,w-28,15)+20);
+            this.prompt=frame(this.node,'GuideNote',0,0,w,h,paper.card,'#BD9253',true);
+            box(this.prompt,'Accent',-w/2+4,0,4,h-6,paper.primary);
+            const text=caption(this.prompt,'Text',this.copy,3,0,w-30,h-12,15,paper.ink);
+            text.lineHeight=22;
+            this.promptWidth=w;this.promptHeight=h;
+        }
+        const gap=14,h=this.promptHeight;
+        const above=height/2-top,below=bottom+height/2;
+        const putAbove=this.preferBelow?below<h+gap+10&&above>below:above>=below;
+        const targetX=(left+right)/2;
+        const x=clamp(targetX,-width/2+w/2+12,width/2-w/2-12);
+        const y=clamp(putAbove?top+gap+h/2:bottom-gap-h/2,-height/2+10+h/2,height/2-10-h/2);
+        this.prompt.setPosition(x,y);
+        if(right>left&&top>bottom){
+            const arrowX=clamp(targetX,x-w/2+14,x+w/2-14);
+            const edge=y+(putAbove?-h/2:h/2);
+            const g=this.paint;
+            g.fillColor=gold;
+            g.moveTo(arrowX-7,edge);
+            g.lineTo(arrowX+7,edge);
+            g.lineTo(arrowX,edge+(putAbove?-9:9));
+            g.close();
+            g.fill();
+        }
+    }
+}
+
+// This layer paints the cue; the original highlighted control handles the touch.
+export function showGuideSpotlight(parent:Node,target?:Node,copy='',preferBelow=false,reading?:Node):void {
+    const old=parent.getChildByName('GuideSpotlight');
+    const current=old?.getComponent(GuideSpotlight);
+    if(current&&current.target===target&&current.copy===copy)return;
+    if(old){releaseGuideTarget(old);old.removeFromParent();old.destroy();}
+    if(target&&copy){
+        const node=box(parent,'GuideSpotlight',0,0,0,0);
+        node.addComponent(GuideSpotlight).setup(target,copy,preferBelow,reading);
     }
 }
 
@@ -37,7 +160,7 @@ export function guideTarget(root:Node,name:string):Node|undefined {
 
 export function guideNote(c:PageCanvas):void {
     const guide=c.p.guide;
-    if(!guide||c.body.getChildByName('GuideNote'))return;
+    if(!guide||guide.target||c.body.getChildByName('GuideNote'))return;
     const h=Math.max(38,lines(guide.text,c.inner-25,13)*19+15);
     const n=frame(c.body,'GuideNote',0,c.slot(h,7),c.inner,h,'#F1DFB4','#BB9C68',false);
     box(n,'Rule',-c.inner/2+2,0,3,h-2,paper.primary);
@@ -75,7 +198,14 @@ export function guideDialog(c:PageCanvas):boolean {
         const badge=frame(c.body,'LoginConfirmed',0,c.slot(51),c.inner,51,'#FDF6E7','#A38252',false);
         caption(badge,'State','店主账号   已登录',0,0,c.inner-20,38,15,paper.green,true);
     }
-    if(number===1)picture(c.body,'HandoverEnvelope','onboarding/handover-envelope',0,c.slot(113,4),124,85);
+    if(number===1){
+        if(c.p.visual?.letterOpened){
+            const copy=c.p.subtitle||'',h=Math.max(110,lines(copy,c.inner-34,15)*23+34);
+            const sheet=frame(c.body,'OpenedLetter',0,c.slot(h),c.inner,h,'#FFF4D6','#BA9860',true);
+            const text=caption(sheet,'LetterCopy',copy,0,0,c.inner-30,h-18,15,paper.ink);
+            text.lineHeight=23;
+        }else picture(c.body,'HandoverEnvelope','onboarding/handover-envelope',0,c.slot(113,4),124,85);
+    }
     if(meal){
         const row=c.p.rows![0],h=58;
         const n=frame(c.body,'TutorialMeal',0,c.slot(h),c.inner,h,'#E0E8CE','#75916A',false);
@@ -83,7 +213,7 @@ export function guideDialog(c:PageCanvas):boolean {
         caption(n,'Title',row.title,23,12,c.inner-64,23,15,paper.green).isBold=true;
         caption(n,'Effect',row.text!,23,-12,c.inner-64,23,13,paper.muted);
     }
-    if(c.p.subtitle){
+    if(c.p.subtitle&&!c.p.visual?.letterOpened&&c.p.subtitle!==c.p.guide?.text){
         const h=lines(c.p.subtitle,c.inner,14)*22+6;
         caption(c.body,'GuideCopy',c.p.subtitle,0,c.slot(h,6),c.inner,h,14,paper.ink).lineHeight=22;
     }
@@ -91,8 +221,7 @@ export function guideDialog(c:PageCanvas):boolean {
     const actions=c.p.actions||[],w=(c.inner-(actions.length-1)*6)/Math.max(actions.length,1),y=c.slot(48,3);
     actions.forEach((a,i)=>{
         const primary=i===actions.length-1;
-        const button=press(c.body,'Action'+i,a.label||'',-c.inner/2+w/2+i*(w+6),y,w,()=>c.ui.choose(a),primary);
-        if(primary)guideFocus(button);
+        press(c.body,'Action'+i,a.label||'',-c.inner/2+w/2+i*(w+6),y,w,()=>c.ui.choose(a),primary);
     });
     return true;
 }
