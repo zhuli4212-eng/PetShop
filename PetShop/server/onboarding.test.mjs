@@ -46,6 +46,11 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.equal(store.state.coins,680);
   assert.ok(store.state.pets.every(p=>p.breedKey==='domestic'&&stageOf(p,now)==='幼年'));
   assert.throws(()=>act('care.checkin'),/完成开店引导/);
+  assert.equal(store.state.rooms.rabbit.nutritionStock.premium,1);
+  const meal=page('roomNutrition');
+  assert.equal(meal.rows[0].title,'臻选兔兔营养餐');
+  assert.match(meal.rows[0].text,/免费赠送 1 份 · 库存 1 份/);
+  assert.equal(meal.actions[1].type,'onboarding.feed');
 
   const deathDates=store.state.pets.map(p=>lifeDates(p).deathAt);
   const feed=command('onboarding.feed');
@@ -54,6 +59,12 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.ok(store.state.pets.every(p=>stageOf(p,now)==='成年'));
   assert.deepEqual(store.state.pets.map(p=>lifeDates(p).deathAt),deathDates);
   assert.equal(store.state.rooms.rabbit.nutrition,undefined);
+  assert.equal(store.state.rooms.rabbit.nutritionStock.premium,0);
+  const fed=page('roomNutrition');
+  assert.equal(fed.title,'教学投喂已完成');
+  assert.match(fed.rows[0].text,/已投喂/);
+  assert.equal(fed.actions[0].page,'rooms');
+  assert.throws(()=>act('onboarding.feed'),/当前引导/);
   const [mother,father]=store.state.onboarding.starters;
   const review=page('breed',{mother,father});
   assert.equal(review.presentation.waitText,'5 秒');
@@ -149,6 +160,33 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.equal(page('tasks').actions[0].label,'已领取');
   assert.throws(()=>act('onboarding.claim'),/未识别/);
   assert.equal(store.state.rooms.rabbit.nutritionStock.premium,2);
+});
+
+test('旧档在首次投喂前补发一次赠餐，自然成年时保留该餐',t=>{
+  const dir=mkdtempSync(join(tmpdir(),'petshop-guide-meal-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  let now=Date.UTC(2026,10,18,1),store;
+  const options={onboarding:true,wall:()=>now,monotonic:()=>0};
+  const reopen=()=>{store=new GameStore(dir,options);store.shop();};
+  const act=(type)=>{
+    const {profileId,version}=store.shop();
+    return store.act({type,args:{},requestId:randomUUID(),profileId,version});
+  };
+  reopen();
+  for(const step of ['enter','openLetter','proceed','openRoom'])act('onboarding.'+step);
+  const old=structuredClone(store.state);
+  delete old.rooms.rabbit.nutritionStock;
+  delete old.onboarding.teachingMealGranted;
+  store.save(old);
+  reopen();reopen();
+  assert.equal(store.state.rooms.rabbit.nutritionStock.premium,1);
+  now=Math.max(...store.state.pets.map(p=>lifeDates(p).adultAt))+1;
+  assert.equal(store.page('roomNutrition').page.actions[1].label,'继续');
+  act('onboarding.feed');reopen();
+  assert.equal(store.shop().onboarding.step,4);
+  assert.equal(store.state.rooms.rabbit.nutritionStock.premium,1);
+  assert.equal(store.state.rooms.rabbit.nutrition,undefined);
+  assert.match(store.page('roomNutrition').page.rows[0].text,/已保留/);
 });
 
 test('已存在的本机店铺不被改成新手档', t=>{

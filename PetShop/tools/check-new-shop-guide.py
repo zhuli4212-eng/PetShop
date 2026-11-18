@@ -187,6 +187,8 @@ def verify(browser, url, width, output, scenario=None):
         tap("Feed")
         ready("roomNutrition")
         assert page.evaluate("!!pairQA.find('TutorialMeal')")
+        assert main("return m.session.current.data.rows[0].title") == "臻选兔兔营养餐"
+        assert "库存 1 份" in main("return m.session.current.data.rows[0].text")
         snap("03-首次投喂确认")
         action("onboarding.feed", "Action1")
         step(4)
@@ -194,6 +196,7 @@ def verify(browser, url, width, output, scenario=None):
         sound("growth")
         touch.wait("()=>!!pairQA.find('GrowthSpark')?.getComponent(cc.Sprite)?.spriteFrame")
         assert main("return m.session.current.data.presentation.nutrition??null") is None
+        assert "已投喂赠送的臻选营养餐" in main("return m.session.current.data.guide.text")
         snap("03-首对成年")
         tap("GuideNext")
         tap("Sign", scope="Hotspot_breed")

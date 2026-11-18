@@ -3,11 +3,14 @@ import { isBusy, lifeDates, makePet, petArt, specimen, SPECIES, stageOf, startLi
 import { salePrice } from './business.mjs';
 import { occupiedPetNames } from './pet-names.mjs';
 import { grantOpeningReward, openingReward } from './shop-tasks.mjs';
+import { nutritionStock } from './room-nutrition.mjs';
 
 const rabbit={species:'rabbit'};
 const seedPrice=200;
 export const firstLitterWait=5_000;
 const mealArt='rooms/rabbit-nutrition-premium';
+const mealTier='premium';
+const mealName='臻选兔兔营养餐';
 const openingLetter='街角的麦穗宠物店交给你了。过去，街坊常把小动物托付到这里，也来为它们找一个新家。兔房已经收拾好，先接一对小兔住下，把这间小店重新开起来吧。';
 const firstLitterSexes=['母','公','母','公'];
 const parentSexes=['母','公'];
@@ -48,7 +51,7 @@ export function onboardingSnapshot(s) {
   const destinations=[
     ['进入店铺','onboarding'],['阅读交接信','onboarding'],
     ['免费开放兔房','rooms',rabbit,'rooms','点击「动物小屋」，免费开放兔房。'],
-    ['首次投喂','rooms',rabbit,'rooms','进动物小屋，给第一对幼兔投喂。'],
+    ['首次投喂','rooms',rabbit,'rooms','进动物小屋，使用开店赠送的臻选营养餐。'],
     ['挑选首窝亲本','breed',rabbit,'breed','点击「繁育」，挑选首窝的亲本。'],
     ['查看首窝进度','breed',rabbit,'breed','点击「繁育」，查看首窝进度。'],
     ['查看首窝出生','litter',rabbit,'breed','点击「繁育」，查看首窝出生记录。'],
@@ -87,6 +90,17 @@ export function settleOnboarding(s,now) {
   }
   repairGuideTargets(s,g,now);
   protectGuideAnimals(s,g,now);
+  if(g.step===3)grantTeachingMeal(room,g);
+}
+
+function grantTeachingMeal(room,g) {
+  if(g.teachingMealGranted)return;
+  (room.nutritionStock??={})[mealTier]=nutritionStock(room,mealTier)+1;
+  g.teachingMealGranted=true;
+}
+
+function needsTeachingMeal(s,g,now) {
+  return g.starters.some(id=>lifeDates(findPet(s,id)).adultAt>now);
 }
 
 function recoveredRabbit(s,g,now,role,missingId,{sex='母',breed='domestic',bornAt=now,...data}={}) {
@@ -250,11 +264,20 @@ export function onboardingPage(s,key,args,now) {
     return {title:'店铺',visual:{returnHome:true},actions:[{label:'返回店铺',type:'ui.back'}]};
   }
   if(!g)return;
-  if(g.step===3&&key==='roomNutrition'&&(args.species??'rabbit')==='rabbit'){
-    return {title:'选择兔兔营养餐',art:mealArt,visual:{tutorialMeal:true},
-      subtitle:'本次免费，仅限这一次。日常营养餐按档位加速整间兔房的未成年动物成长。',
-      rows:[{title:'首次教学投喂',text:'兔房 · 首对幼兔立即成年',art:mealArt}],
-      actions:[{label:'返回',type:'ui.back'},action('投喂','onboarding.feed',{},'rooms',rabbit)]};
+  if([3,4].includes(g.step)&&key==='roomNutrition'&&(args.species??'rabbit')==='rabbit'){
+    const row={title:mealName,art:mealArt};
+    if(g.step===4){
+      const kept=g.teachingMealUsed===false;
+      return {title:'教学投喂已完成',art:mealArt,visual:{tutorialMeal:true},
+        subtitle:'首对原色兔已成年，可以前往繁育。',
+        rows:[{...row,text:kept?'赠送 1 份 · 已保留在兔房':'开店赠送 1 份 · 已投喂'}],
+        actions:[choice('返回兔房','rooms',rabbit)]};
+    }
+    const feed=needsTeachingMeal(s,g,now);
+    return {title:'开店赠餐',art:mealArt,visual:{tutorialMeal:true},
+      subtitle:feed?'点击「投喂」，让首对原色幼兔立即成年。':'首对原色兔已成年，赠餐可留待日后使用。',
+      rows:[{...row,text:'免费赠送 1 份 · 库存 '+nutritionStock(s.rooms.rabbit,mealTier)+' 份'}],
+      actions:[{label:'返回',type:'ui.back'},action(feed?'投喂':'继续','onboarding.feed',{},'rooms',rabbit)]};
   }
   if(g.step===13&&key==='offer'){
     const offer=g.offers.find(p=>p.id===args.id);
@@ -297,7 +320,7 @@ export function decorateGuidePage(s,key,args,view,now) {
     if(g.step===1)teach(g.letterOpened?'读完信后，点击「继续」。':'点击「拆开交接信」，看看旧店主的留言。','Action0');
     if(g.step===17)teach(view.subtitle,'Action0');
   }
-  if(key==='roomNutrition'&&view.visual?.tutorialMeal)teach(view.subtitle,'Action1');
+  if(key==='roomNutrition'&&view.visual?.tutorialMeal)teach(view.subtitle,g.step===3?'Action1':'Action0');
   if(key==='offer'&&g.step===13&&view.actions?.some(a=>a.type==='onboarding.buy')){
     const cash=guidePrice(s);
     teach(cash<seedPrice?'开店补贴抵扣 '+(seedPrice-cash)+' 金币，实付 '+cash+' 金币。点击「核对购买」。':
@@ -306,10 +329,11 @@ export function decorateGuidePage(s,key,args,view,now) {
   if(key==='rooms'&&(args.species??'rabbit')==='rabbit'){
     view.title='动物小屋';
     if(g.step===2)teach('先打开兔房，让第一对小兔住进来。','Action0');
-    if(g.step===3)teach('点击食碗旁的投喂按钮，让最初两只小兔立即成年。','Feed');
+    if(g.step===3)teach('已收到臻选兔兔营养餐 ×1。点击食碗旁的「投喂」。','Feed');
     if(g.step===4) {
       view.visual={...view.visual,grownIds:g.starters};
-      teach('最初两只小兔已成年，可以开始配对。','GuideNext',home('前往繁育'));
+      teach(g.teachingMealUsed===false?'赠餐已保留。首对原色兔可以开始配对。':
+        '已投喂赠送的臻选营养餐。首对原色兔可以开始配对。','GuideNext',home('前往繁育'));
     }
     if(g.step===14) {
       teach('动物会经历幼年、成长、成年、老年，最终自然离世。成年或老年且未繁育时可以配对。','GuideNext',
@@ -468,15 +492,22 @@ export function guideAction(s,type,args,now) {
     s.rooms.rabbit.openedAt=now;
     s.rooms.rabbit.shelf=null;
     s.pets.push(...starters);g.starters=idsOf(starters);g.step=3;
-    return '兔房已开放，两只原色幼兔已入住。';
+    grantTeachingMeal(s.rooms.rabbit,g);
+    return '兔房已开放，两只原色幼兔已入住。获得 '+mealName+' ×1。';
   }
   if(type==='onboarding.feed'){
     expect(g.step===3);
     const starters=g.starters.map(id=>findPet(s,id));
     expect(starters.every(p=>p&&stageOf(p,now)!=='已故'),'首对原色兔已无法投喂。');
-    for(const pet of starters){
-      const {growthAt,adultAt}=lifeDates(pet);
-      if(now<adultAt)pet.maturation={growthAt:Math.min(growthAt,now),adultAt:now};
+    g.teachingMealUsed=needsTeachingMeal(s,g,now);
+    if(g.teachingMealUsed){
+      const room=s.rooms.rabbit,count=nutritionStock(room,mealTier);
+      expect(count>0,'开店赠餐尚未到账，请重新打开兔房。');
+      room.nutritionStock[mealTier]=count-1;
+      for(const pet of starters){
+        const {growthAt,adultAt}=lifeDates(pet);
+        if(now<adultAt)pet.maturation={growthAt:Math.min(growthAt,now),adultAt:now};
+      }
     }
     g.step=4;
     return '首对原色兔已成年。';
