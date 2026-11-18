@@ -58,3 +58,18 @@ SQLite 采用 WAL 模式。备份运行中的店铺时，使用 SQLite 在线备
 
 5. 在香港服务器的 DNS、80/443 安全组规则及受信任 TLS 证书就绪后，运行 `sudo bash production.sh publish /绝对路径/fullchain.pem /绝对路径/privkey.pem`。安装器检查域名、证书链及私钥匹配，再启动独立的 443 监听；现有个人站 DNS 继续沿用原地址。可以使用已有证书，也可以按证书服务商的 **ACME DNS-01** 流程，为该子域的 `_acme-challenge` 写入临时 TXT 记录。手动证书续签后重新执行 `publish` 装入新证书。Let’s Encrypt 自动续期使用 `install -m 0700 renew-certificate.sh /etc/letsencrypt/renewal-hooks/deploy/petshop` 安装钩子，再运行 `certbot renew --dry-run` 验证。只有正式阿里云上游需要对应的 DNS 和 443 网络接入。
 6. 在两个原玩家入口分别核验同一受控账号的登录、同一店铺读档、保存及退出重登。新库开始承接写入后，应用回退继续使用新库；切回旧库需要先停写并对账迁回。
+
+## 本地候选包与存档重置
+
+从仓库根目录构建 Web Mobile 后，用以下命令生成一个独立候选包。现有正式基线的文件校验继续使用原固定摘要。
+
+```powershell
+$pages = 'output/aliyun/本次候选/pages'
+node '外网试玩/browser/build.mjs' --client 'PetShop/build/web-mobile' --out $pages
+node '云端经营版/node_modules/esbuild/bin/esbuild' '外网试玩/accounts/worker.mjs' --bundle --format=esm --platform=node --target=node24 --charset=utf8 "--outfile=$pages/_worker.js"
+python '外网试玩/aliyun/package.py' --candidate --production --pages $pages --out 'output/aliyun/本次候选/petshop.tar.gz'
+```
+
+将候选包与上一个正式包分别解到独立目录后，运行 `node 外网试玩/aliyun/check.mjs <候选目录> <上版目录>`。它在临时 SQLite 库中创建测试店，覆盖旧店读取、账号密码重登、新店引导、并发回执、重置及备份恢复。
+
+只有明确安排重置的发布才执行 `reset-shops.mjs`。停写后用候选包中的账号服务生成新店，并在同一笔 SQLite 事务内替换每家店铺存档。账号、密码哈希和会话继续沿用。该命令先生成并校验指定的新备份，随后才改库。保存当前程序目录的实际指向，验证候选和备份可用后再恢复玩家入口。对已经重新承接玩家写入的库做数据回退前，先停写并对账。

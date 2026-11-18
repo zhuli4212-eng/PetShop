@@ -1,4 +1,4 @@
-import { GameError, RequestGameStore } from '../../云端经营版/shared/request-store.mjs';
+import { GameError, RequestGameStore } from '../../PetShop/server/request-store.mjs';
 
 const scope = new URL(self.registration.scope);
 const storeName = 'shop';

@@ -90,6 +90,14 @@ async function legacySetupCode(db, token, digest) {
   return codeAt(session.setup_expires_at);
 }
 
+export function newTrialSnapshot(legacy=null) {
+  const snapshot = new RequestGameStore(legacy, {onboarding:true}).snapshot();
+  snapshot.readers = [];
+  snapshot.state.visitors.sessions = {};
+  snapshot.state.visitors.intervals = [];
+  return snapshot;
+}
+
 async function authenticate(db, request, route) {
   const peer = request.headers.get('cf-connecting-ip') || 'local';
   await limitAuth(db, route + ':' + peer, route === 'auth/register' ? 120 : 600);
@@ -106,11 +114,7 @@ async function authenticate(db, request, route) {
   if (registering) {
     let snapshot;
     try {
-      const game = new RequestGameStore(input.legacySnapshot ?? null);
-      snapshot = game.snapshot();
-      snapshot.readers = [];
-      snapshot.state.visitors.sessions = {};
-      snapshot.state.visitors.intervals = [];
+      snapshot = newTrialSnapshot(input.legacySnapshot ?? null);
     } catch { throw new GameError('无法读取旧店存档。原存档仍保留在这个浏览器。', 422); }
     account = { id: randomUUID(), username: name };
     statements.push(db.prepare('INSERT INTO trial_accounts(id,name_key,username,snapshot,password_hash) VALUES(?,?,?,?,?)')

@@ -20,7 +20,7 @@ server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
 """
 
 
-def verify(browser, url, width, output, scenario=None):
+def verify(browser, url, width, output, scenario=None, login=None):
     page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
                             is_mobile=True, has_touch=True,
                             reduced_motion="reduce" if width == 320 else "no-preference")
@@ -33,6 +33,8 @@ def verify(browser, url, width, output, scenario=None):
 
     def open_page(reload=False):
         page.reload() if reload else page.goto(url)
+        if login:
+            login(page, reload)
         page.wait_for_function("()=>!!" + MAIN + "?.shop?.profileId", timeout=90000)
         page.evaluate(QA.LOCATORS)
         main("""
@@ -55,7 +57,7 @@ def verify(browser, url, width, output, scenario=None):
         touch.tap(node, text=text, scope=scope)
 
     def action(command, node=None, text=None, scope="DeskPage"):
-        with page.expect_response(lambda r: urlsplit(r.url).path == "/api/action"
+        with page.expect_response(lambda r: urlsplit(r.url).path in {"/api/action", "/petshop-api/v1/action"}
                 and r.request.post_data_json.get("type") == command) as result:
             tap(node, text, scope)
         assert result.value.ok, result.value.text()

@@ -3,13 +3,15 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { parseArgs } from 'node:util';
 import { loginArtFile } from '../../PetShop/server/multiplayer-login.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cloud = path.resolve(here, '../../云端经营版');
 const { build } = createRequire(path.join(cloud, 'package.json'))('esbuild');
-const client = path.join(cloud, 'dist/client');
-const dist = path.join(here, 'dist');
+const {values} = parseArgs({options:{client:{type:'string'},out:{type:'string'}}});
+const client = path.resolve(values.client ?? path.join(cloud, 'dist/client'));
+const dist = path.resolve(values.out ?? path.join(here, 'dist'));
 const shim = path.join(here, 'crypto.mjs');
 const boot = "System.import('./index.js').catch(function(err) { console.error(err); })";
 const original = await readFile(path.join(client, 'index.html'), 'utf8');

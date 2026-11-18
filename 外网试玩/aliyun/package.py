@@ -1,4 +1,4 @@
-"""Build an Aliyun deployment archive locally from the verified public Pages release."""
+"""Build an Aliyun archive from a verified release or an explicit local candidate."""
 import argparse
 import gzip
 import hashlib
@@ -36,7 +36,7 @@ def manifest_digest(items):
     return digest(json.dumps(items, ensure_ascii=True, separators=(",", ":")).encode("ascii"))
 
 
-def public_files(pages):
+def public_files(pages, candidate):
     names = list(PUBLIC_ROOT_FILES)
     for prefix in ("assets", "cocos-js", "src"):
         directory = pages / prefix
@@ -44,7 +44,7 @@ def public_files(pages):
             raise ValueError(f"Missing static release directory: {prefix}")
         names.extend(p.relative_to(pages).as_posix() for p in directory.rglob("*") if p.is_file())
     names.sort()
-    if manifest_digest(names) != PUBLIC_NAMES_SHA:
+    if not candidate and manifest_digest(names) != PUBLIC_NAMES_SHA:
         raise ValueError("The public file list differs from the verified game release.")
     return names
 
@@ -63,11 +63,11 @@ def add_bytes(archive, name, data):
     archive.addfile(member, io.BytesIO(data))
 
 
-def build(pages, output, production):
+def build(pages, output, production, candidate=False):
     pages = pages.resolve(strict=True)
-    names = public_files(pages)
+    names = public_files(pages, candidate)
     worker = read_release_file(pages, "_worker.js")
-    if digest(worker) != WORKER_SHA:
+    if not candidate and digest(worker) != WORKER_SHA:
         raise ValueError("Account Worker differs from the verified game release.")
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -78,6 +78,8 @@ def build(pages, output, production):
             with gzip.GzipFile(filename="", mode="wb", fileobj=target, mtime=0, compresslevel=6) as zipped:
                 with tarfile.open(fileobj=zipped, mode="w|") as archive:
                     files = INSTALL_FILES + PRODUCTION_FILES if production else INSTALL_FILES
+                    if candidate and production:
+                        files += ("reset-shops.mjs",)
                     for name in files:
                         add_bytes(archive, name, (HERE / name).read_bytes().replace(b"\r\n", b"\n"))
                     schema = HERE.parent / "accounts" / "schema.sql"
@@ -88,20 +90,25 @@ def build(pages, output, production):
                         data = read_release_file(pages, name)
                         hashes.append((name, digest(data)))
                         add_bytes(archive, "public/" + name, data)
-                    if manifest_digest(hashes) != PUBLIC_CONTENT_SHA:
+                    if not candidate and manifest_digest(hashes) != PUBLIC_CONTENT_SHA:
                         raise ValueError("Public asset contents differ from the verified game release.")
         os.replace(scratch, output)
     finally:
         if scratch is not None:
             scratch.unlink(missing_ok=True)
     print(f"{output}\n{len(names)} public game files; SHA-256 {digest(output.read_bytes())}")
+    if candidate:
+        print(f"Account service SHA-256 {digest(worker)}; public asset manifest SHA-256 {manifest_digest(hashes)}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--pages", type=Path, required=True, help="Full verified standalone Pages release directory")
+    parser.add_argument("--pages", type=Path, required=True, help="Standalone Pages release directory with account Worker")
     parser.add_argument("--out", type=Path, help="Output tar.gz path")
     parser.add_argument("--production", action="store_true", help="Include the private staging and public cutover tools")
+    parser.add_argument("--candidate", action="store_true", help="Package newly built assets to a separate archive")
     args = parser.parse_args()
     name = "petshop-production.tar.gz" if args.production else "petshop-test.tar.gz"
-    build(args.pages, args.out or OUTPUT_DIR / name, args.production)
+    if args.candidate and (not args.out or args.out.exists()):
+        parser.error("--candidate requires --out pointing to a new archive")
+    build(args.pages, args.out or OUTPUT_DIR / name, args.production, args.candidate)

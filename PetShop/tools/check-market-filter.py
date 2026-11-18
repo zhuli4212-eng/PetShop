@@ -73,7 +73,7 @@ BROWSER = r"""()=>{
     }
     return {x,y,top:0,bottom:innerHeight};
   };
-  window.marketQA={find,desk,visit,labels,measure};
+  window.marketQA={find,desk,visit,labels,measure,app:m};
 }"""
 
 
@@ -180,12 +180,21 @@ def verify(browser, process, width):
         return action
 
     def home():
-        for _ in range(4):
-            if page.evaluate("()=>!!marketQA.find('RoomLink')"):
-                return
+        for _ in range(5):
             current=page.evaluate("()=>marketQA.visit()?.key")
-            tap(name="Back")
-            page.wait_for_function("key=>marketQA.visit()?.key!==key || !!marketQA.find('RoomLink')",arg=current)
+            if current=="visitBook":
+                tap(copy="合上账簿")
+            elif current:
+                tap(name="Back")
+            else:
+                page.wait_for_function("()=>!marketQA.app.pulseBusy")
+                page.evaluate("()=>marketQA.app.pulse()")
+                if page.evaluate("()=>!!marketQA.visit()"):
+                    continue
+                if page.evaluate("()=>!!marketQA.find('GuestArrival')"):
+                    tap(copy="稍后")
+                return
+            page.wait_for_function("key=>marketQA.visit()?.key!==key",arg=current)
         raise AssertionError("Home did not reopen")
 
     def ledger():
@@ -236,7 +245,7 @@ def verify(browser, process, width):
     selected([])
 
     home()
-    tap(name="RoomLink")
+    tap(name="Hotspot_rooms")
     at("rooms")
     status("未繁育")
     growth("幼年")
@@ -254,7 +263,7 @@ def verify(browser, process, width):
             growth(stage)
             check("sale",value,"rabbit",stage)
     home()
-    tap(name="RoomLink")
+    tap(name="Hotspot_rooms")
     at("rooms")
     tap(name="Tab1")
     page.wait_for_function("()=>marketQA.visit().args.species==='cat' && marketQA.find('StatusFilter')")

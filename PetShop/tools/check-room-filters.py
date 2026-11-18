@@ -325,7 +325,7 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
     page.wait_for_function("""()=>window.cc?.director?.getScene()?.getChildByName('Canvas')
         ?.getComponent('ShopMain')?.home?.active""", timeout=90000)
     page.evaluate(BROWSER)
-    tap(page, "RoomLink")
+    tap(page, "Hotspot_rooms")
 
     def wait_room(species, status="全部", stage="全部"):
         page.wait_for_function("""([species,status,stage])=>{
@@ -378,8 +378,8 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
 
     def reopen(species, status, stage):
         tap(page, "Back")
-        page.wait_for_function("()=>!!roomQA.find('RoomLink')")
-        tap(page, "RoomLink")
+        page.wait_for_function("()=>!!roomQA.find('Hotspot_rooms')")
+        tap(page, "Hotspot_rooms")
         wait_room("rabbit")
         if species != "rabbit":
             tap(page, "Tab" + str(list(BREEDS).index(species)))
@@ -433,12 +433,14 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
     def check_movement(species, shown):
         # Sample movement over actual rendered frames. Static animals must keep position, pose and orientation.
         page.emulate_media(reduced_motion="no-preference")
+        page.wait_for_function("""es=>roomQA.residents().every((r,i)=>
+          !es[i].walker||r.getComponent('RoomAnimalWalk')?.frames.length===4)""",arg=shown)
         motion=page.evaluate("""async es=>{
           const q=roomQA, animals=q.residents(),start=performance.now(), moved=new Set();
           const origin=animals.map(r=>[r.position.x,r.position.y]);
           const ground=animals.map((r,i)=>q.rect(r,es[i])[3]), roomHeight=q.ui(q.art()).height;
-          let minGround=1,maxGround=0,maxWidth=0;
-          while(performance.now()-start<8500){
+          let minGround=1,maxGround=0,maxWidth=0,elapsed=0,previous=start;
+          while(elapsed<8.5&&performance.now()-start<35000){
             for(const [i,r] of animals.entries()){
               const b=q.rect(r,es[i]),sp=r.getChildByName('Portrait');
               // During a hop the sprite lifts, while its ground point continues on the floor.
@@ -450,7 +452,9 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
               if(!es[i].walker && (moved.has(i)||sp.angle!==0||sp.scale.x!==1||
                 sp.getComponent(cc.Sprite).spriteFrame._uuid!==es[i].uuid))throw Error('Static animal moved '+es[i].id);
             }
-            await new Promise(requestAnimationFrame);
+            const timestamp=await new Promise(requestAnimationFrame);
+            elapsed+=Math.min(.1,Math.max(0,(timestamp-previous)/1000));
+            previous=timestamp;
           }
           return {moving:[...moved].sort(),minGround,maxGround,maxWidth};
         }""",shown)
