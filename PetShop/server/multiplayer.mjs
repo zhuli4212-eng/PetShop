@@ -6,18 +6,32 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { serveFile } from './main.mjs';
 import { MultiplayerStore } from './multiplayer-store.mjs';
-import { renderMultiplayerLogin, loginStyles, loginScript, loginArtFile, gameAccountScript } from './multiplayer-login.mjs';
+import { renderMultiplayerLogin, loginStyles, loginScript, loginArtFile, loginMusicFile, gameAccountScript } from './multiplayer-login.mjs';
 
 const buildDirectory=fileURLToPath(new URL('../build/web-mobile/',import.meta.url));
 const multiplayerData=fileURLToPath(new URL('../local/multiplayer/',import.meta.url));
 const loopbacks=new Set(['localhost','127.0.0.1','[::1]']);
-const loginCsp="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
+const loginCsp="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; media-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
 const error=(status,message)=>Object.assign(new Error(message),{status});
 const entryLifetime=60_000;
 
 function send(req,res,status,type,value) {
   res.writeHead(status,{'Content-Type':type,'Content-Length':Buffer.byteLength(value),'Cache-Control':'no-store'});
   res.end(req.method==='HEAD'?undefined:value);
+}
+function sendLoginMusic(req,res,clip) {
+  res.setHeader('Accept-Ranges','bytes');
+  const range=req.method==='GET'&&/^bytes=(\d*)-(\d*)$/.exec(req.headers.range||'');
+  if(!range||(!range[1]&&!range[2]))return send(req,res,200,'audio/mpeg',clip);
+  const size=clip.length;
+  const start=range[1]?Number(range[1]):Math.max(0,size-Number(range[2]));
+  const end=range[1]&&range[2]?Math.min(size-1,Number(range[2])):size-1;
+  if(start>end){
+    res.setHeader('Content-Range','bytes */'+size);
+    return send(req,res,416,'audio/mpeg','');
+  }
+  res.setHeader('Content-Range',`bytes ${start}-${end}/${size}`);
+  return send(req,res,206,'audio/mpeg',clip.subarray(start,end+1));
 }
 function json(req,res,status,value) {
   send(req,res,status,'application/json; charset=utf-8',JSON.stringify(value));
@@ -146,6 +160,7 @@ export function createMultiplayerServer({publicOrigin,dataDirectory=multiplayerD
       if(route==='/auth/login.js'&&get)return send(req,res,200,'text/javascript; charset=utf-8',loginScript);
       if(route==='/auth/game-account.js'&&get)return send(req,res,200,'text/javascript; charset=utf-8',gameAccountScript);
       if(route==='/auth/shopfront.png'&&get)return send(req,res,200,'image/png',await readFile(loginArtFile));
+      if(route==='/auth/login-music.mp3'&&get)return sendLoginMusic(req,res,await readFile(loginMusicFile));
       if(route==='/auth/session'&&get){
         const account=store.session(token)?.account;
         return json(req,res,200,account?{authenticated:true,username:account.username}:{authenticated:false});

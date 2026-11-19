@@ -154,6 +154,19 @@ test('公网启动等待固定来源，Cookie 带 Secure，来路和多人路由
   const page=await r('/login?switch');
   assert.equal(page.status,200);
   assert.match(page.headers.get('content-security-policy'),/frame-ancestors 'none'/);
+  assert.match(page.headers.get('content-security-policy'),/media-src 'self'/);
+  const login=await page.text();
+  assert.match(login,/id="shop-name">麦穗宠物店/);
+  assert.match(login,/id="login-music" src="\/auth\/login-music\.mp3"/);
+  const music=await r('/auth/login-music.mp3');
+  assert.equal(music.status,200);
+  assert.equal(music.headers.get('content-type'),'audio/mpeg');
+  const clip=new Uint8Array(await music.arrayBuffer());
+  assert.ok(clip.byteLength>10_000);
+  const range=await r('/auth/login-music.mp3',{headers:{Range:'bytes=0-1'}});
+  assert.equal(range.status,206);
+  assert.equal(range.headers.get('content-range'),'bytes 0-1/'+clip.byteLength);
+  assert.deepEqual(new Uint8Array(await range.arrayBuffer()),clip.subarray(0,2));
   for(const asset of ['/auth/login.css','/auth/login.js','/auth/game-account.js','/auth/shopfront.png'])
     assert.equal((await r(asset)).status,200);
   const form={data:{username:'试用店铺'}};

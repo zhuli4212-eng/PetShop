@@ -1,4 +1,5 @@
 import { readLegacyShop } from './legacy.js';
+import { bindLoginMusic } from './__PETSHOP_LOGIN_MUSIC_MODULE__';
 
 const byId = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -18,6 +19,7 @@ const passwordInput = byId('password');
 const submit = byId('submit');
 const codeInput = byId('setup-code');
 const proofChoice = byId('use-legacy-proof');
+const setLoginMusicActive = bindLoginMusic();
 const submitText = setup ? '设置密码并登录' : register ? '注册并开店' : '登录店铺';
 
 function statusError(message) {
@@ -106,6 +108,7 @@ async function launch(token) {
   await refreshGameMain();
   connectGame(token);
   for (const tag of document.querySelectorAll('[data-game-script]')) await loadScript(tag.dataset.gameScript);
+  setLoginMusicActive(false);
   document.querySelector('.ledger').hidden = true;
   byId('GameDiv').hidden = false;
   const viewport = document.querySelector('meta[name=viewport]');
@@ -121,7 +124,7 @@ async function showAccountForm() {
     throw Error('请从宠物店的试玩网址打开。');
   }
   byId('heading').textContent = setup ? '设置密码' : register ? '注册店主' : '店主登录';
-  document.title = byId('heading').textContent + ' · 宠物店';
+  document.title = byId('heading').textContent + ' · 麦穗宠物店';
   byId(register || setup ? 'login-tab' : 'register-tab').hidden = false;
   byId('set-password-link').hidden = register || setup;
   byId('password-label').textContent = setup ? '新密码' : '密码';
@@ -219,6 +222,7 @@ form.addEventListener('submit', async event => {
       byId('login-style').disabled = false;
       byId('GameDiv').hidden = true;
       document.querySelector('.ledger').hidden = false;
+      setLoginMusicActive(true);
       byId('anonymous').hidden = true;
       byId('heading').textContent = '重新打开店铺';
       byId('retry').textContent = '返回登录';

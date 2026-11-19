@@ -1,4 +1,4 @@
-"""Render the original shop loop and interaction sounds. Requires FFmpeg for MP3."""
+"""Render the original login loop, shop loop and interaction sounds."""
 from array import array
 from math import exp, pi, sin
 from pathlib import Path
@@ -10,6 +10,7 @@ import wave
 RATE = 44100
 BEAT = 60 / 94
 ROOT = Path(__file__).resolve().parents[1] / "assets" / "resources" / "audio"
+LOGIN_TRACK = ROOT.parents[2] / "server" / "media" / "login-waltz.mp3"
 
 # Sixteen measures in G major. Each note gives its beat, MIDI pitch, length and strength.
 MELODY = (
@@ -97,6 +98,49 @@ def music():
     return track
 
 
+# A quiet F-major waltz for the shopfront, with a bell melody and plucked chords.
+LOGIN_MELODY = (
+    ((0, 69, .83), (1, 67, .62), (2, 65, .89)),
+    ((.5, 72, .72), (1.5, 69, 1.16)),
+    ((0, 74, .72), (.95, 72, .61), (1.8, 69, .95)),
+    ((0, 67, 1.45), (2, 69, .72)),
+    ((0, 70, .77), (1, 72, .55), (1.85, 74, .94)),
+    ((0, 77, .96), (1.45, 76, .54), (2.25, 72, .64)),
+    ((0, 74, .7), (.92, 70, .71), (2, 67, .8)),
+    ((.5, 67, .7), (1.5, 72, 1.18)),
+    ((0, 77, .82), (1, 76, .67), (2, 72, .82)),
+    ((0, 69, .86), (1.5, 72, 1.22)),
+    ((0, 74, .74), (.96, 77, .64), (2, 76, .76)),
+    ((0, 72, 1.36), (2, 69, .8)),
+    ((0, 70, .86), (.98, 74, .58), (2, 72, .84)),
+    ((.42, 69, .72), (1.52, 65, 1.22)),
+    ((0, 67, .65), (.9, 70, .62), (1.76, 76, 1.12)),
+    ((0, 77, 1.3), (1.65, 72, .61), (2.35, 67, .56)),
+)
+LOGIN_CHORDS = (
+    (41, 53, 57, 60), (40, 55, 60, 64), (38, 53, 57, 62), (36, 52, 55, 60),
+    (46, 53, 58, 62), (45, 53, 57, 60), (43, 55, 58, 62), (48, 55, 58, 64),
+    (41, 53, 57, 60), (40, 55, 60, 64), (38, 53, 57, 62), (45, 53, 57, 60),
+    (46, 53, 58, 62), (41, 53, 57, 60), (48, 55, 58, 64), (41, 53, 57, 60),
+)
+
+
+def login_music():
+    beat = 60 / 80
+    track = silent(len(LOGIN_MELODY) * 3 * beat)
+    for bar, (chord, melody) in enumerate(zip(LOGIN_CHORDS, LOGIN_MELODY)):
+        start = bar * 3 * beat
+        bass, root, third, fifth = chord
+        add_note(track, start, bass, 1.72 * beat, .16, "bass", True)
+        add_note(track, start + beat, root, .87 * beat, .105, "pluck", True)
+        add_note(track, start + 1.1 * beat, third, .78 * beat, .075, "pluck", True)
+        add_note(track, start + 2 * beat, fifth, .82 * beat, .097, "pluck", True)
+        for pos, pitch, length in melody:
+            add_note(track, start + pos * beat, pitch, length * beat, .245, "chime", True)
+    add_echo(track, .20, True)
+    return track
+
+
 EFFECTS = {
     "tap": (.092, ((0, 48, .070, .79, "knock"), (.020, 56, .052, .24, "knock"))),
     "confirm": (.33, ((0, 62, .18, .72, "wood"), (.085, 67, .20, .56, "wood"))),
@@ -125,6 +169,15 @@ def write_wave(path, track, peak):
         out.writeframes(samples.tobytes())
 
 
+def write_mp3(path, track, peak):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory() as tmp:
+        wav = Path(tmp) / "loop.wav"
+        write_wave(wav, track, peak)
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(wav), "-c:a", "libmp3lame",
+                        "-b:a", "80k", str(path)], check=True)
+
+
 def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     for name, (length, notes) in EFFECTS.items():
@@ -134,11 +187,8 @@ def main():
         if name != "tap":
             add_echo(track, .11, False)
         write_wave(ROOT / (name + ".wav"), track, .72)
-    with TemporaryDirectory() as tmp:
-        wav = Path(tmp) / "shop-loop.wav"
-        write_wave(wav, music(), .76)
-        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(wav), "-c:a", "libmp3lame",
-                        "-b:a", "80k", str(ROOT / "wheatlight.mp3")], check=True)
+    write_mp3(ROOT / "wheatlight.mp3", music(), .76)
+    write_mp3(LOGIN_TRACK, login_music(), .39)
 
 
 if __name__ == "__main__":

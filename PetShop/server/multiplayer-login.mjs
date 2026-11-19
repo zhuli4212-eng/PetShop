@@ -1,4 +1,7 @@
+import { bindLoginMusic } from './login-music.mjs';
+
 export const loginArtFile = new URL('../assets/resources/shop-modules/opening.png', import.meta.url);
+export const loginMusicFile = new URL('./media/login-waltz.mp3', import.meta.url);
 
 export function renderMultiplayerLogin() {
   return `<!doctype html>
@@ -7,7 +10,7 @@ export function renderMultiplayerLogin() {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#273f35">
-  <title>店主登录 · 宠物店</title>
+  <title>店主登录 · 麦穗宠物店</title>
   <link rel="stylesheet" href="/auth/login.css">
   <script src="/auth/login.js" defer></script>
 </head>
@@ -15,7 +18,11 @@ export function renderMultiplayerLogin() {
   <main class="ledger">
     <img class="shopfront" src="/auth/shopfront.png" width="384" height="576" alt="">
     <section class="sheet" aria-labelledby="heading">
-      <header><span class="brand">宠物店</span><span class="rule" aria-hidden="true"></span></header>
+      <header class="shop-brand">
+        <span class="brand" id="shop-name">麦穗宠物店</span>
+        <button class="music-control" id="login-music-control" type="button" hidden>播放音乐</button>
+      </header>
+      <audio id="login-music" src="/auth/login-music.mp3" preload="none" loop hidden></audio>
       <h1 id="heading">店主登录</h1>
       <p id="loading" role="status">正在读取账号…</p>
       <noscript><p>请在浏览器中启用 JavaScript，然后刷新页面。</p></noscript>
@@ -76,9 +83,12 @@ body {
   border-bottom: 3px solid #795b33;
 }
 .sheet { padding: clamp(20px, 5vw, 34px); }
-header { display: flex; gap: 12px; align-items: center; color: var(--green); }
-.brand { font: bold 15px/1.5 "Songti SC", SimSun, serif; letter-spacing: .14em; }
-.rule { flex: 1; height: 1px; background: var(--line); }
+.shop-brand { display: flex; gap: 8px; align-items: center; justify-content: space-between; color: var(--green); }
+.brand { font: bold clamp(20px, 6vw, 26px)/1.3 "Songti SC", SimSun, serif; letter-spacing: .06em; }
+.music-control {
+  flex: none; min-height: 44px; padding: 0 8px; border: 1px solid var(--line);
+  background: #f3e2bb; color: var(--green); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
 h1 { margin: 12px 0 20px; font: bold clamp(28px, 6vw, 38px)/1.25 "Songti SC", SimSun, serif; }
 .modes { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 24px; border: 1px solid var(--line); }
 .modes a, .primary, .secondary {
@@ -120,7 +130,8 @@ input[aria-invalid="true"] { border-color: #984729; }
 `;
 
 // This function is sent as a standalone, same-origin script. Keep all its dependencies local.
-function initializeLogin() {
+function initializeLogin(bindMusic) {
+  const setMusicActive = bindMusic();
   const element = id => document.getElementById(id);
   const heading = element('heading'), loading = element('loading'), retry = element('retry');
   const anonymous = element('anonymous'), signedIn = element('signed-in'), error = element('error');
@@ -146,7 +157,7 @@ function initializeLogin() {
   }
   function title(label) {
     heading.textContent = label;
-    document.title = label + ' · 宠物店';
+    document.title = label + ' · 麦穗宠物店';
   }
   async function request(url, body) {
     const response = await fetch(url, body === undefined ? {cache:'no-store'} : {
@@ -207,6 +218,7 @@ function initializeLogin() {
     try {
       const result = await request(endpoint, {username});
       rememberAccount(result.username);
+      setMusicActive(false);
       location.replace(result.entry);
     } catch (err) {
       showError(messageFor(err));
@@ -232,7 +244,7 @@ function initializeLogin() {
   readSession();
 }
 
-export const loginScript = '(' + initializeLogin.toString() + ')();';
+export const loginScript = '(' + initializeLogin.toString() + ')(' + bindLoginMusic.toString() + ');';
 
 // The shipped Cocos client uses XMLHttpRequest for ledger pages. The multiplayer
 // server marks the read-only account-switch page only after its link is chosen.
