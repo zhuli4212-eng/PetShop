@@ -192,7 +192,7 @@ test('十五组自动开启，只记录本组动作，重进和重放领奖保�
   game.state.rooms.rabbit.nutritionStock={premium:6};
   assert.match(panel(game).subtitle,/^安置兔房 · 0 \/ 3/);
   assert.throws(()=>act(game,'task.claim',{id:'rabbit-shop-ready'}),/当前一组/);
-  const claimed=new Set();
+  const claimed=new Set(),itemGroups=[];
   for(const complete of completeGroups){
     const unopened=panel(game);
     assert.ok(unopened.rows.every(row=>!row.done),unopened.subtitle);
@@ -203,15 +203,27 @@ test('十五组自动开启，只记录本组动作，重进和重放领奖保�
     assert.ok(current.rows.every(row=>row.done&&row.link?.page),current.subtitle);
     assert.equal(claim.disabled,false,current.subtitle);
     const before=game.state.coins;
+    const item=current.visual.rewards[1];
+    const artKey=item?.art.split('/').at(-1);
+    const stock=artKey?.startsWith('rabbit-nutrition-')?'nutritionStock':'items';
+    const key=stock==='nutritionStock'?artKey.slice('rabbit-nutrition-'.length):artKey==='breeding-guide'?'guide':'review';
+    const beforeItems=game.state.rooms.rabbit[stock]?.[key]??0;
+    if(item){
+      assert.equal(item.quantity,1);
+      itemGroups.push(key);
+    }
     const request=command(game,claim.type,claim.args);
     const receipt=game.act(request);claimed.add(claim.args.id);
     assert.equal(game.state.coins-before,current.visual.rewards[0].quantity);
     game=new RequestGameStore(game.snapshot(),options);
     assert.deepEqual(game.act(request),receipt);
     assert.equal(game.state.coins-before,current.visual.rewards[0].quantity);
+    assert.equal(game.state.rooms.rabbit[stock]?.[key]??0,beforeItems+(item?.quantity??0));
   }
 
   assert.equal(claimed.size,15);
+  assert.equal(itemGroups.length,12);
+  assert.equal(new Set(itemGroups).size,5);
   assert.equal(game.state.rooms.cat,undefined);
   assert.equal(panel(game).actions[0].label,'已领取');
   assert.match(game.shop().taskShortcut.choice.label,/经营任务已完成/);

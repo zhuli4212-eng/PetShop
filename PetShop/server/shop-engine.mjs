@@ -6,8 +6,8 @@ import { shopProgress, saleExperience, shopRaceAccess } from './shop-progression
 import { featureNames, featureAccess, operationFeature, shopRules } from './shop-features.mjs';
 import { initVisitBook, recordMilestone, seedRecoveryRows, unreadLetter, updateVisit, visitHistoryPage } from './visit-book.mjs';
 import { initTasks, recordTaskAction, recordTaskVisit, taskAction, taskShortcut, tasksPage } from './shop-tasks.mjs';
-import { initOnboarding, onboardingSnapshot, guideAccess, rabbitWaitingForOpening, settleOnboarding,
-  onboardingPage, decorateGuidePage, guideAction, recordGuideAction } from './onboarding.mjs';
+import { initOnboarding, openingShortcut, guideAccess, rabbitWaitingForOpening, settleOnboarding,
+  openingPage, decorateOpeningPage, openingAction, recordOpeningAction } from './onboarding.mjs';
 import { breedingProgramPage, breedingProgramAction, certificateRows } from './breeding-programs.mjs';
 
 export { shopRules };
@@ -44,7 +44,7 @@ function shopAccess(s,rules,level) {
 }
 function publicShop(s,now,rules) {
   const {level,...shopExperience}=shopProgress(rules,s.shopXp);
-  const access=shopAccess(s,rules,level),onboarding=onboardingSnapshot(s);
+  const access=shopAccess(s,rules,level);
   const hints=[];
   const dayClaimed=s.care.signedDay===dayAt(now);
   const guest=access.guest.unlocked&&s.visitors.active;
@@ -57,9 +57,9 @@ function publicShop(s,now,rules) {
   return { protocol:1, profileId:s.profileId, version:s.version, mode:s.mode, name:'宠物店', coins:s.coins,
     shopLevel:level, shopExperience, ...shopRaceAccess(rules,s.createdAt,now),
     featureAccess:access, entrances:legacyEntrances.filter(key=>access[key].unlocked),
-    ...(guest&&!onboarding&&{guest:{id:guest.id,endsAt:guest.endsAt}}),
-    now, hints:onboarding?[]:hints, dayClaimed, onboarding,
-    taskShortcut:taskShortcut(s,access),
+    ...(guest&&{guest:{id:guest.id,endsAt:guest.endsAt}}),
+    now, hints, dayClaimed,
+    taskShortcut:openingShortcut(s,now)??taskShortcut(s,access),
     decor:Object.keys(s.decor || {}).filter(k=>s.decor[k]?.placed),
     rooms:Object.keys(s.rooms || {}).filter(k=>s.rooms[k]&&!(k==='rabbit'&&rabbitWaitingForOpening(s))),
     notice:s.journal.at(-1) ?? null };
@@ -69,7 +69,7 @@ function accountPage(s,now,access) {
     readNoteIds:s.visitBook.stories.map(story=>story.id),rows:[
     {title:'店铺资产',text:s.coins+' 金币 · '+s.pets.length+' 只在册动物'},
     {title:'店主编号',text:s.profileId},
-    {title:'开店交接',text:'重读旧店主留下的第一页。',link:{page:'openingGuide'}},
+    {title:'交接信',text:'重读旧店主的来信和开店指引。',link:{page:'openingGuide'}},
     ...(s.visitBook.lastReport?[{title:'上次回店摘要',text:'查看离开期间已结算的事项。',link:{page:'lastVisit'}}]:[]),
     ...seedRecoveryRows(s,now,access),
     ...certificateRows(s),
@@ -140,6 +140,7 @@ export class ShopEngine {
     const world=({receipts,clock,...fields})=>JSON.stringify(fields);
     const before=world(s);
     tickCare(s,now);settleOnboarding(s,now);tickShow(s,now);tickBusiness(s,now);
+    if(s.onboarding?.finishedAt&&!this.state.onboarding?.finishedAt)recordTaskAction(s,'onboarding.claim',{},now);
     if(this.clockChange)s.clockEvent=this.clockChange;
     const changed=before!==world(s);
     if(changed || now-this.savedAt>=minute || (forceCheckpoint&&now!==this.savedAt)) {s.clock=now;if(changed)s.version++;this.save(s);}
@@ -164,11 +165,11 @@ export class ShopEngine {
     this.requireFeature(level,operationFeature(page,args));
     // Rendering cannot mutate the authoritative store.
     const data=structuredClone(s);
-    let view=onboardingPage(data,page,args,now)??(page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access));
+    let view=openingPage(data,page,args,now)??(page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access,args));
     if(page==='tasks'&&!view)view=tasksPage(data,access);
     for(const get of pageHandlers) {if(view) break;view=get(data,page,args,now,this.rules);}
     if(!view) throw new GameError('这个页面暂不可用，请返回店铺。',404);
-    decorateGuidePage(data,page,args,view,now);
+    decorateOpeningPage(data,page,args,view,now);
     if(page==='orders'||page==='guest'){
       view.tabs=[
         {label:'普通订单',page:'orders',active:page==='orders'},
@@ -211,7 +212,7 @@ export class ShopEngine {
     this.requireFeature(level,operationFeature(type,args));
     if(type==='sale.commit'&&args.litterRetention)this.requireFeature(level,'breed');
     const s=structuredClone(current);
-    let message=guideAction(s,type,args,now);
+    let message=openingAction(s,type,args,now);
     if(message===undefined)for(const run of actionHandlers) {message=run(s,type,args,now,this.rules);if(message!==undefined) break;}
     if(message===undefined) throw new GameError('未识别的经营操作。',400);
     if(typeof message!=='string' || !Number.isSafeInteger(s.coins)||s.coins<0) throw Error('经营数据校验失败。');
@@ -232,7 +233,7 @@ export class ShopEngine {
       }
     }
     recordMilestone(s,type,args,now);
-    if(s.onboarding)recordGuideAction(s,type,args,now);
+    if(s.onboarding)recordOpeningAction(s,type,args,now);
     recordTaskAction(s,type,args,now);
     s.clock=now;s.version++;
     const result={requestId,message,version:s.version,...(awarded!==undefined&&{saleExperience:awarded}),...(levelUp&&{levelUp})};
@@ -257,7 +258,7 @@ export class ShopEngine {
     s.clock=now;this.save(s);
     this.readers=readers;
     const shop=publicShop(s,now,this.rules);
-    if(reader&&foreground)shop.letter=shop.onboarding?null:unreadLetter(s,now,shop.featureAccess);
+    if(reader&&foreground)shop.letter=unreadLetter(s,now,shop.featureAccess);
     return shop;
   }
   checkpoint(force=false) {if(this.state)this.advance(force);}

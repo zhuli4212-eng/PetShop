@@ -7,7 +7,7 @@ import { guideDialog, guideEntrance, guideNote, guideTarget, revealGuideTarget, 
 
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean =>
-    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','onboarding','audioSettings','seedReservation','breedingCourses'].includes(key);
+    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','openingGuide','openingLitterQuote','audioSettings','seedReservation','breedingCourses'].includes(key);
 
 function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toTasks=false, fixed=false): void {
     const h = modal ? 54 : 64;
@@ -73,7 +73,7 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
     }
     function selection():void {
         const ids=(p.rows||[]).filter(r=>r.select).map(r=>r.select!);
-        if(!ids.length)return;
+        if(!ids.length||p.visual?.singleSelect)return;
         const y=slot(48), all=ids.every(id=>ui.selected.has(id));
         caption(content,'SelectionCount',(p.selectionLabel||'已选')+' '+ui.selected.size+' 只',-54,y,inner-108,42,14,paper.green).isBold=true;
         press(content,'SelectAll',all?'清空选择':'全选本页',inner/2-50,y,100,
@@ -316,6 +316,24 @@ function paginateDetails(content:Node,sheet:Node,ui:LedgerUI,width:number,top:nu
     press(bar,'Next','下一页',x,0,side,()=>ui.turnPage(index+1),false,index===groups.length-1,44);
     return true;
 }
+function openingBooklet(c:PageCanvas,bodyHeight:number):boolean {
+    const pages=c.p.visual?.openingBooklet as {art:string;caption:string}[]|undefined;
+    if(!pages?.length)return false;
+    const {body:content,inner,slot,ui}=c;
+    const index=Math.max(0,Math.min(ui.detailPage,pages.length-1));
+    const page=pages[index];
+    const textHeight=page.caption?lines(page.caption,inner-8,14)*21+6:0;
+    const imageHeight=Math.min(inner*880/720,Math.max(160,bodyHeight-textHeight-90));
+    picture(content,'GuidePageImage',page.art,0,slot(imageHeight),inner,imageHeight);
+    if(page.caption)caption(content,'GuidePageCaption',page.caption,0,slot(textHeight),inner-8,textHeight,14,paper.ink);
+    c.startFooter();
+    const width=Math.min(96,inner*.31),x=(inner-width)/2,y=slot(44,0);
+    press(content,'Previous','上一页',-x,y,width,()=>ui.turnPage(index-1),false,index===0,44);
+    caption(content,'Page',(index+1)+' / '+pages.length,0,y,64,44,14,paper.green,true);
+    const last=index===pages.length-1;
+    press(content,'Next',last?'合上信':'下一页',x,y,width,()=>last?ui.back():ui.turnPage(index+1),true,false,44);
+    return true;
+}
 export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,ui:LedgerUI,key:string,args:Args,
                            opts:LedgerOptions={}):ScrollView {
     const bounds=parent.getComponent(UITransform)!;
@@ -337,7 +355,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     const ctx=layout.ctx;
     if(opts.offline)press(content,'Retry','离线 · 重新连接',0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
     if(opts.pending)ctx.row({title:'有一笔操作等待确认',text:'查询原请求回执',action:{type:'ui.receipt'}},-1);
-    if(opts.ready===false || !(guideDialog(ctx)||taskList(ctx)||nutrition(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
+    if(opts.ready===false || !(openingBooklet(ctx,maxHeight-headerHeight)||guideDialog(ctx)||taskList(ctx)||nutrition(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
     if(p.guide?.next){
         if(!layout.footer)ctx.startFooter();
         const next=p.guide.next;

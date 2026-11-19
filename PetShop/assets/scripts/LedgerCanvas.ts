@@ -242,6 +242,7 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
     const counter=counters[key==='sale'?String(args.channel):key] || (key==='sale'&&args.channel==='order'?'orders':'');
     const paths=new Set<string>();
     if(page.art)paths.add(stageArt(page.art, page.stage || ''));
+    for(const pageArt of page.visual?.openingBooklet??[])paths.add(pageArt.art);
     if(counter)paths.add('shop-modules/'+counter);
     if(['roomNutrition','nutritionShop','checkinReceipt'].includes(key)||key==='lab'&&args.tab==='nutrition'){
         for(const row of page.rows||[])if(row.art)paths.add(stageArt(row.art,row.stage||''));

@@ -164,7 +164,7 @@ function pairPage(s,a,now) {
         {title:mother?'母本：'+mother.name:father?'父本：'+father.name:'选择亲本',text:'点选一只可配的'+sex+'性作为'+(sex==='母'?'母本':'父本')+'。'},
         ...pool.map(p=>petRow(s,p,now,'breed',{...args,[sex==='母'?'mother':'father']:p.id})),
         ...(!pool.length?[{title:'暂无合适的'+sex+'性亲本',text:'成年、老年且未繁育的空闲动物可参与配对。'}]:[])],
-      tabs:options(s,'breed',species),actions:[...(room.lastLitter?[go('查看最近一窝','litter',{species})]:[]),go('查看房间','rooms',{species})]};
+      tabs:options(s,'breed',species),actions:[...(room.lastLitter?[go(room.lastLitter.bornAt===s.onboarding?.firstLitterAt?'查看首窝':'查看最近一窝','litter',{species})]:[]),go('查看房间','rooms',{species})]};
   }
   const registration=mixedOffspring(mother,father)?'杂交':BREEDS[mother.breedKey].name;
   const summary=['确认让 '+mother.name+' 和 '+father.name+' 使用一生唯一的繁育机会？','后代品种 '+registration];
@@ -209,7 +209,8 @@ function litterParents(s,litter,children,now) {
   });
 }
 function litter(s,a,now) {
-  const species=speciesKey(a),room=s.rooms[species],l=room?.lastLitter;
+  const species=speciesKey(a),room=s.rooms[species],first=species==='rabbit'&&s.onboarding?.firstLitter;
+  const l=first&&a.bornAt===first.bornAt?first:room?.lastLitter;
   if(!l) return empty('出生记录','这间房还没有出生记录。');
   const residents=new Map(s.pets.map(p=>[p.id,p]));
   const birthRecords=new Map((l.children??[]).map(p=>[p.id,p]));
@@ -240,12 +241,50 @@ function litter(s,a,now) {
     actions:[go('挑选留种','litterKeep',{species,bornAt:l.bornAt}),go('前往动物房间','rooms',{species})]};
 }
 function litterSelection(s,page,a,now) {
-  const species=speciesKey(a), latest=s.rooms[species]?.lastLitter;
+  const species=speciesKey(a),room=s.rooms[species],g=s.onboarding;
+  const opening=species==='rabbit'&&g?.firstLitter&&a.bornAt===g.firstLitterAt&&!g.planAt&&!g.finishedAt;
+  const latest=opening?g.firstLitter:room?.lastLitter;
   if(!latest||latest.bornAt!==a.bornAt){
     return {title:'出生记录已更新',rows:[{title:'请重新打开这间房的出生记录。'}],actions:[go('查看出生记录','litter',{species})]};
   }
   const members=litterCandidates(s,latest,now), eligible=members.filter(p=>!p.retained);
   const identity={species,bornAt:latest.bornAt};
+  if(opening){
+    const back=go('重新挑选','litterKeep',identity);
+    if(page==='litterKeep'){
+      const canPlan=eligible.length>0&&members.some(p=>p.sex==='公')&&members.some(p=>p.sex==='母')&&members.length>=3;
+      return {title:'首窝留种与出售',subtitle:'已有种源会保留。选一公一母留种，再选一只出售。',selectionLabel:'留种',
+        rows:members.map(p=>({...petRow(s,p,now),...(!p.retained&&{select:p.id})})),
+        actions:canPlan?[{...go('挑选出售','openingLitterSale',identity),useSelection:true,allowEmptySelection:true}]:
+          [go('查看兔房','rooms',{species})]};
+    }
+    const keepIds=page==='openingLitterSale'?a.ids:a.keepIds;
+    const kept=eligible.filter(p=>Array.isArray(keepIds)&&keepIds.includes(p.id));
+    const retained=[...members.filter(p=>p.retained),...kept];
+    if(!Array.isArray(keepIds)||new Set(keepIds).size!==kept.length||retained.length!==2||
+        retained[0].sex===retained[1].sex){
+      return {title:'核对首窝留种',rows:[{title:'请选择一公一母留种。'}],actions:[back]};
+    }
+    const saleable=eligible.filter(p=>!keepIds.includes(p.id));
+    if(page==='openingLitterSale'){
+      return {title:'挑选出售',subtitle:'只出售一只，其余留在兔房。',selectionLabel:'出售',
+        visual:{singleSelect:true},rows:saleable.map(p=>({...petRow(s,p,now),link:undefined,select:p.id})),
+        actions:[{...go('核对售价','openingLitterQuote',{...identity,keepIds}),useSelection:true},back]};
+    }
+    if(page!=='openingLitterQuote'||a.ids?.length!==1||!saleable.some(p=>p.id===a.ids[0])){
+      return {title:'核对出售',rows:[{title:'请选择一只可出售的首窝兔子。'}],actions:[back]};
+    }
+    const quote=businessPage(s,'saleQuote',{channel:'market',ids:a.ids},now);
+    quote.subtitle='留种 2 只 · '+quote.subtitle;
+    quote.rows.unshift({title:'留种 '+retained.map(p=>p.name).join('、'),
+      text:'其余 '+(members.length-3)+' 只继续养在兔房。'});
+    quote.actions=quote.actions.map(a=>a.type==='sale.commit'?{...a,label:'确认选择',go:'tasks',
+      args:{...a.args,litterRetention:{...identity,keepIds,opening:true}}}:go('修改出售','openingLitterSale',{...identity,ids:keepIds}));
+    return quote;
+  }
+  if(page==='openingLitterSale'||page==='openingLitterQuote'){
+    return {title:'出生记录已更新',rows:[{title:'请重新查看出生记录。'}],actions:[go('查看出生记录','litter',{species})]};
+  }
   if(page==='litterKeep') {
     return {title:'挑选留种',subtitle:'已有种源自动保留。勾选本次留种的动物，其余进入出售核价。',selectionLabel:'留养',
       rows:members.map(p=>({...petRow(s,p,now),...(!p.retained&&{select:p.id})})),empty:'这一窝当前没有可挑选的未繁育动物。',
@@ -351,7 +390,7 @@ export function carePage(s,page,args={},now) {
     case 'pet': return detail(s,args,now);
     case 'breed': return pairPage(s,args,now);
     case 'litter': return litter(s,args,now);
-    case 'litterKeep': case 'litterSale': return litterSelection(s,page,args,now);
+    case 'litterKeep': case 'litterSale': case 'openingLitterSale': case 'openingLitterQuote': return litterSelection(s,page,args,now);
     case 'shelf': return shelves(s,args,now);
     case 'offer': return offerPage(s,args,now);
     case 'services': return services(s,args,now);

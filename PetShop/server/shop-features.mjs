@@ -15,14 +15,14 @@ export function featureAccess(rules, level) {
 
 const owner = new Map();
 const sections = {
-  rooms:['roomRoster','roomReceipt','roomNutrition','nutritionDetail','pet','care.unlock','care.retain','care.feed'],
+  rooms:['roomRoster','roomReceipt','roomNutrition','nutritionDetail','pet','care.unlock','care.retain','care.feed','onboarding.openRoom','onboarding.feed'],
   login:['payment'],
   orders:['orderDesk','credits','order.cancel','order.buyCredit'],
   lab:['shelf','offer','services','review','recycle','research','researchNode','researchTable','nutritionShop',
-    'care.buyPet','care.buyItem','care.buyNutrition','care.review','research.upgrade','seedReservation','breedingCourses',
+    'care.buyPet','onboarding.buy','care.buyItem','care.buyNutrition','care.review','research.upgrade','seedReservation','breedingCourses',
     'seed.reserve','seed.cancel','seed.claim','course.start','course.cancel','course.complete'],
   profile:['checkinReceipt','care.checkin'],
-  breed:['litter','litterKeep','litterSale','care.breed','care.toggle','care.keepLitter'],
+  breed:['litter','litterKeep','litterSale','openingLitterSale','openingLitterQuote','care.breed','care.toggle','care.keepLitter'],
   decor:['decor.buy','decor.place'],
   guest:['guest.dismiss'],
 };

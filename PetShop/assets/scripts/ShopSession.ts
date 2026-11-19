@@ -84,7 +84,7 @@ export class ShopSession {
     private enteredGuideDialog='';
     private grownProfile='';
     constructor(private host:Host){
-        this.browser=new GameBrowserBack(()=>this.active,()=>{if(!this.host.wallet()?.onboarding)this.back();});
+        this.browser=new GameBrowserBack(()=>this.active,()=>this.back());
     }
     get active():boolean{return !!this.feature;}
     claimDailyGift():void {
@@ -94,9 +94,11 @@ export class ShopSession {
     }
     showLetter(letter:ShopLetter,dismiss:()=>void):void {
         if(this.active||this.closed)return;
-        this.feature={key:'visitBook',args:{},selected:new Set(),offset:0,data:letter.page,version:this.host.wallet().version};
+        const key=letter.page.visual?.openingBooklet?'openingGuide':'visitBook';
+        this.feature={key,args:{},selected:new Set(),offset:0,data:letter.page,version:this.host.wallet().version};
+        if(key==='openingGuide')void prepareIllustration(key,{},letter.page);
         this.dismissLetter=dismiss;
-        this.host.activate(true);this.browser.sync();this.render(false);
+        this.host.activate(true,key==='openingGuide');this.browser.sync();this.render(false);
     }
     private get current():Visit|undefined{return this.panel||this.feature;}
     private get stack():Visit[]{return this.feature?(this.panel?[this.feature,this.panel]:[this.feature]):[];}
@@ -138,7 +140,8 @@ export class ShopSession {
         }
         if(key==='sale'&&args.preselectId&&['market','recycle'].includes(args.channel))key=args.channel;
         const labPopup=this.feature?.key==='lab'&&(key==='research'||key==='recycle');
-        const dest=labPopup||(key==='checkinReceipt'&&this.feature)?undefined:featureFor(key,args);
+        const dest=key==='openingGuide'&&!this.feature?key:
+            labPopup||(key==='checkinReceipt'&&this.feature)?undefined:featureFor(key,args);
         const visit:Visit={key,args,selected:new Set(),offset:0};
         if(key==='tasks')this.taskReturn=undefined;
         else if(dest&&this.feature?.key==='tasks')this.taskReturn=this.feature;
@@ -183,6 +186,7 @@ export class ShopSession {
                 &&args.mother===prior.args.mother&&args.father===prior.args.father){
                 visit.detailPage=prior.detailPage;visit.offset=prior.offset;
             }
+            if(prior&&['openingLitterSale','openingLitterQuote'].includes(key))visit.returnPanel=prior;
             if(key==='saleQuote'||key==='litterSale') {
                 const previous=this.current;
                 if(previous&&['sale','market','recycle','litterKeep'].includes(previous.key))this.editDraft=previous;
@@ -190,7 +194,7 @@ export class ShopSession {
             this.panel=visit;
         }
         if(key==='payment')this.paymentStage='start';
-        this.host.activate(true,this.feature?.key==='checkinReceipt'||this.feature?.key==='onboarding');this.browser.sync();
+        this.host.activate(true,this.feature?.key==='checkinReceipt'||this.feature?.key==='openingGuide');this.browser.sync();
     }
     private toHome():void {
         this.closeFilter();
@@ -286,11 +290,6 @@ export class ShopSession {
             if(visit.key==='audioSettings'){this.showAudioSettings(visit);return;}
             const result=await api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
             if(this.closed||serial!==this.serial)return;
-            if(visit.key==='onboarding'&&result.page.visual?.returnHome){
-                this.host.update(result.shop);
-                this.toHome();
-                return;
-            }
             // The server holds only the latest litter. A dossier opened from an older
             // one returns to that litter's cached birth record until the player leaves.
             if(visit.litterBirth!==undefined&&visit.data?.presentation?.bornAt===visit.litterBirth
@@ -363,7 +362,7 @@ export class ShopSession {
         if(remember)this.remember();
         this.renderedVisit=undefined;this.scroll=null;
         clearLayer(this.host.layer);
-        const modal=(!!this.panel||v.key==='checkinReceipt'||v.key==='onboarding')&&ledgerModal(v.key);
+        const modal=(!!this.panel||v.key==='checkinReceipt'||v.key==='openingGuide')&&ledgerModal(v.key);
         const hidePanel=!!this.confirm&&!this.confirmOverModal;
         const views=hidePanel?[v.data.presentation?.kind==='pairConfirm'?v:this.feature!]:modal?this.stack:[v];
         for(const view of views){
@@ -402,7 +401,6 @@ export class ShopSession {
             },view.key,view.args,{
                 backdrop,modal:!backdrop&&modal,playEntrance,
                 suppressGuide:!!this.confirm||this.bonusVisit===v,
-                guideMode:!!this.host.wallet().onboarding,
                 backToTasks:!backdrop&&!this.panel&&!!this.taskReturn,
                 ready:view.version!==undefined||view.key==='payment',
                 pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
@@ -562,7 +560,6 @@ export class ShopSession {
                     }else if(a.go)this.navigate(a.go,a.goArgs||{});
                 }};
                 feedback=(await this.send(command)).message;
-                if(['onboarding.enter','onboarding.openLetter','onboarding.proceed','onboarding.feed'].includes(command.type))feedback='';
                 await this.finishReceipt(command.requestId,true);
             }
         } catch(e){

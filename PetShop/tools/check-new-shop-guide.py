@@ -1,4 +1,4 @@
-"""Exercise the 0–17 guide using the built Cocos canvas and a disposable save."""
+"""Exercise the handover booklet and first litter in Web Mobile with disposable saves."""
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -20,351 +20,108 @@ server.listen(0,'127.0.0.1',()=>console.log(server.address().port));
 """
 
 
-def verify(browser, url, width, output, scenario=None, login=None):
+def verify(browser, url, width, output):
     page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
-                            is_mobile=True, has_touch=True,
-                            reduced_motion="reduce" if width == 320 else "no-preference")
+                            is_mobile=True, has_touch=True)
     errors = []
-    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("pageerror", lambda err: errors.append(str(err)))
     touch = QA.Touch(page)
-
-    def main(code):
-        return page.evaluate("()=>{const m=" + MAIN + ";" + code + "}")
-
-    def open_page(reload=False):
-        page.reload() if reload else page.goto(url)
-        if login:
-            login(page, reload)
-        page.wait_for_function("()=>!!" + MAIN + "?.shop?.profileId", timeout=90000)
-        page.evaluate(QA.LOCATORS)
-        main("""
-            const source=m.audio.effects;
-            const play=source.playOneShot;
-            window.guideSounds=[];
-            source.playOneShot=function(clip,volume){
-                guideSounds.push(clip.name);
-                play.call(this,clip,volume);
-            };
-        """)
+    page.goto(url)
+    page.wait_for_function("()=>!!" + MAIN + "?.shop?.profileId", timeout=90000)
+    page.evaluate(QA.LOCATORS)
 
     def ready(key):
         touch.wait("key=>pairQA.ready()&&pairQA.visit()?.key===key", key)
 
-    def step(number):
-        touch.wait("n=>(" + MAIN + "?.shop?.onboarding?.step??null)===n", number)
-
     def tap(node=None, text=None, scope="DeskPage"):
         touch.tap(node, text=text, scope=scope)
 
-    def action(command, node=None, text=None, scope="DeskPage"):
-        with page.expect_response(lambda r: urlsplit(r.url).path in {"/api/action", "/petshop-api/v1/action"}
-                and r.request.post_data_json.get("type") == command) as result:
+    def action(kind, node=None, text=None, scope="DeskPage"):
+        with page.expect_response(lambda r: urlsplit(r.url).path == "/api/action"
+                and r.request.post_data_json.get("type") == kind) as result:
             tap(node, text, scope)
         assert result.value.ok, result.value.text()
 
     def snap(name):
-        if output and width == 390:
+        if output:
             output.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=output / (name + ".png"))
+            page.screenshot(path=output / (str(width) + "-" + name + ".png"))
 
-    def focus(scope):
-        touch.wait("""name=>{
-            const node=pairQA.find('GuideSpotlight'),cue=node?.getComponent('GuideSpotlight');
-            return cue?.target?.name===name&&!!node.getChildByName('GuideNote')&&cue.prior?.right>cue.prior?.left;
-        }""", scope)
+    def letter(index):
+        touch.wait("""i=>{
+            const d=pairQA.find('DeskPage');
+            const art=pairQA.find('GuidePageImage',d)?.getComponent(cc.Sprite)?.spriteFrame;
+            return pairQA.find('Page',d)?.getComponent(cc.Label)?.string===i+' / 9'&&!!art;
+        }""", index)
 
-    def back():
-        tap("Back")
-
-    def sound(name):
-        touch.wait("name=>window.guideSounds.includes(name)", name)
-
-    def audio_settings():
-        touch.wait("()=>!"+MAIN+".pulseBusy&&!"+MAIN+".session.busy")
-        main("return m.pulse()")
-        if main("return m.session.current?.key==='visitBook'"):
-            tap(text="合上账簿")
-        touch.wait("()=>!pairQA.visit()")
-        tap("Sign", scope="Hotspot_login")
-        ready("login")
-        tap(text="声音设置")
-        ready("audioSettings")
-
-    def music_playing(playing=True):
-        touch.wait("playing=>"+MAIN+".audio.music.playing===playing", playing)
-
-    def pairing(first):
-        touch.kind("pair")
-        focus("Animal0")
-        tap("Animal0")
-        touch.wait("()=>pairQA.ready()&&pairQA.visit().data.presentation.parents.filter(Boolean).length===1")
-        tap("Animal1")
-        touch.wait("()=>pairQA.ready()&&pairQA.visit().data.presentation.parents.filter(Boolean).length===2")
-        tap("Review")
-        touch.kind("pairConfirm")
-        tap("Action0")
-        touch.wait("()=>!!pairQA.find('Confirm')")
-        focus("Accept")
-        action("care.breed", "Accept", scope="Confirm")
-        touch.kind("breeding")
-        remaining = main("return m.session.current.data.presentation.endsAt-m.shop.now")
-        assert (0 < remaining <= 5000) if first else (110_000 < remaining <= 120_000), remaining
-
-    def sale(channel):
-        tap("Row0")
-        focus("Action0")
-        tap("Action0")
-        ready("saleQuote")
-        if channel == "order":
-            assert "×1.35" in main("return m.session.current.data.visual.guideQuote")
-            snap("16-首单核对")
-        text = main("return m.session.current.data.actions.find(a=>a.type==='sale.commit').label")
-        action("sale.commit", text=text)
-
-    open_page()
-    if scenario is None:
-        ready("onboarding")
-        step(0)
-        touch.wait("()=>!!"+MAIN+".audio.music.clip")
-        assert not main("return m.audio.music.playing")
-        action("onboarding.enter", "Action0")
-        step(1)
-        music_playing()
-        touch.wait("()=>!!pairQA.find('HandoverEnvelope')?.getComponent(cc.Sprite)?.spriteFrame")
-        focus("Action0")
-        snap("01-交接信")
-        action("onboarding.openLetter", "Action0")
-        touch.wait("()=>!!pairQA.find('OpenedLetter')")
-        assert main("return m.session.current.data.subtitle.includes('麦穗宠物店')")
-        touch.wait("()=>(pairQA.find('DeskPage').getComponent('cc.UIOpacity')?.opacity??255)===255")
-        snap("01-拆开交接信")
-        open_page(reload=True)
-        ready("onboarding")
-        step(1)
-        assert main("return m.session.current.data.visual.letterOpened")
-        page.evaluate(r"""() => {
-            const open=XMLHttpRequest.prototype.open,send=XMLHttpRequest.prototype.send;
-            window.staleGuideRequests=0;
-            XMLHttpRequest.prototype.open=function(method,url,...rest){
-                this.delayGuide=/\/api\/(shop|heartbeat)$/.test(url);
-                this.guidePage=/\/api\/page$/.test(url);
-                open.call(this,method,url,...rest);
-            };
-            XMLHttpRequest.prototype.send=function(...args){
-                if(this.guidePage&&JSON.parse(args[0]).page==='onboarding')staleGuideRequests++;
-                if(this.delayGuide)setTimeout(()=>send.apply(this,args),900);
-                else send.apply(this,args);
-            };
-            window.restoreGuideRequests=()=>{
-                XMLHttpRequest.prototype.open=open;
-                XMLHttpRequest.prototype.send=send;
-            };
-        }""")
-        action("onboarding.proceed", "Action0")
-        step(2)
-        touch.wait("()=>!pairQA.visit()")
-        assert page.evaluate("staleGuideRequests") == 0
-        page.evaluate("restoreGuideRequests()")
-        main("return m.session.open('onboarding')")
-        assert page.evaluate("!pairQA.visit()")
-        focus("Sign")
-        tap("Sign", scope="Hotspot_login")
-        tap("TaskShortcut", scope="ShopHome")
-        assert page.evaluate("!pairQA.visit()")
-        snap("02-首页引导")
-        tap("Sign", scope="Hotspot_rooms")
-        ready("rooms")
-        focus("Action0")
-        back()
-        page.keyboard.press("Escape")
-        ready("rooms")
-        snap("02-免费开放兔房")
-        action("onboarding.openRoom", "Action0")
-        step(3)
-        open_page(reload=True)
-        step(3)
-        tap("Sign", scope="Hotspot_rooms")
-        ready("rooms")
-        focus("Feed")
-        tap("Feed")
-        ready("roomNutrition")
-        assert page.evaluate("!!pairQA.find('TutorialMeal')")
-        assert main("return m.session.current.data.rows[0].title") == "臻选兔兔营养餐"
-        assert "库存 1 份" in main("return m.session.current.data.rows[0].text")
-        snap("03-首次投喂确认")
-        action("onboarding.feed", "Action1")
-        step(4)
-        ready("rooms")
-        sound("growth")
-        touch.wait("()=>!!pairQA.find('GrowthSpark')?.getComponent(cc.Sprite)?.spriteFrame")
-        assert main("return m.session.current.data.presentation.nutrition??null") is None
-        assert "已投喂赠送的臻选营养餐" in main("return m.session.current.data.guide.text")
-        snap("03-首对成年")
-        tap("GuideNext")
-        tap("Sign", scope="Hotspot_breed")
-        pairing(True)
-        step(5)
-        focus("GuideNext")
-        step(5)
-        sound("hatch")
-        open_page(reload=True)
-        step(5)
-        tap("Sign", scope="Hotspot_breed")
-        ready("breed")
-        focus("GuideNext")
-        action("onboarding.acknowledge", "GuideNext")
-        ready("litter")
-        step(6)
-        assert main("return m.session.current.data.rows.filter(r=>r.litterMember).map(r=>r.animal.sex)") == ["母","公","母","公"]
-        focus("GuideNext")
-        action("onboarding.acknowledge", "GuideNext")
-        step(7)
-        ready("litter")
-        tap("Animal0")
-        ready("pet")
-        step(7)
-        assert main("return m.session.current.data.presentation.traits.length") == 6
-        focus("GuideNext")
-        action("onboarding.acknowledge", "GuideNext")
-        step(8)
-        tap("Sign", scope="Hotspot_market")
-        ready("market")
-        step(8)
-        assert main("return m.session.current.data.rows.length") == 2
-        focus("GuideNext")
-        action("onboarding.acknowledge", "GuideNext")
-        step(9)
-        ready("market")
-        sale("market")
-        ready("pet")
-        step(10)
-        sound("coins")
-        assert main("return m.session.current.data.presentation.animal.stage") == "已故"
-        snap("10-已故档案")
-    elif scenario == "missing":
-        step(10)
-        open_page(reload=True)
-        step(10)
-        tap("Sign", scope="Hotspot_rooms")
-        ready("pet")
-        step(10)
-        assert main("return m.session.current.data.presentation.animal.stage") == "已故"
-    if scenario == "budget":
-        step(13)
-        assert main("return m.shop.coins") == 75
-        tap("Sign", scope="Hotspot_lab")
-        ready("lab")
-    else:
-        focus("Action0")
-        action("onboarding.acknowledge", "Action0")
-        ready("lab")
-        step(11)
-        focus("LabRecycle")
-        tap("LabRecycle")
-        ready("recycle")
-        step(11)
-        focus("GuideNext")
-        action("onboarding.acknowledge", "GuideNext")
-        ready("recycle")
-        step(12)
-        sale("recycle")
-        ready("lab")
-    step(13)
-    snap("13-成年垂耳种源")
-    for index in range(2):
-        tap("Row"+str(index))
-        ready("offer")
-        if scenario == "budget":
-            cash = 75 if index == 0 else 0
-            assert main("return m.session.current.data.actions[0].args.cash") == cash
-            assert f"实付 {cash} 金币" in main("return m.session.current.data.actions[0].confirm")
-        tap(text="核对购买")
-        action("onboarding.buy", "Accept", scope="Confirm")
-        ready("lab")
-        assert main("return m.session.current.data.subtitle") == f"已购买 {index+1} / 2"
-        if index == 0:
-            open_page(reload=True)
-            step(13)
-            tap("Sign", scope="Hotspot_lab")
-            ready("lab")
-            assert main("return m.session.current.data.subtitle") == "已购买 1 / 2"
-    step(14)
-    tap("GuideNext")
-    ready("rooms")
-    tap("GuideNext")
-    pairing(False)
-    step(15)
-    focus("GuideNext")
-    tap("GuideNext")
-    tap("Sign", scope="Hotspot_tasks")
-    ready("tasks")
-    assert main("return m.session.current.data.rows.filter(r=>r.done).length") == 4
-    snap("15-奖励领取")
-    action("onboarding.claim", "ClaimTasks")
-    step(16)
-    sound("reward")
-    tap("Sign", scope="Hotspot_orders")
-    ready("orders")
-    assert main("return m.session.current.data.rows.length") == 3
-    assert "2 份臻选兔兔营养餐" in main("return m.session.current.data.guide.text")
-    tap("Deliver", scope="Order0")
-    ready("sale")
-    assert main("return m.session.current.data.rows.length") == 1
-    sale("order")
-    step(17)
-    ready("onboarding")
-    snap("17-引导完成")
-    action("onboarding.finish", "Action0")
-    step(None)
-    assert not page.evaluate("!!pairQA.find('GuideSpotlight')")
-    touch.wait("()=>!"+MAIN+".pulseBusy&&!"+MAIN+".session.busy")
-    main("return m.pulse()")
-    touch.wait("()=>!pairQA.visit()||pairQA.ready()&&pairQA.visit().key==='visitBook'")
-    if main("return m.session.current?.key==='visitBook'"):
-        tap(text="合上账簿")
+    ready("openingGuide")
+    letter(1)
+    assert page.evaluate("!pairQA.find('GuideSpotlight')")
+    snap("交接信")
+    for index in range(2, 10):
+        tap("Next")
+        letter(index)
+        if index == 3:
+            assert page.evaluate("pairQA.find('GuidePageCaption').getComponent(cc.Label).string") == (
+                "进兔房点「投喂」，把这份营养餐喂给它们，两只小兔就会长大。")
+            snap("营养餐指引")
+    tap("Previous")
+    letter(8)
+    tap("Next")
+    tap("Next")
     touch.wait("()=>!pairQA.visit()")
-    tap("Sign", scope="Hotspot_tasks")
-    ready("tasks")
-    assert "安置兔房 · 0 / 3 已完成" == main("return m.session.current.data.subtitle")
-    snap("18-安置兔房")
-    tap("TaskRow1")
+    tap("LetterShortcut", scope="Footer")
+    ready("openingGuide")
+    letter(1)
+    tap("Back")
+    tap("Sign", scope="Hotspot_market")
+    ready("market")
+    tap("Back")
+    tap("Sign", scope="Hotspot_rooms")
+    ready("rooms")
+    action("onboarding.openRoom", text="免费开放兔房")
+    touch.kind("rooms")
+    tap("Feed", scope="FeedingStation")
     ready("roomNutrition")
-    assert main("return m.session.current.data.rows.map(row=>row.visual.stock)") == [0, 0, 2]
-    assert page.evaluate("pairQA.find('NutritionRow2').getChildByName('Growth').getComponent(cc.Label).string.includes('已拥有 2 份')")
-    assert main("return m.session.current.data.actions[0].args.tier") == "premium"
-    snap("19-任务奖励库存")
-    action("care.feed", "FeedMeal")
+    assert page.evaluate("pairQA.visit().data.rows[2].visual.stock") == 1
+    action("care.feed", text="投喂")
+    ready("rooms")
+    touch.wait("()=>pairQA.visit().data.presentation.residents.every(r=>r.stage==='成年')")
+    tap("Back")
+    tap("Sign", scope="Hotspot_breed")
+    touch.kind("pair")
+    tap("Animal0")
+    touch.wait("()=>pairQA.ready()&&pairQA.visit().data.presentation.parents.filter(Boolean).length===1")
+    tap("Animal1")
+    touch.wait("()=>pairQA.ready()&&pairQA.visit().data.presentation.parents.filter(Boolean).length===2")
+    tap("Review")
+    touch.kind("pairConfirm")
+    assert page.evaluate("pairQA.visit().data.presentation.waitText") == "5 秒"
+    tap("Action0")
+    action("care.breed", "Accept", scope="Confirm")
+    tap(text="查看首窝")
+    ready("litter")
+    assert page.evaluate("pairQA.visit().data.rows.filter(r=>r.litterMember).length") == 4
+    tap("Animal2")
+    ready("pet")
+    tap("Back")
+    ready("litter")
+    tap(text="挑选留种")
+    ready("litterKeep")
+    tap("Animal0")
+    tap("Animal1")
+    tap(text="挑选出售")
+    ready("openingLitterSale")
+    tap("Row0")
+    tap(text="核对售价")
+    ready("openingLitterQuote")
+    action("sale.commit", text="确认选择")
     ready("tasks")
-    assert main("return m.session.current.data.rows[1].done")
-    tap("TaskRow1")
-    ready("roomNutrition")
-    assert page.evaluate("pairQA.find('NutritionRow2').getChildByName('Growth').getComponent(cc.Label).string.includes('已拥有 1 份')")
-    assert main("return m.session.current.data.actions[0].disabled")
-    snap("20-投喂后的库存")
-    back()
+    action("onboarding.claim", text="领取")
     ready("tasks")
-    back()
-    if width == 390 and scenario is None:
-        audio_settings()
-        tap("Action0")
-        music_playing(False)
-        tap("Action1")
-        assert page.evaluate("""() => ['music','effects'].every(
-          key=>localStorage.getItem('petshop.audio.'+key)==='off')""")
-        count = page.evaluate("guideSounds.length")
-        back()
-        ready("login")
-        assert page.evaluate("guideSounds.length") == count
-        open_page(reload=True)
-        audio_settings()
-        assert main("return m.session.current.data.actions.every(a=>a.label.includes('已关闭'))")
-        tap("Action0")
-        tap("Action1")
-        music_playing()
-        main("m.hideGame()")
-        music_playing(False)
-        main("m.showGame()")
-        music_playing()
+    touch.wait("()=>pairQA.visit().data.subtitle.includes('安置兔房 · 0 / 3')")
+    assert page.evaluate("pairQA.visit().data.visual.rewards.map(r=>r.name)") == ["金币", "优质兔兔营养餐"]
+    snap("正式任务及道具奖励")
     assert not errors, errors
     page.close()
 
@@ -372,22 +129,19 @@ def verify(browser, url, width, output, scenario=None, login=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--scenario", choices=("missing", "budget"))
     args = parser.parse_args()
     with sync_playwright() as p:
-        browser = p.chromium.launch(channel="msedge", headless=True)
-        for width in ((390,) if args.scenario else (390, 320)):
-            with TemporaryDirectory(prefix="petshop-guide-web-") as directory:
-                if args.scenario:
-                    subprocess.run(["node", "tools/seed-guide-recovery.mjs", args.scenario, directory],
-                                   cwd=ROOT, check=True)
+        browser = p.chromium.launch(channel="msedge",
+            args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
+        for width in (390, 320):
+            with TemporaryDirectory(prefix="petshop-letter-web-") as directory:
                 with subprocess.Popen(["node", "--input-type=module", "-e", SERVER,
                         directory, str(ROOT/"build"/"web-mobile")], cwd=ROOT,
                         stdout=subprocess.PIPE, text=True, encoding="utf-8") as proc:
                     try:
                         port = int(proc.stdout.readline().strip())
-                        verify(browser, f"http://127.0.0.1:{port}/", width, args.output, args.scenario)
-                        print(f"{width} px 触屏引导检查通过", flush=True)
+                        verify(browser, f"http://127.0.0.1:{port}/", width, args.output)
+                        print(f"{width} px 交接信、首窝和任务奖励触屏检查通过", flush=True)
                     finally:
                         proc.terminate()
         browser.close()

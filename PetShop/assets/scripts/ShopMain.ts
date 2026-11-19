@@ -7,8 +7,6 @@ import { ShopSession } from './ShopSession';
 import { ShopkeeperWalk } from './ShopkeeperWalk';
 import { frame, rect, tap } from './LedgerCanvas';
 import { ShopAudio } from './ShopAudio';
-import { showGuideSpotlight } from './TutorialPresentation';
-import { setGuideMode } from './ShopNavigation';
 
 const { ccclass, property } = _decorator;
 const ROOM_WIDTH = 390;
@@ -53,7 +51,7 @@ export class ShopMain extends Component {
     private pageHeight = 844;
     private features!:ShopHomeFeatures;
     private levelProgress!:Label;
-    private lastAutoGuide='';
+    private letterShortcut!:Node;
 
     onLoad(): void {
         this.home = this.node.getChildByName('ShopHome')!;
@@ -65,7 +63,6 @@ export class ShopMain extends Component {
         this.session=new ShopSession({layer:this.layer,audio:this.audio,origin:this.serverOrigin,height:()=>this.pageHeight,
             wallet:()=>this.shop,update:shop=>this.applyShop(shop),activate:(open,keepHome)=>{
                 this.home.active=!open||!!keepHome;this.layer.active=open;
-                this.updateHomeGuide();
                 if(open){this.closeGuestPopup();this.closeKeeperNote();}
                 else if(this.state==='open')this.scheduleOnce(()=>{this.showHomeNotes();void this.pulse();},0);
             },notice:text=>this.notify(text),readNotes:(profile,ids)=>this.markNotesRead(profile,ids)});
@@ -73,11 +70,6 @@ export class ShopMain extends Component {
         this.keeperWalk=this.room.getChildByName('Keeper')!.addComponent(ShopkeeperWalk);
         this.features=new ShopHomeFeatures(this.room,(key,args)=>{
             if(this.state!=='open'||this.session.active)return;
-            const guide=this.shop.onboarding;
-            if(guide){
-                if(key===guide.entrance&&guide.choice.page)void this.session.open(guide.choice.page,guide.choice.args);
-                return;
-            }
             if(key==='profile')this.session.claimDailyGift();
             else void this.session.open(key,args);
         });
@@ -89,8 +81,13 @@ export class ShopMain extends Component {
         this.nextTask.isBold=true;
         caption(this.taskShortcut,'Arrow','›',79,-5,17,29,20,'#496944',true);
         tap(this.taskShortcut,()=>{
-            const next=this.shop?.onboarding?.choice??this.shop?.taskShortcut?.choice;
+            const next=this.shop?.taskShortcut?.choice;
             if(this.state==='open'&&!this.session.active&&next?.page)void this.session.open(next.page,next.args);
+        });
+        this.letterShortcut=frame(this.footer,'LetterShortcut',0,0,90,42,'#F0DCAC','#987446',false);
+        caption(this.letterShortcut,'Caption','交接信',0,0,84,40,14,'#29483E',true).isBold=true;
+        tap(this.letterShortcut,()=>{
+            if(this.state==='open'&&!this.session.active)void this.session.open('openingGuide');
         });
         this.layout();
         this.schedule(this.poll,5);
@@ -137,14 +134,11 @@ export class ShopMain extends Component {
         void this.pulse();
     }
 
-    onDestroy():void {setGuideMode(false);this.session?.dispose();this.audio?.dispose();}
+    onDestroy():void {this.session?.dispose();this.audio?.dispose();}
     private notify(message:string):void {
         if(!message||!this.node.isValid)return;
         if(this.toast){this.toast.removeFromParent();this.toast.destroy();}
-        const parent=this.shop?.onboarding?(this.session.active?this.layer:this.home):this.node;
-        const toast=box(parent,'Feedback',0,0,0,57);
-        const guide=parent.getChildByName('GuideSpotlight');
-        if(guide)toast.setSiblingIndex(guide.getSiblingIndex());
+        const toast=box(this.node,'Feedback',0,0,0,57);
         toast.addComponent(Graphics);
         caption(toast,'Message',message,0,0,1,51,15,'#FFF0C8',true);
         this.toast=toast;
@@ -176,24 +170,18 @@ export class ShopMain extends Component {
             this.letter=null;this.notesReady=false;this.closeGuestPopup();this.closeKeeperNote();
         }
         this.shop=shop;
-        setGuideMode(!!shop.onboarding);
         this.header.getChildByPath('Wallet/Value')!.getComponent(Label)!.string='金币 '+shop.coins;
         this.fitWallet(this.header.getComponent(UITransform)!.width);
         this.header.getChildByName('Title')!.getComponent(Label)!.string=shop.name==='宠物店'?'麦穗宠物店':shop.name;
         this.features.update(shop);
         const xp=shop.shopExperience;
         this.levelProgress.string=xp?'店铺 '+shop.shopLevel+' 级 · '+(xp.toNext?'经验 '+xp.intoLevel+'/'+xp.toNext:'已满级'):'';
-        const tasks=shop.taskShortcut,guide=shop.onboarding;
-        this.taskShortcut.active=!!guide||!!tasks;
-        if(guide){
-            this.taskProgress.string='开店引导 '+(guide.step+1)+'/18';
-            this.nextTask.string=guide.choice.label||'继续开店';
-            if(!this.session.active&&this.state==='open')this.scheduleOnce(()=>this.showHomeNotes(),0);
-        }else if(tasks){
+        const tasks=shop.taskShortcut;
+        this.taskShortcut.active=!!tasks;
+        if(tasks){
             this.taskProgress.string='任务完成 '+tasks.completed+'/'+tasks.total;
             this.nextTask.string=tasks.choice.label||'查看任务';
         }
-        this.updateHomeGuide();
         const decor=(shop.decor||[]).join(',');
         if(this.decorKey!==decor){
             this.decorKey=decor;
@@ -224,15 +212,6 @@ export class ShopMain extends Component {
         }
     }
 
-    private updateHomeGuide():void {
-        const guide=this.shop?.onboarding;
-        if(!guide||this.session.active){
-            showGuideSpotlight(this.home);
-            return;
-        }
-        const target=guide.entrance?this.features.signFor(guide.entrance):this.taskShortcut;
-        showGuideSpotlight(this.home,target,guide.hint||guide.choice.label||'继续开店');
-    }
     private poll=async ():Promise<void>=>{
         if(this.state!=='open'||!this.foreground)return;
         if(this.session.active){await this.session.refresh();return;}
@@ -261,16 +240,6 @@ export class ShopMain extends Component {
     private showHomeNotes():void {
         if(this.state!=='open'||!this.foreground||this.session.active)return;
         const profile=this.shop.profileId;
-        const guide=this.shop.onboarding;
-        if(guide){
-            this.closeGuestPopup();
-            const key=profile+':'+guide.step;
-            if(guide.choice.page==='onboarding'&&this.lastAutoGuide!==key){
-                this.lastAutoGuide=key;
-                void this.session.open('onboarding');
-            }
-            return;
-        }
         const letter=this.letter;
         if(letter){
             this.session.showLetter(letter,()=>this.markNotesRead(profile,letter.ids));
@@ -377,6 +346,7 @@ export class ShopMain extends Component {
         this.footer.setPosition(0,-h/2+29);
         this.footer.getComponent(UITransform)!.setContentSize(width,58);
         this.taskShortcut.setPosition(-width/2+100,0);
+        this.letterShortcut?.setPosition(width/2-53,0);
         this.room.setPosition(0,-3);
         this.room.setScale(roomScale, roomScale, 1);
         const sceneScale=scale*roomScale;
@@ -453,7 +423,6 @@ export class ShopMain extends Component {
 
     private onKey(event:EventKeyboard):void {
         if(event.keyCode!==KeyCode.ESCAPE&&event.keyCode!==KeyCode.MOBILE_BACK)return;
-        if(this.shop?.onboarding)return;
         if(this.session.active)this.session.back();
         else this.guestPopup?.later();
     }
@@ -463,6 +432,6 @@ export class ShopMain extends Component {
         if(!ready){this.closeGuestPopup();this.closeKeeperNote();}
         else this.fitBubble();
         for(const child of [...this.layer.children]){child.removeFromParent();child.destroy();}
-        if(!ready)drawConnection(this.layer,this.pageHeight,this.state==='offline',()=>{if(this.state==='offline')void this.openStore();},!!this.shop?.onboarding);
+        if(!ready)drawConnection(this.layer,this.pageHeight,this.state==='offline',()=>{if(this.state==='offline')void this.openStore();});
     }
 }

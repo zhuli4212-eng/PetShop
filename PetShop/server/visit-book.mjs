@@ -84,7 +84,7 @@ export function seedRecoveryRows(s,now,access) {
     return rows;
   }
   for(const [species,room] of Object.entries(s.rooms)){
-    const stock=room.shelf.offers.filter(Boolean);
+    const stock=(room.shelf?.offers??[]).filter(Boolean);
     rows.push({title:SPECIES[species].name+'房当前货架',text:stock.length?
       stock.map(p=>p.name+'（'+p.sex+'）'+purchasePrice(s,youngPurchaseBase(p))+' 金币').join('、'):'本批已售空。',
       link:{page:'lab'}});
@@ -96,21 +96,41 @@ function summaryPage(s,events,now,access) {
   const rows=events.map(e=>({title:e.title,text:beijingTime(e.at)+'　'+e.text}));
   return {title:'离店期间',subtitle:'北京时间 · 以下事项均已结算',rows:[...rows,...seedRecoveryRows(s,now,access)],actions:[close]};
 }
+const bookletCaptions = [
+  "",
+  "先去「动物小屋」，免费开放兔房。我留下的那对小兔，会直接住进去。",
+  "进兔房点「投喂」，把这份营养餐喂给它们，两只小兔就会长大。",
+  "点「开始繁育」，只要等 5 秒，再点「查看首窝」，看看新出生的小兔。之后兔房每窝要等 2 分钟。",
+  "这一窝有四只，性别、特点和价钱各不相同。先想想，留哪两只继续繁育？",
+  "留下一公一母作种源，卖掉一只换金币，剩下一只先养在兔房。确认无误再点「确认选择」。",
+  "看看卖了多少钱，留种兔还要多久长大，然后领走我给你的开店奖励。",
+  "领完开店奖励，「安置兔房」会自动开启，从这时开始记进度。回店里打开「任务」就能看到。",
+  "做完这三件事就可以领奖。下一组会自动开启，从零开始。"
+];
+function openingBooklet() {
+  return {title:'交接信',visual:{openingBooklet:bookletCaptions.map((caption,index)=>({
+    art:'onboarding/letter-'+index, caption,
+  }))}};
+}
+
 function openingPage(revisit) {
   return {title:'旧店交接',subtitle:'账簿的第一页',rows:[
     {title:'街角的小店',text:'柜台上压着钥匙和一本旧账簿。原店主写道：“先别急着把店做大，看看进门的人需要什么。”'},
     {title:'兔房里的一对种兔',text:'小花和小白在开店时已经成年。到繁育台选好亲本，核对后就能开始第一窝。'}
   ],actions:[{label:'查看任务',page:'tasks'},revisit?close:{label:'进入店铺',type:'ui.back'}]};
 }
-export function visitHistoryPage(s,key,now,access) {
-  if(key==='openingGuide')return {...openingPage(true),readNoteIds:s.visitBook.opening?['opening']:[]};
+export function visitHistoryPage(s,key,now,access,args={}) {
+  if(key==='openingGuide'||key==='onboarding'){
+    const page=s.onboarding?openingBooklet():openingPage(true);
+    return {...page,readNoteIds:s.visitBook.opening?['opening']:[]};
+  }
   if(key==='lastVisit'&&s.visitBook.lastReport)return summaryPage(s,s.visitBook.lastReport,now,access);
   return null;
 }
 export function unreadLetter(s,now,access) {
   const book=s.visitBook;
   if(book.away.length)return {ids:book.away.map(b=>b.id),page:summaryPage(s,book.away.flatMap(b=>b.events),now,access)};
-  if(book.opening)return {ids:['opening'],page:openingPage(false)};
+  if(book.opening)return {ids:['opening'],page:s.onboarding?openingBooklet():openingPage(false)};
   if(book.stories.length)return {ids:book.stories.map(n=>n.id),page:{title:'账簿新页',
     rows:book.stories.map(n=>({title:'经营手记',text:n.text})),actions:[close]}};
   return null;

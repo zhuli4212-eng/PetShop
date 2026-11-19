@@ -44,7 +44,7 @@ export class ShopHomeFeatures {
         for(const entry of this.entries) {
             const rule=shop.featureAccess?.[entry.key];
             entry.target.active=entry.key==='tasks'||!!rule||entry.key==='collection'||shop.entrances.includes(entry.key);
-            if(entry.key==='profile'&&(shop.dayClaimed||shop.onboarding))entry.target.active=false;
+            if(entry.key==='profile'&&shop.dayClaimed)entry.target.active=false;
             if(rule&&!rule.unlocked&&!entry.label) {
                 const tag=frame(entry.sign,'LevelLock',0,-16,64,17,'#66513A','#BBA17A',false);
                 picture(tag,'LockIcon','shop-modules/node-lock',-23,0,13,13);

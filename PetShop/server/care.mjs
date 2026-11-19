@@ -339,11 +339,20 @@ export function litterCandidates(s,litter,now) {
 }
 // A litter decision applies to the same unprotected animals the player reviewed.
 export function retainedLitterPets(s, decision, soldIds, now) {
-  const litter=s.rooms[decision.species]?.lastLitter;
+  const g=s.onboarding;
+  const opening=decision.opening===true;
+  if(opening)requireValue(decision.species==='rabbit'&&g?.firstLitter&&!g.planAt&&!g.finishedAt,'首窝留种已处理。');
+  const litter=opening?g.firstLitter:s.rooms[decision.species]?.lastLitter;
   requireValue(litter && litter.bornAt===decision.bornAt,'出生记录已更新，请重新挑选。');
-  const eligible=litterCandidates(s,litter,now).filter(p=>!p.retained);
+  const members=litterCandidates(s,litter,now),eligible=members.filter(p=>!p.retained);
   requireValue(Array.isArray(decision.keepIds)&&Array.isArray(soldIds),'本窝选单无效。');
   const all=[...decision.keepIds,...soldIds], chosen=new Set(all), keep=new Set(decision.keepIds);
+  if(opening){
+    const retained=members.filter(p=>p.retained||keep.has(p.id));
+    requireValue(soldIds.length===1&&chosen.size===all.length&&all.every(id=>eligible.some(p=>p.id===id))&&
+      retained.length===2&&retained[0].sex!==retained[1].sex,'请选择一公一母留种和一只出售。');
+    return eligible.filter(p=>keep.has(p.id));
+  }
   requireValue(chosen.size===all.length&&all.length===eligible.length&&eligible.every(p=>chosen.has(p.id)),
     '本窝名册已变化，请重新挑选。');
   return eligible.filter(p=>keep.has(p.id));

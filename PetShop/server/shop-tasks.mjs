@@ -1,4 +1,4 @@
-import { activeNutrition, nutritionStock } from './room-nutrition.mjs';
+import { activeNutrition, nutritionStock, nutritionTier } from './room-nutrition.mjs';
 
 const rabbitPairTask='rabbit-pair';
 const reward={coins:40,tier:'premium',quantity:2};
@@ -52,7 +52,7 @@ const orderTask=(p,total,prior=0)=>{
 const feedTask=p=>entry('给兔房喂一份营养餐','在兔房使用一份营养餐。',p.feeds>=1,'roomNutrition',rabbit);
 
 const earlyGroups=[
-  {id:'settle-rabbits',title:'安置兔房',coins:40,rows:(s,p)=>p.legacy?[
+  {id:'settle-rabbits',title:'安置兔房',coins:40,item:'quality',rows:(s,p)=>p.legacy?[
     entry('签到领养幼兔','点击门口礼盒，领取今日的两只幼兔。',s.care.signedDay!=null,'profile'),
     feedTask(p),
     entry('给一只兔子留种','在兔房选一只兔子，打开档案并标记为种源。',
@@ -63,7 +63,7 @@ const earlyGroups=[
     feedTask(p),
     entry('逛逛店里能买的种兔','打开培育中心的种源货架。',!!p.shelf,'lab',{tab:'seed',fromTasks:true}),
   ]},
-  {id:'manage-first-litters',title:'经营第一批兔子',coins:40,rows:(_s,p)=>[
+  {id:'manage-first-litters',title:'经营第一批兔子',coins:40,item:'guide',rows:(_s,p)=>[
     entry('在自由市场售出动物','选一只不打算留种的动物，完成出售。',p.marketSales>0,'market'),
     entry('查看培育中心种源','看看当前可买的种源，记录下一次补种的选择。',!!p.shelf,'lab',{tab:'seed',fromTasks:true}),
     entry('安排下一窝兔子','从已有的成年兔里挑选母本和父本，再开始一窝。',p.breeds>=1,'breed',rabbit),
@@ -72,35 +72,60 @@ const earlyGroups=[
     entry('完成下一次交易','交付普通订单，或再去自由市场完成一笔交易。',p.sales>=groupGoal(p,2,1),'orders',{fromTasks:true}),
     entry('查看普通订单','对照当前委托和兔房名册，挑选要交付的动物。',!!p.orderRead,'orders',{fromTasks:true}),
   ]},
-  {id:'learn-services',title:'认识培育服务',coins:60,rows:(_s,p)=>[
+  {id:'learn-services',title:'认识培育服务',coins:60,item:'review',rows:(_s,p)=>[
     entry('查看一只兔子的档案','从兔房挑一只兔子，查看成长时间和属性。',!!p.archive,'rooms',rabbit),
     entry('查看服务单','了解复评单和选育指导单的用途。',!!p.services,'lab',{tab:'services',fromTasks:true}),
     keepTask(p,2),
   ]},
-  {id:'add-seeds',title:'添补新种源',coins:80,rows:(_s,p)=>[buyTask(p,2),breedTask(p,2,1),litterTask(p,2,1)]},
+  {id:'add-seeds',title:'添补新种源',coins:80,item:'select',rows:(_s,p)=>[buyTask(p,2),breedTask(p,2,1),litterTask(p,2,1)]},
   {id:'rabbit-research',title:'开始兔房研究',coins:80,rows:(s,p)=>[
     entry('打开兔房研究手册','查看三条研究分支的成长方向。',!!p.researchRead,'research',rabbit),
     researchTask(s,p,1),marketTask(p,3,1),
   ]},
-  {id:'follow-growth',title:'照看新生幼兔',coins:80,rows:(_s,p)=>[
+  {id:'follow-growth',title:'照看新生幼兔',coins:80,item:'quality',rows:(_s,p)=>[
     entry('查看兔房营养餐状态','投喂过营养餐后，再打开列表核对剩余库存。',!!p.mealRead,'roomNutrition',rabbit),
     breedTask(p,3,2),litterTask(p,3,2),
   ]},
-  {id:'work-orders',title:'处理普通委托',coins:80,rows:(_s,p)=>[orderTask(p,1),saleTask(p,6)]},
-  {id:'select-breeders',title:'建立后备种群',coins:100,rows:(_s,p)=>[keepTask(p,4,2),litterTask(p,4,3)]},
+  {id:'work-orders',title:'处理普通委托',coins:80,item:'guide',rows:(_s,p)=>[orderTask(p,1),saleTask(p,6)]},
+  {id:'select-breeders',title:'建立后备种群',coins:100,item:'select',rows:(_s,p)=>[keepTask(p,4,2),litterTask(p,4,3)]},
   {id:'regular-sales',title:'稳定市场出货',coins:100,rows:(_s,p)=>[marketTask(p,5,3),incomeTask(p,1000)]},
-  {id:'improve-research',title:'提高兔房培育水平',coins:120,rows:(s,p)=>[researchTask(s,p,2,1),buyTask(p,3,2),breedTask(p,5,3)]},
-  {id:'grow-output',title:'扩大兔房供给',coins:120,rows:(_s,p)=>[
+  {id:'improve-research',title:'提高兔房培育水平',coins:120,item:'review',rows:(s,p)=>[researchTask(s,p,2,1),buyTask(p,3,2),breedTask(p,5,3)]},
+  {id:'grow-output',title:'扩大兔房供给',coins:120,item:'premium',rows:(_s,p)=>[
     litterTask(p,5,4),saleTask(p,12,6),breedTask(p,6,5),
     entry('两次投喂兔房','首份普通营养餐到期后，可以再使用一份。',p.feeds>=2,'roomNutrition',rabbit),
   ]},
-  {id:'upgrade-stock',title:'周转种源和订单',coins:140,rows:(_s,p)=>[
+  {id:'upgrade-stock',title:'周转种源和订单',coins:140,item:'guide',rows:(_s,p)=>[
     orderTask(p,2,1),buyTask(p,4,3),keepTask(p,5,4),
     entry('查看补位订单','委托处理后约 30 分钟补位。打开普通订单查看新委托。',!!p.refill,'orders',{fromTasks:true}),
   ]},
-  {id:'prepare-cat-room',title:'筹备猫房经费',coins:160,rows:(s,p)=>[incomeTask(p,2500,1000),researchTask(s,p,3,2),marketTask(p,7,5)]},
-  {id:'rabbit-shop-ready',title:'兔房独立经营',coins:200,rows:(_s,p)=>[breedTask(p,8,6),litterTask(p,8,5),saleTask(p,20,12)]},
+  {id:'prepare-cat-room',title:'筹备猫房经费',coins:160,item:'select',rows:(s,p)=>[incomeTask(p,2500,1000),researchTask(s,p,3,2),marketTask(p,7,5)]},
+  {id:'rabbit-shop-ready',title:'兔房独立经营',coins:200,item:'premium',rows:(_s,p)=>[breedTask(p,8,6),litterTask(p,8,5),saleTask(p,20,12)]},
 ];
+const taskItems={
+  guide:{name:'兔用选育指导单',art:'shop-modules/breeding-guide'},
+  review:{name:'兔用复评单',art:'shop-modules/research-review'},
+};
+function taskItem(key) {
+  if(!key)return;
+  if(taskItems[key])return taskItems[key];
+  return {name:nutritionTier(key).label+'兔兔营养餐',art:'rooms/rabbit-nutrition-'+key};
+}
+function groupRewards(group) {
+  const entries=[{name:'金币',quantity:group.coins}];
+  const item=taskItem(group.item);
+  if(item)entries.push({...item,quantity:1});
+  return entries;
+}
+function grantGroupRewards(s,group) {
+  s.coins+=group.coins;
+  if(!group.item)return group.coins+' 金币';
+  const room=s.rooms.rabbit,key=group.item;
+  const stock=taskItems[key]?room.items:(room.nutritionStock??={});
+  const count=stock[key]??0;
+  if(!Number.isSafeInteger(count+1))throw new Error('对应道具库存已满。');
+  stock[key]=count+1;
+  return group.coins+' 金币和 1 '+(taskItems[key]?'张':'份')+taskItem(key).name;
+}
 const earlyStart=s=>s.onboarding?s.onboarding.finishedAt:s.tasks[rabbitPairTask]?.claimedAt;
 const earlyDone=s=>s.tasks.early?.claimed?.[earlyGroups.at(-1).id]!==undefined;
 const currentEarlyGroup=s=>earlyGroups.find(group=>s.tasks.early?.claimed?.[group.id]===undefined);
@@ -152,7 +177,7 @@ function visitEarly(s,page,args,now) {
   const p=early.progress, updates={};
   const litter=s.rooms.rabbit.lastLitter;
   if(page==='litter'&&(args.species??'rabbit')==='rabbit'&&litter&&
-      litter.bornAt>(early.legacy?s.onboarding?.firstLitterAt??0:early.startedAt)&&litter.ids[0]!==p.lastLitterId){
+      (args.bornAt===undefined||args.bornAt===litter.bornAt)&&litter.bornAt>(early.legacy?s.onboarding?.firstLitterAt??0:early.startedAt)&&litter.ids[0]!==p.lastLitterId){
     updates.lastLitterId=litter.ids[0];updates.litters=(p.litters??0)+1;
   }
   if(page==='lab'&&(!args.tab||args.tab==='seed')&&!p.shelf)updates.shelf=true;
@@ -290,7 +315,7 @@ export function tasksPage(s,access) {
   if(earlyStart(s)!==undefined){
     const {group,rows,claimed}=earlyTaskGroup(s);
     return {title:'任务',subtitle:group.title+' · '+rows.filter(r=>r.done).length+' / '+rows.length+' 已完成',rows,
-      visual:{rewards:[{name:'金币',quantity:group.coins}]},
+      visual:{rewards:groupRewards(group)},
       actions:[{label:claimed?'已领取':'领取',type:'task.claim',args:{id:group.id},disabled:claimed||rows.some(row=>!row.done)}]};
   }
   const rows=taskRows(s,access);
@@ -311,10 +336,10 @@ export function taskAction(s,type,args,now) {
     if(rows.some(row=>!row.done))throw new Error('请先完成这组里的全部任务。');
     const earlyState=s.tasks.early??={};
     (earlyState.claimed??={})[group.id]=now;
-    s.coins+=group.coins;
+    const reward=grantGroupRewards(s,group);
     openEarlyGroup(s,now);
     const next=currentEarlyGroup(s);
-    return '已领取「'+group.title+'」奖励 '+group.coins+' 金币。'+(next?'已开启「'+next.title+'」。':'首轮经营任务已完成。');
+    return '已领取「'+group.title+'」奖励 '+reward+'。'+(next?'已开启「'+next.title+'」。':'首轮经营任务已完成。');
   }
   if(args.id!==rabbitPairTask)throw new Error('没有这项任务。');
   const task=s.tasks[rabbitPairTask];

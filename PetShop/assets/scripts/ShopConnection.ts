@@ -38,7 +38,6 @@ export interface ShopSnapshot {
     featureAccess?:Record<string,{name:string;requiredLevel:number;unlocked:boolean}>;
     notice?:{key:string,text:string,at:number}; hints?:{id:string,text:string}[];
     taskShortcut?:{completed:number;total:number;choice:Choice};
-    onboarding?:{step:number;choice:Choice;entrance?:string;hint?:string};
     guest?:{id:string;endsAt:number};
     letter?:ShopLetter|null;
 }

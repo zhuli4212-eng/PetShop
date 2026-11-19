@@ -18,24 +18,19 @@ export function seedGuideRecovery(directory, scenario, now=Date.now()-10_000) {
     const {type,args}=page('saleQuote',{channel,ids:[id]}).actions[0];
     act(type,args);
   };
-  for(const step of ['enter','openLetter','proceed','openRoom','feed'])act('onboarding.'+step);
+  act('onboarding.openRoom');
+  choose(page('roomNutrition').actions[0]);
   const [mother,father]=store.state.onboarding.starters;
   act('care.breed',{mother,father});
   now=store.state.rooms.rabbit.job.endsAt;
-  choose(page('breed').guide.next);
-  choose(page('litter').guide.next);
-  const first=page('litter').rows.find(row=>row.litterMember).animal;
-  choose(page('pet',{id:first.id}).guide.next);
-  choose(page('market').guide.next);
   commit('market',mother);
-  if(scenario==='budget'){
-    choose(page('pet',{id:father}).actions[0]);
-    choose(page('recycle').guide.next);
-    commit('recycle',father);
-  }
+  if(scenario==='budget')commit('recycle',father);
   const s=structuredClone(store.state);
-  if(scenario==='missing')s.pets=s.pets.filter(pet=>pet.id!==father);
-  else s.coins=75;
+  if(scenario==='missing'){
+    delete s.onboarding.booklet;
+    s.onboarding.step=10;
+    s.pets=s.pets.filter(pet=>pet.id!==father);
+  }else s.coins=75;
   store.save(s);
   return {now,father,profileId:s.profileId,coins:s.coins};
 }
