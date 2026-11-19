@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-19",
+  "version": "2026.11.19.2",
+  "region": "cn-hongkong",
+  "host": "47.243.58.106",
+  "upstream": "https://petshop.zhu-li-4212.xyz",
+  "gameSourceCommit": "7cdcbdc5f0e30edeb2edc1026e7fc3cc15d73f35",
+  "versionTag": "petshop-v2026.11.19.2",
+  "baselineTag": "production-baseline-2026-11-19.2",
+  "deploymentArchive": "output/aliyun/petshop-production-20261119.2-hk.tar.gz",
+  "deploymentSha256": "938dfe4049048acfa803c372504b397291e3106f714302236691ffc52afaea45",
+  "publicFiles": 2097,
+  "publicAssetManifestSha256": "e4973a705f445cd7b94ad73789eae5cc8de5fbb58e7832adbeae05d62169d665",
+  "accountServiceSha256": "010e9418949e172eb4d792203978fb6809edb7aca131f73dc47b5b48883d1320",
+  "releaseDirectory": "/opt/petshop/release.M18usgGs",
+  "previousReleaseDirectory": "/opt/petshop/release.nGPkm1yJ",
+  "previousBaseline": "petshop-v2026.11.19.1",
+  "productionDatabase": "/var/lib/petshop/shop.sqlite",
+  "databasePreservation": {
+    "resetPerformed": false,
+    "sameDatabaseFile": true,
+    "exactRowsMatched": true,
+    "sqliteQuickCheckPassed": true,
+    "counts": {
+      "trial_accounts": 16,
+      "trial_sessions": 47,
+      "trial_auth_limits": 2
+    },
+    "rollbackSnapshot": "/var/lib/petshop/rollback/2026.11.19.2.ftaRrCQz/shop-before-deploy.sqlite",
+    "rollbackSnapshotSha256": "b23d2ff8c2cc8a6f53b54d1ef1f5ac0c9f8f4bec03559f598aed6676a1621fa6",
+    "verifiedAt": "2026-11-19T18:50:26+08:00"
+  },
+  "servicesActive": [
+    "petshop.service",
+    "petshop-web.service"
+  ],
+  "nginxConfigurationPassed": true,
+  "pagesGatewayDeploymentsReused": true,
+  "localChecks": {
+    "serverTestsPassed": 106,
+    "touchBrowserWidths": [
+      320,
+      390
+    ],
+    "isolatedUpgrade": {
+      "oldPassword": true,
+      "existingSession": true,
+      "shopProfileAndCoinsPreserved": true,
+      "animalIdsPreserved": true,
+      "newShopBooklet": true,
+      "marketAndRoomFilters": true,
+      "sqliteQuickCheckPassed": true
+    }
+  },
+  "liveChecks": {
+    "verifiedAt": "2026-11-19T18:51:14.453000+08:00",
+    "version": "2026.11.19.2",
+    "entrances": [
+      {
+        "url": "https://petshop-trial.pages.dev/",
+        "health": 200,
+        "anonymousShop": 401,
+        "publishedAssetHashes": {
+          "index.html": "113991c32a87861d80cf7541a5052b973ac4d85111c038948c7291f40088d1d8",
+          "trial-start.js": "df75293481d9eec3588f41f17ed5593d47bcc5afa0e2214ef528e22e2c5d350d",
+          "trial-login.css": "c2f7c03d2bc54c78c4e42bcf016d5a65f451bf37e1f96d9037db0a68aba044c1",
+          "release.json": "32143e583c1a9797c86cf67f2eb6906f31549c72387f4b34fb0abe8497b7f2e1",
+          "assets/main/index.af5a7a2daa224641.js": "94dd04718d088020df9f51659aa7eab65817dffe50da886d1671b7aab0f00c5e",
+          "src/entry.d8d6a875e99a935d.js": "d8d6a875e99a935d10c75d6034275fb2d91b2125279231687e07e1244c746cd1"
+        }
+      },
+      {
+        "url": "https://play.zhu-li-4212.xyz/petshop/",
+        "health": 200,
+        "anonymousShop": 401,
+        "publishedAssetHashes": {
+          "index.html": "113991c32a87861d80cf7541a5052b973ac4d85111c038948c7291f40088d1d8",
+          "trial-start.js": "df75293481d9eec3588f41f17ed5593d47bcc5afa0e2214ef528e22e2c5d350d",
+          "trial-login.css": "c2f7c03d2bc54c78c4e42bcf016d5a65f451bf37e1f96d9037db0a68aba044c1",
+          "release.json": "32143e583c1a9797c86cf67f2eb6906f31549c72387f4b34fb0abe8497b7f2e1",
+          "assets/main/index.af5a7a2daa224641.js": "94dd04718d088020df9f51659aa7eab65817dffe50da886d1671b7aab0f00c5e",
+          "src/entry.d8d6a875e99a935d.js": "d8d6a875e99a935d10c75d6034275fb2d91b2125279231687e07e1244c746cd1"
+        }
+      }
+    ]
+  }
+}
