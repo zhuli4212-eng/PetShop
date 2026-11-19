@@ -1,4 +1,4 @@
-import { nutritionStock } from './room-nutrition.mjs';
+import { activeNutrition, nutritionStock } from './room-nutrition.mjs';
 
 const rabbitPairTask='rabbit-pair';
 const reward={coins:40,tier:'premium',quantity:2};
@@ -9,24 +9,59 @@ export const openingReward=[
 const isPurchasedRabbit=p=>p?.species==='rabbit'&&p.source==='研究所采购';
 const rabbit={species:'rabbit'};
 const entry=(title,text,done,page,args={})=>({title,text,done,link:{page,args}});
-const breedTask=(p,count)=>entry('安排 '+count+' 窝兔子','在兔房繁育。以引导后成功开始的窝数累计。',p.breeds>=count,'breed',rabbit);
-const litterTask=(p,count)=>entry('查看 '+count+' 窝出生记录','每一窝出生后打开一次「最近出生的一窝」。',p.litters>=count,'litter',rabbit);
-const keepTask=(p,count)=>entry('累计给 '+count+' 只兔子留种','在兔房查看档案并标记种源。同一只只计一次。',p.retained>=count,'rooms',rabbit);
-const buyTask=(p,count)=>entry('购入 '+count+' 只兔子','在培育中心种源货架选购。计入引导后的采购。',p.bought>=count,'lab',{tab:'seed',fromTasks:true});
-const marketTask=(p,count)=>entry('在市场完成 '+count+' 笔出售','在自由市场确认出售动物。',p.marketSales>=count,'market');
-const saleTask=(p,count)=>entry('累计售出 '+count+' 只动物','市场或普通订单都可。批量出售按只数累计。',p.sold>=count,'market');
-const incomeTask=(p,amount)=>entry('累计交易收入 '+amount+' 金币','统计引导结束后的自由市场与普通订单成交。',p.income>=amount,'market');
-const researchTask=(p,count)=>entry('兔房研究累计 '+count+' 级','在培育中心选择任意兔房研究分支升级。',p.research>=count,'research',rabbit);
-const orderTask=(p,count)=>entry('处理 '+count+' 份普通委托','完成交付或取消不适合的委托，等待该槽补单。',p.orders>=count,'orders',{fromTasks:true});
+// New groups use differences between the previous cumulative milestones.
+const groupGoal=(p,total,prior)=>p.legacy?total:total-prior;
+const breedTask=(p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return entry('安排 '+count+' 窝兔子','在兔房开始繁育。',p.breeds>=count,'breed',rabbit);
+};
+const litterTask=(p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return entry('查看 '+count+' 窝出生记录','每一窝出生后打开一次「最近出生的一窝」。',p.litters>=count,'litter',rabbit);
+};
+const keepTask=(p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return entry('给 '+count+' 只兔子留种','在兔房查看档案并标记种源。同一只只计一次。',p.retained>=count,'rooms',rabbit);
+};
+const buyTask=(p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return entry('购入 '+count+' 只兔子','在培育中心种源货架选购。',p.bought>=count,'lab',{tab:'seed',fromTasks:true});
+};
+const marketTask=(p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return entry('在市场完成 '+count+' 笔出售','在自由市场确认出售动物。',p.marketSales>=count,'market');
+};
+const saleTask=(p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return entry('累计售出 '+count+' 只动物','市场或普通订单都可。批量出售按只数累计。',p.sold>=count,'market');
+};
+const incomeTask=(p,total,prior=0)=>{
+  const amount=groupGoal(p,total,prior);
+  return entry('累计交易收入 '+amount+' 金币','统计自由市场和普通订单的成交金额。',p.income>=amount,'market');
+};
+const researchTask=(s,p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return !p.legacy&&(p.research??0)<count&&s.research.rabbit.every(level=>level>=10)
+    ?entry('查看已满级的兔房研究','兔房研究已满级，打开手册查看已解锁的效果。',!!p.researchRead,'research',rabbit)
+    :entry('提升兔房研究 '+count+' 级','在培育中心选择任意兔房研究分支升级。',p.research>=count,'research',rabbit);
+};
+const orderTask=(p,total,prior=0)=>{
+  const count=groupGoal(p,total,prior);
+  return entry('处理 '+count+' 份普通委托','完成交付或取消不适合的委托，等待该槽补单。',p.orders>=count,'orders',{fromTasks:true});
+};
+const feedTask=p=>entry('给兔房喂一份营养餐','在兔房使用一份营养餐。',p.feeds>=1,'roomNutrition',rabbit);
 
 const earlyGroups=[
-  {id:'settle-rabbits',title:'安置兔房',coins:40,rows:(s,p)=>[
+  {id:'settle-rabbits',title:'安置兔房',coins:40,rows:(s,p)=>p.legacy?[
     entry('签到领养幼兔','点击门口礼盒，领取今日的两只幼兔。',s.care.signedDay!=null,'profile'),
-    entry('给兔房投喂营养餐','在兔房用一份开店任务奖励，给幼兔加速。',
-      p.feeds>=1,'roomNutrition',rabbit),
+    feedTask(p),
     entry('给一只兔子留种','在兔房选一只兔子，打开档案并标记为种源。',
       p.retained>=1,'rooms',rabbit),
     entry('查看下一窝幼兔','新种源的繁育按正常时间进行。出生后查看名册。',p.litters>=1,'litter',rabbit),
+  ]:[
+    entry('看看一只种源','在兔房打开一只已留种兔子的档案。',!!p.seedArchive,'rooms',rabbit),
+    feedTask(p),
+    entry('逛逛店里能买的种兔','打开培育中心的种源货架。',!!p.shelf,'lab',{tab:'seed',fromTasks:true}),
   ]},
   {id:'manage-first-litters',title:'经营第一批兔子',coins:40,rows:(_s,p)=>[
     entry('在自由市场售出动物','选一只不打算留种的动物，完成出售。',p.marketSales>0,'market'),
@@ -34,7 +69,7 @@ const earlyGroups=[
     entry('安排下一窝兔子','从已有的成年兔里挑选母本和父本，再开始一窝。',p.breeds>=1,'breed',rabbit),
   ]},
   {id:'continue-shop',title:'接续店铺经营',coins:60,rows:(_s,p)=>[
-    entry('完成下一次交易','交付普通订单，或再去自由市场完成一笔交易。',p.sales>=2,'orders',{fromTasks:true}),
+    entry('完成下一次交易','交付普通订单，或再去自由市场完成一笔交易。',p.sales>=groupGoal(p,2,1),'orders',{fromTasks:true}),
     entry('查看普通订单','对照当前委托和兔房名册，挑选要交付的动物。',!!p.orderRead,'orders',{fromTasks:true}),
   ]},
   {id:'learn-services',title:'认识培育服务',coins:60,rows:(_s,p)=>[
@@ -42,74 +77,101 @@ const earlyGroups=[
     entry('查看服务单','了解复评单和选育指导单的用途。',!!p.services,'lab',{tab:'services',fromTasks:true}),
     keepTask(p,2),
   ]},
-  {id:'add-seeds',title:'添补新种源',coins:80,rows:(_s,p)=>[buyTask(p,2),breedTask(p,2),litterTask(p,2)]},
-  {id:'rabbit-research',title:'开始兔房研究',coins:80,rows:(_s,p)=>[
+  {id:'add-seeds',title:'添补新种源',coins:80,rows:(_s,p)=>[buyTask(p,2),breedTask(p,2,1),litterTask(p,2,1)]},
+  {id:'rabbit-research',title:'开始兔房研究',coins:80,rows:(s,p)=>[
     entry('打开兔房研究手册','查看三条研究分支的成长方向。',!!p.researchRead,'research',rabbit),
-    researchTask(p,1),marketTask(p,3),
+    researchTask(s,p,1),marketTask(p,3,1),
   ]},
   {id:'follow-growth',title:'照看新生幼兔',coins:80,rows:(_s,p)=>[
     entry('查看兔房营养餐状态','投喂过营养餐后，再打开列表核对剩余库存。',!!p.mealRead,'roomNutrition',rabbit),
-    breedTask(p,3),litterTask(p,3),
+    breedTask(p,3,2),litterTask(p,3,2),
   ]},
   {id:'work-orders',title:'处理普通委托',coins:80,rows:(_s,p)=>[orderTask(p,1),saleTask(p,6)]},
-  {id:'select-breeders',title:'建立后备种群',coins:100,rows:(_s,p)=>[keepTask(p,4),litterTask(p,4)]},
-  {id:'regular-sales',title:'稳定市场出货',coins:100,rows:(_s,p)=>[marketTask(p,5),incomeTask(p,1000)]},
-  {id:'improve-research',title:'提高兔房培育水平',coins:120,rows:(_s,p)=>[researchTask(p,2),buyTask(p,3),breedTask(p,5)]},
+  {id:'select-breeders',title:'建立后备种群',coins:100,rows:(_s,p)=>[keepTask(p,4,2),litterTask(p,4,3)]},
+  {id:'regular-sales',title:'稳定市场出货',coins:100,rows:(_s,p)=>[marketTask(p,5,3),incomeTask(p,1000)]},
+  {id:'improve-research',title:'提高兔房培育水平',coins:120,rows:(s,p)=>[researchTask(s,p,2,1),buyTask(p,3,2),breedTask(p,5,3)]},
   {id:'grow-output',title:'扩大兔房供给',coins:120,rows:(_s,p)=>[
-    litterTask(p,5),saleTask(p,12),breedTask(p,6),
+    litterTask(p,5,4),saleTask(p,12,6),breedTask(p,6,5),
     entry('两次投喂兔房','首份普通营养餐到期后，可以再使用一份。',p.feeds>=2,'roomNutrition',rabbit),
   ]},
   {id:'upgrade-stock',title:'周转种源和订单',coins:140,rows:(_s,p)=>[
-    orderTask(p,2),buyTask(p,4),keepTask(p,5),
+    orderTask(p,2,1),buyTask(p,4,3),keepTask(p,5,4),
     entry('查看补位订单','委托处理后约 30 分钟补位。打开普通订单查看新委托。',!!p.refill,'orders',{fromTasks:true}),
   ]},
-  {id:'prepare-cat-room',title:'筹备猫房经费',coins:160,rows:(_s,p)=>[incomeTask(p,2500),researchTask(p,3),marketTask(p,7)]},
-  {id:'rabbit-shop-ready',title:'兔房独立经营',coins:200,rows:(_s,p)=>[breedTask(p,8),litterTask(p,8),saleTask(p,20)]},
+  {id:'prepare-cat-room',title:'筹备猫房经费',coins:160,rows:(s,p)=>[incomeTask(p,2500,1000),researchTask(s,p,3,2),marketTask(p,7,5)]},
+  {id:'rabbit-shop-ready',title:'兔房独立经营',coins:200,rows:(_s,p)=>[breedTask(p,8,6),litterTask(p,8,5),saleTask(p,20,12)]},
 ];
 const earlyStart=s=>s.onboarding?s.onboarding.finishedAt:s.tasks[rabbitPairTask]?.claimedAt;
 const earlyDone=s=>s.tasks.early?.claimed?.[earlyGroups.at(-1).id]!==undefined;
+const currentEarlyGroup=s=>earlyGroups.find(group=>s.tasks.early?.claimed?.[group.id]===undefined);
 
 function earlyTaskGroup(s) {
   const early=s.tasks.early;
-  const group=earlyGroups.find(item=>early?.claimed?.[item.id]===undefined)??earlyGroups.at(-1);
-  const prior=s.onboarding, start=earlyStart(s), progress=early?.progress??{};
-  const ordinarySales=s.sales.filter(sale=>sale.at>=start&&
-    ((sale.channel==='market'&&!sale.lines.some(line=>prior?.starters?.includes(line.id)))||
-      (sale.channel==='order'&&sale.targetId!==prior?.orderId)));
-  const retained=new Set([...(progress.retainedIds??[]),...s.pets.filter(animal=>animal.species==='rabbit'&&animal.retained).map(p=>p.id)]);
-  const rows=group.rows(s,{...progress,feeds:Math.max(progress.feeds??0,Number(s.rooms.rabbit.nutrition?.startsAt>=start)),
-    retained:retained.size,litters:progress.litters??0,sales:ordinarySales.length,
-    marketSales:ordinarySales.filter(sale=>sale.channel==='market').length,
-    sold:ordinarySales.reduce((sum,sale)=>sum+sale.lines.length,0),income:ordinarySales.reduce((sum,sale)=>sum+sale.total,0),
-    orders:(progress.cancelled??0)+ordinarySales.filter(sale=>sale.channel==='order').length,
-    research:s.research.rabbit.reduce((sum,level)=>sum+level,0)});
+  const group=currentEarlyGroup(s)??earlyGroups.at(-1);
+  const progress=early?.progress??{};
+  const rows=group.rows(s,{...progress,legacy:early?.legacy,retained:progress.retainedIds?.length??0});
   const claimed=early?.claimed?.[group.id]!==undefined;
   return {group,rows:claimed?rows.map(row=>({...row,done:true})):rows,claimed};
 }
 
-function earlyProgress(s) {
-  const early=s.tasks.early??={};
-  return early.progress??={};
+function openEarlyGroup(s,now) {
+  s.tasks.early={startedAt:now,claimed:s.tasks.early?.claimed??{},progress:{}};
 }
 
-function visitEarly(s,page,args) {
-  const p=s.tasks.early?.progress??{}, updates={};
+function recordEarlySale(p,sale) {
+  if(sale.channel!=='market'&&sale.channel!=='order')return;
+  p.sales=(p.sales??0)+1;
+  p.sold=(p.sold??0)+sale.lines.length;
+  p.income=(p.income??0)+sale.total;
+  const metric=sale.channel==='market'?'marketSales':'orders';
+  p[metric]=(p[metric]??0)+1;
+}
+
+function migrateEarlyGroup(s,now) {
+  const started=earlyStart(s);
+  if(started===undefined||earlyDone(s)||s.tasks.early?.startedAt!==undefined)return false;
+  const old=s.tasks.early?.progress??{};
+  const p={...old,feeds:Math.max(old.feeds??0,Number(s.rooms.rabbit.nutrition?.startsAt>=started)),
+    retainedIds:[...new Set([...(old.retainedIds??[]),...s.pets.filter(animal=>animal.species==='rabbit'&&animal.retained).map(pet=>pet.id)])].slice(0,5),
+    research:s.research.rabbit.reduce((sum,level)=>sum+level,0),orders:old.cancelled??0};
+  const guide=s.onboarding;
+  for(const sale of s.sales) {
+    if(sale.at<started||(sale.channel==='order'&&sale.targetId===guide?.orderId)||
+      (sale.channel==='market'&&sale.lines.some(line=>guide?.starters?.includes(line.id))))continue;
+    recordEarlySale(p,sale);
+  }
+  openEarlyGroup(s,now);
+  s.tasks.early.legacy=true;
+  s.tasks.early.progress=p;
+  return true;
+}
+
+function visitEarly(s,page,args,now) {
+  const early=s.tasks.early;
+  if(!early)return s;
+  const p=early.progress, updates={};
   const litter=s.rooms.rabbit.lastLitter;
   if(page==='litter'&&(args.species??'rabbit')==='rabbit'&&litter&&
-      litter.bornAt>(s.onboarding?.firstLitterAt??0)&&litter.ids[0]!==p.lastLitterId){
+      litter.bornAt>(early.legacy?s.onboarding?.firstLitterAt??0:early.startedAt)&&litter.ids[0]!==p.lastLitterId){
     updates.lastLitterId=litter.ids[0];updates.litters=(p.litters??0)+1;
   }
   if(page==='lab'&&(!args.tab||args.tab==='seed')&&!p.shelf)updates.shelf=true;
   if((page==='lab'&&args.tab==='services'||page==='services')&&!p.services)updates.services=true;
-  if(page==='pet'&&!p.archive&&s.pets.some(animal=>animal.id===args.id&&animal.species==='rabbit'))updates.archive=true;
+  if(page==='pet'&&(!p.archive||!p.seedArchive)){
+    const pet=s.pets.find(animal=>animal.id===args.id&&animal.species==='rabbit');
+    if(pet&&!p.archive)updates.archive=true;
+    if(pet?.retained&&!p.seedArchive)updates.seedArchive=true;
+  }
   if(page==='research'&&(args.species??'rabbit')==='rabbit'&&!p.researchRead)updates.researchRead=true;
   if(page==='roomNutrition'&&(args.species??'rabbit')==='rabbit'&&!p.mealRead&&
-      (p.feeds||s.rooms.rabbit.nutrition?.startsAt>=earlyStart(s)))updates.mealRead=true;
+      (p.feeds||activeNutrition(s.rooms.rabbit,now)))updates.mealRead=true;
   if(page==='orders'){
     if(!p.orderRead)updates.orderRead=true;
     if(!p.refill){
-      const firstOrder=s.sales.find(sale=>sale.targetId===s.onboarding?.orderId&&sale.channel==='order');
-      if(s.orders.some(slot=>slot.order?.refilledAt>=(firstOrder?.at??earlyStart(s))))updates.refill=true;
+      const firstOrder=early.legacy&&s.sales.find(sale=>sale.targetId===s.onboarding?.orderId&&sale.channel==='order');
+      if(s.orders.some(slot=>early.legacy
+        ?slot.order?.refilledAt>=(firstOrder?.at??earlyStart(s))
+        :slot.order?.refilledAt>early.startedAt))updates.refill=true;
     }
   }
   if(!Object.keys(updates).length)return s;
@@ -118,22 +180,22 @@ function visitEarly(s,page,args) {
 }
 
 function recordEarlyAction(s,type,args) {
-  const counters={'care.breed':'breeds','care.feed':'feeds','care.buyPet':'bought','order.cancel':'cancelled'};
+  const p=s.tasks.early.progress;
+  const counters={'care.breed':'breeds','care.feed':'feeds','care.buyPet':'bought','order.cancel':'orders','research.upgrade':'research'};
   const counter=Object.hasOwn(counters,type)?counters[type]:null;
   if(counter&&(args.species??'rabbit')==='rabbit'){
-    const p=earlyProgress(s);
     p[counter]=(p[counter]??0)+1;
   }
+  if(type==='sale.commit')recordEarlySale(p,s.sales.at(-1));
   const kept=type==='care.retain'&&args.retained?[args.id]:type==='care.keepLitter'?args.keepIds:
     type==='sale.commit'?args.litterRetention?.keepIds:undefined;
   const rabbits=kept?.filter(id=>s.pets.some(p=>p.id===id&&p.species==='rabbit'));
   if(!rabbits?.length)return;
-  const progress=earlyProgress(s);
-  progress.retainedIds=[...new Set([...(progress.retainedIds??[]),...rabbits])].slice(0,5);
+  p.retainedIds=[...new Set([...(p.retainedIds??[]),...rabbits])].slice(0,5);
 }
 
-export function initTasks(s) {
-  if(s.tasks?.opening)return false;
+export function initTasks(s,now) {
+  if(s.tasks?.opening)return migrateEarlyGroup(s,now);
   s.tasks??={};
   const {job,lastLitter}=s.rooms.rabbit;
   const old=s.visitBook.tutorial;
@@ -162,11 +224,17 @@ export function initTasks(s) {
     }
   }
   if(!s.tasks[rabbitPairTask]&&qualifyingPair&&qualifyingPair.version>firstRabbitPair)s.tasks[rabbitPairTask]=qualifyingPair;
+  migrateEarlyGroup(s,now);
   return true;
 }
 
-export function recordTaskAction(s,type,args) {
-  if(earlyStart(s)!==undefined){if(!earlyDone(s))recordEarlyAction(s,type,args);return;}
+export function recordTaskAction(s,type,args,now) {
+  if(earlyStart(s)!==undefined){
+    if(earlyDone(s))return;
+    if(s.tasks.early?.startedAt===undefined)openEarlyGroup(s,now);
+    recordEarlyAction(s,type,args);
+    return;
+  }
   if(s.onboarding)return;
   const progress=s.tasks.opening;
   if(type==='care.checkin')progress.checkin=true;
@@ -181,8 +249,8 @@ export function recordTaskAction(s,type,args) {
   }
 }
 
-export function recordTaskVisit(s,page,args) {
-  if(earlyStart(s)!==undefined)return earlyDone(s)?s:visitEarly(s,page,args);
+export function recordTaskVisit(s,page,args,now) {
+  if(earlyStart(s)!==undefined)return earlyDone(s)?s:visitEarly(s,page,args,now);
   if(s.onboarding)return s;
   if(!['orders','market'].includes(page)||s.tasks.opening[page])return s;
   return {...s,tasks:{...s.tasks,opening:{...s.tasks.opening,[page]:true}}};
@@ -241,10 +309,12 @@ export function taskAction(s,type,args,now) {
     const {group,rows}=earlyTaskGroup(s);
     if(args.id!==group.id)throw new Error('请先完成当前一组任务。');
     if(rows.some(row=>!row.done))throw new Error('请先完成这组里的全部任务。');
-    const progress=s.tasks.early??={};
-    (progress.claimed??={})[group.id]=now;
+    const earlyState=s.tasks.early??={};
+    (earlyState.claimed??={})[group.id]=now;
     s.coins+=group.coins;
-    return '已领取「'+group.title+'」奖励 '+group.coins+' 金币。';
+    openEarlyGroup(s,now);
+    const next=currentEarlyGroup(s);
+    return '已领取「'+group.title+'」奖励 '+group.coins+' 金币。'+(next?'已开启「'+next.title+'」。':'首轮经营任务已完成。');
   }
   if(args.id!==rabbitPairTask)throw new Error('没有这项任务。');
   const task=s.tasks[rabbitPairTask];

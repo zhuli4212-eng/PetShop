@@ -106,7 +106,7 @@ export class ShopEngine {
     const retentionChanged=Boolean(restored)&&clearBredRetention(s);
     if(retentionChanged)s.version++;
     const needsVisitBook=initVisitBook(s,!!restored);
-    const needsTasks=initTasks(s);
+    const needsTasks=initTasks(s,Math.max(s.clock,this.wall()));
     const needsOpening=!Number.isFinite(s.createdAt);
     if(needsOpening)s.createdAt=Number.isFinite(s.rooms.rabbit.openedAt)?s.rooms.rabbit.openedAt:s.clock;
     const needsXp=s.shopXp===undefined;
@@ -184,7 +184,7 @@ export class ShopEngine {
       view.visual={...view.visual,saleExperience:xp};
       if(xp)view.subtitle+=' · 店铺经验 +'+xp;
     }
-    const viewed=recordTaskVisit(s,page,args);
+    const viewed=recordTaskVisit(s,page,args,now);
     if(viewed!==s){viewed.clock=now;this.save(viewed);}
     return {shop:publicShop(viewed,now,this.rules),page:view};
   }
@@ -233,7 +233,7 @@ export class ShopEngine {
     }
     recordMilestone(s,type,args,now);
     if(s.onboarding)recordGuideAction(s,type,args,now);
-    recordTaskAction(s,type,args);
+    recordTaskAction(s,type,args,now);
     s.clock=now;s.version++;
     const result={requestId,message,version:s.version,...(awarded!==undefined&&{saleExperience:awarded}),...(levelUp&&{levelUp})};
     s.receipts[requestId]={key,result};

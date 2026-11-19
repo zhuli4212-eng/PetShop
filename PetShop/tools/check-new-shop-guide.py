@@ -325,7 +325,7 @@ def verify(browser, url, width, output, scenario=None, login=None):
     touch.wait("()=>!pairQA.visit()")
     tap("Sign", scope="Hotspot_tasks")
     ready("tasks")
-    assert "安置兔房 · 0 / 4 已完成" == main("return m.session.current.data.subtitle")
+    assert "安置兔房 · 0 / 3 已完成" == main("return m.session.current.data.subtitle")
     snap("18-安置兔房")
     tap("TaskRow1")
     ready("roomNutrition")

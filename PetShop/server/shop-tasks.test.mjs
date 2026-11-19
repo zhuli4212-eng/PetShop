@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { RequestGameStore } from './request-store.mjs';
 import { purchasePrice, youngPurchaseBase } from './business.mjs';
-import { lifeDates } from './care.mjs';
+import { lifeDates, makePet } from './care.mjs';
 
 const start=Date.UTC(2026,10,18,4), minute=60_000;
 const rabbitTask={id:'rabbit-pair'};
@@ -64,7 +64,7 @@ test('任务读取真实购入与配对，奖励领取一次并可在兔房投�
   assert.deepEqual(reopened.act(claim),receipt);
   assert.throws(()=>act(reopened,'task.claim',rabbitTask),/奖励已领取/);
   assert.match(panel(reopened).subtitle,/安置兔房/);
-  assert.equal(reopened.shop().taskShortcut.choice.label,'给兔房投喂营养餐');
+  assert.equal(reopened.shop().taskShortcut.choice.label,'看看一只种源');
   assert.equal(reopened.state.coins,coins+40);
   assert.equal(reopened.state.shopXp,xp);
   assert.equal(reopened.state.rooms.rabbit.nutritionStock.premium,2);
@@ -99,62 +99,140 @@ test('独立任务入口保留旧进度，锁定页可查看条件且不计完�
   assert.equal(reopened.page('openingGuide',{}).page.actions[0].page,'tasks');
 });
 
-test('未开猫房可按经营结果完成全部十五组，组号不显示，重进可继续领奖',()=>{
+test('十五组自动开启，只记录本组动作，重进和重放领奖保持进度',()=>{
   let now=start;
   const options={wall:()=>now,monotonic:()=>0};
   let game=new RequestGameStore(null,options);
   game.state.onboarding={finishedAt:start,firstLitterAt:start-1};
-  game.state.coins=4000;
+  game.state.tasks.early={startedAt:start,claimed:{},progress:{}};
+  game.state.coins=20_000;
   game.state.shopXp=10;
   const page=(key,args={})=>game.page(key,args).page;
   const choose=choice=>act(game,choice.type,choice.args);
-
-  assert.match(panel(game).subtitle,/^安置兔房/);
-  assert.throws(()=>act(game,'task.claim',{id:'rabbit-shop-ready'}),/当前一组/);
-  act(game,'care.checkin',{});
-  game.state.rooms.rabbit.nutritionStock={premium:2};
-  choose(page('roomNutrition').actions[0]);
-  page('lab',{tab:'seed'});page('lab',{tab:'services'});page('research');
-  for(const slot of game.state.orders.slice(0,2))act(game,'order.cancel',{id:slot.order.id,source:'free'});
-  for(const branch of [0,1,2])choose(page('researchNode',{species:'rabbit',branch}).actions.find(a=>a.type==='research.upgrade'));
-
-  let parents=game.state.pets.slice(0,2);
-  for(let cycle=0;cycle<9;cycle++){
-    if(cycle){
-      now+=30*minute;
-      game.shop();
-      if(cycle===1)choose(page('roomNutrition').actions[0]);
-      page('orders');
-      const {number,offers}=game.state.rooms.rabbit.shelf;
-      const ids=offers.map(offer=>offer.id);
-      for(const offer of [...offers])act(game,'care.buyPet',{id:offer.id,batch:number,price:purchasePrice(game.state,youngPurchaseBase(offer))});
-      parents=game.state.pets.filter(p=>ids.includes(p.id));
-      now=Math.max(...parents.map(p=>lifeDates(p).adultAt));
-    }
-    const pairing=Object.fromEntries(parents.map(p=>[p.sex==='母'?'mother':'father',p.id]));
-    act(game,'care.breed',pairing);
+  const pet=sex=>{
+    const animal=makePet(new Set(game.state.pets.map(p=>p.name)),'rabbit','domestic',sex,now-5*minute,'验收测试');
+    game.state.pets.push(animal);
+    return animal.id;
+  };
+  const keep=()=>{const id=pet('母');act(game,'care.retain',{id,retained:true});return id;};
+  const breed=()=>act(game,'care.breed',{mother:pet('母'),father:pet('公')});
+  const litter=()=>{
     now=game.state.rooms.rabbit.job.endsAt;
     page('litter');
-    const [child,...litter]=game.state.rooms.rabbit.lastLitter.ids;
-    page('pet',{id:child});
-    act(game,'care.retain',{id:child,retained:true});
-    act(game,'care.retain',{id:child,retained:false});
-    choose(page('saleQuote',{channel:'market',ids:[child,...litter,...parents.map(p=>p.id)]}).actions[0]);
-  }
-
+  };
+  const breedAndView=()=>{breed();litter();};
+  const sale=count=>{
+    const ids=Array.from({length:count},()=>pet('公'));
+    const quote=page('saleQuote',{channel:'market',ids}).actions[0];
+    const request=command(game,quote.type,quote.args);
+    return {request,receipt:game.act(request)};
+  };
+  const buy=count=>{
+    for(let i=0;i<count;i++){
+      let batch=game.state.rooms.rabbit.shelf;
+      if(batch.offers.every(p=>!p)){
+        now+=30*minute;
+        game.shop();batch=game.state.rooms.rabbit.shelf;
+      }
+      const offer=batch.offers.find(Boolean);
+      act(game,'care.buyPet',{id:offer.id,batch:batch.number,price:purchasePrice(game.state,youngPurchaseBase(offer))});
+    }
+  };
+  const feed=()=>act(game,'care.feed',{species:'rabbit',tier:'premium'});
+  const upgrade=branch=>choose(page('researchNode',{species:'rabbit',branch}).actions.find(a=>a.type==='research.upgrade'));
+  const cancel=()=>act(game,'order.cancel',{id:game.state.orders.find(slot=>slot.order).order.id,source:'free'});
+  let earlySale;
+  const completeGroups=[
+    ()=>{
+      page('pet',{id:keep()});
+      page('roomNutrition');
+      assert.equal(panel(game).rows[1].done,false);
+      feed();
+      page('lab',{tab:'seed'});
+      earlySale=sale(1);breed(); // These also match the next group, before it opens.
+    },
+    ()=>{
+      assert.deepEqual(game.act(earlySale.request),earlySale.receipt);
+      assert.match(panel(game).subtitle,/0 \/ 3/);
+      litter(); // A previously started litter is newly born after this group opens.
+      page('litter');
+      assert.equal(game.state.tasks.early.progress.litters,1);
+      assert.equal(game.state.tasks.early.progress.breeds,undefined);
+      sale(1);page('lab',{tab:'seed'});breed();litter();
+    },
+    ()=>{sale(1);page('orders');},
+    ()=>{page('pet',{id:keep()});page('lab',{tab:'services'});keep();},
+    ()=>{buy(2);breedAndView();},
+    ()=>{page('research');upgrade(0);sale(1);sale(1);},
+    ()=>{
+      now+=30*minute;
+      feed();page('roomNutrition');breedAndView();
+    },
+    ()=>{cancel();sale(6);},
+    ()=>{keep();keep();breedAndView();},
+    ()=>{sale(5);sale(5);},
+    ()=>{upgrade(1);buy(1);breedAndView();breedAndView();},
+    ()=>{
+      sale(6);breedAndView();
+      now+=30*minute;feed();now+=30*minute;feed();
+    },
+    ()=>{
+      page('orders');
+      assert.equal(panel(game).rows.at(-1).done,false);
+      cancel();buy(1);keep();now+=30*minute;page('orders');
+    },
+    ()=>{
+      sale(8);sale(8);
+      game.state.research.rabbit=[10,10,10];
+      assert.equal(panel(game).rows[1].done,false);
+      page('research');
+    },
+    ()=>{breedAndView();breedAndView();breedAndView();sale(8);},
+  ];
+  game.state.rooms.rabbit.nutritionStock={premium:6};
+  assert.match(panel(game).subtitle,/^安置兔房 · 0 \/ 3/);
+  assert.throws(()=>act(game,'task.claim',{id:'rabbit-shop-ready'}),/当前一组/);
   const claimed=new Set();
-  for(let group=0;group<15;group++){
+  for(const complete of completeGroups){
+    const unopened=panel(game);
+    assert.ok(unopened.rows.every(row=>!row.done),unopened.subtitle);
+    assert.equal(unopened.actions[0].disabled,true);
+    complete();
     const current=panel(game), claim=current.actions[0];
     assert.doesNotMatch(current.subtitle,/第\s*\d+\s*[\/组]/);
     assert.ok(current.rows.every(row=>row.done&&row.link?.page),current.subtitle);
     assert.equal(claim.disabled,false,current.subtitle);
     const before=game.state.coins;
-    choose(claim);claimed.add(claim.args.id);
+    const request=command(game,claim.type,claim.args);
+    const receipt=game.act(request);claimed.add(claim.args.id);
     assert.equal(game.state.coins-before,current.visual.rewards[0].quantity);
     game=new RequestGameStore(game.snapshot(),options);
+    assert.deepEqual(game.act(request),receipt);
+    assert.equal(game.state.coins-before,current.visual.rewards[0].quantity);
   }
+
   assert.equal(claimed.size,15);
   assert.equal(game.state.rooms.cat,undefined);
   assert.equal(panel(game).actions[0].label,'已领取');
   assert.match(game.shop().taskShortcut.choice.label,/经营任务已完成/);
+});
+
+test('旧档延续当前组的任务与进度，领奖后自动开启从零开始的新任务',()=>{
+  const options={wall:()=>start,monotonic:()=>0};
+  const old=new RequestGameStore(null,options).snapshot();
+  const s=old.state;
+  s.onboarding={finishedAt:start-1};
+  s.care.signedDay='2026-11-18';
+  s.pets[0].retained=true;
+  s.tasks.early={progress:{feeds:1,litters:1,shelf:true,breeds:5},claimed:{}};
+  s.sales.push({at:start-1,channel:'market',lines:[{id:'former-rabbit'}],total:100});
+  const resumed=new RequestGameStore(old,options);
+  assert.match(panel(resumed).subtitle,/安置兔房 · 4 \/ 4/);
+  const claim=panel(resumed).actions[0];
+  assert.match(act(resumed,claim.type,claim.args).message,/已开启「经营第一批兔子」/);
+  const reopened=new RequestGameStore(resumed.snapshot(),options);
+  assert.match(panel(reopened).subtitle,/经营第一批兔子 · 0 \/ 3/);
+  assert.deepEqual(reopened.state.tasks.early.progress,{});
+  assert.equal(reopened.state.tasks.early.legacy,undefined);
+  assert.throws(()=>act(reopened,claim.type,claim.args),/已领取/);
 });

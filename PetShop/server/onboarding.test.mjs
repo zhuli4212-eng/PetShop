@@ -186,7 +186,7 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.equal(step(),undefined);
   assert.equal(page('onboarding').visual.returnHome,true);
   const afterGuide=now;
-  assert.match(page('tasks').subtitle,/安置兔房 · 0 \/ 4/);
+  assert.match(page('tasks').subtitle,/安置兔房 · 0 \/ 3/);
   assert.throws(()=>act('onboarding.claim'),/未识别/);
   assert.equal(store.state.rooms.rabbit.nutritionStock.premium,2);
   const nutrition=page('roomNutrition');
@@ -194,19 +194,18 @@ test('开店引导按经营事件推进，保存每一步及成交回执，只�
   assert.deepEqual(nutrition.rows.map(r=>r.visual.stock),[0,0,2]);
   assert.equal(nutrition.actions[0].disabled,false);
   assert.equal(page('nutritionDetail',{tier:'premium'}).rows.find(row=>row.title==='库存').text,'2 份');
-  assert.equal(store.shop().taskShortcut.choice.page,'profile');
+  assert.equal(store.shop().taskShortcut.choice.page,'rooms');
 
   act('care.checkin');
   choose(nutrition.actions[0]);
   assert.equal(store.state.rooms.rabbit.nutritionStock.premium,1);
   assert.equal(page('roomNutrition').actions[0].disabled,true);
   act('care.retain',{id:children[2].animal.id,retained:true});
-  page('litter');
-  assert.match(page('tasks').subtitle,/3 \/ 4/);
+  page('pet',{id:children[2].animal.id});
+  assert.match(page('tasks').subtitle,/2 \/ 3/);
   assert.throws(()=>choose(page('tasks').actions[0]),/全部任务/);
-  now=afterGuide+2*60_000;
-  page('litter');
-  assert.match(page('tasks').subtitle,/4 \/ 4/);
+  page('lab',{tab:'seed'});
+  assert.match(page('tasks').subtitle,/3 \/ 3/);
   const groupClaim=command('task.claim',page('tasks').actions[0].args);
   const groupReceipt=store.act(groupClaim);
   reopen();
