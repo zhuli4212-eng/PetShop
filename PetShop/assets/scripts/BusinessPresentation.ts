@@ -14,6 +14,7 @@ interface RowVisual {
 }
 interface PageVisual {
     remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
+    nextBatchAt?:number;
     schedule?:Record<string,{close:string;result:string;payout:string}>; pet?:string; petStage?:string; tierOptions?:LedgerRow[];
     shopDay?:number; raceAccess?:Record<string,{opensDay:number;unlocked:boolean;opensAt:number}>; benefit?:ResearchBenefit;
 }
@@ -110,7 +111,7 @@ function sale(c:PageCanvas):void {
     const protection=protectedCount&&(channel==='recycle'||channel==='market')?' · 种源保护 '+protectedCount+' 只':'';
     const count=channel==='market'&&c.p.filters?.length ? '可售 '+ids.length+' / 共 '+list.length+' 只' : ids.length+' 只可选'+protection;
     section(c,channel==='recycle'?'回收已故动物':'选择'+mode+'的动物',count);
-    if(channel==='market'&&!c.p.visual?.singleSelect)animalFilters(c);
+    if(channel==='market'&&!c.p.visual?.singleSelect)animalFilters(c,'物种');
     guideNote(c);
     c.startList();
     for(const [i,r] of list.entries()){
@@ -220,7 +221,11 @@ function lab(c:PageCanvas):void {
     const tab=c.args.tab||'seed';
     labMenu(c,tab);
     if(tab==='nutrition'){nutritionStore(c);return;}
-    if(tab==='seed')section(c,c.p.guide?.target?.startsWith('Row')||c.p.guide?.next?'开店种源':'本批种源',c.p.subtitle);
+    if(tab==='seed'){
+        const label=section(c,c.p.guide?.target?.startsWith('Row')||c.p.guide?.next?'开店种源':'本批种源',c.p.subtitle);
+        const nextBatchAt=pageVisual(c).nextBatchAt;
+        if(label&&nextBatchAt!==undefined)c.ui.bindCountdown(label,nextBatchAt,s=>'下一批 '+Math.ceil(s/60)+' 分钟');
+    }
     guideNote(c);
     c.startList();
     if(tab==='services')rows(c).forEach((r,i)=>catalogService(c,r,i));

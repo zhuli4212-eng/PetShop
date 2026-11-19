@@ -326,7 +326,7 @@ test('空筛选仍提供本房最早阶段截止，在到龄时将匹配动物�
   const s=fresh(),[mother,father]=s.pets;
   father.bornAt=T-7*D;
   mother.bornAt=T-30*M+1;
-  const args={species:'rabbit',filter:'未繁育',stage:'成年'};
+  const args={species:'rabbit',breed:'angora',stage:'成年'};
   const read=now=>carePage(s,'rooms',args,now).presentation;
   const before=read(T);
   assert.equal(before.matchedCount,0);
@@ -367,11 +367,11 @@ test('房间共用名册和筛选，选择两只亲本后才显示核对入口',
   assert.ok(book.tabs.every(t=>t.page==='rooms'));
   assert.ok(book.filters.flat().every(option=>option.page==='rooms'));
   const dead=book.filters[1].find(option=>option.label==='已故');
-  assert.deepEqual(dead.args,{species:'rabbit',filter:'全部',stage:'已故'});
+  assert.deepEqual(dead.args,{species:'rabbit',stage:'已故'});
   const empty=carePage(s,dead.page,dead.args,T);
   assert.equal(empty.presentation.matchedCount,0);
   assert.deepEqual(empty.presentation.residents,[]);
-  assert.equal(empty.filters[0].find(option=>option.label==='种源').args.stage,'已故');
+  assert.equal(empty.filters[0].find(option=>option.label==='安哥拉兔').args.stage,'已故');
   const info=carePage(s,'pet',{id:mother.id},T).presentation;
   assert.equal(info.animal.art,petArt(mother));
   assert.deepEqual(info.traits,mother.traits);
@@ -391,18 +391,19 @@ test('房间共用名册和筛选，选择两只亲本后才显示核对入口',
   assert.equal(s.rooms.rabbit.job,null);
 });
 
-test('房景按登记顺序取筛选后名册前十只，死者、种源与未繁育按实际标签匹配',()=>{
+test('房景按品种和成长状态筛选，按登记顺序取名册前十只',()=>{
   const s=fresh(),[mother,father]=s.pets;
   careAction(s,'care.retain',{id:mother.id,retained:true},T);
   careAction(s,'care.breed',{species:'rabbit',mother:mother.id,father:father.id},T);
   s.coins=6000;
   careAction(s,'care.unlock',{species:'cat',price:6000},T);
-  const make=(id,sex,extra={})=>({...structuredClone(father),id,name:id,sex,retained:false,...extra});
+  const make=(id,sex,extra={})=>({...structuredClone(father),id,name:id,sex,breedKey:'domestic',retained:false,...extra});
   const dead=make('held-dead','母',{bornAt:T-5*D,retained:true});
   const unmarkedDead=make('unmarked-dead','公',{bornAt:T-5*D});
   const spent=make('spent','母',{retained:true,bred:true});
   const free=Array.from({length:13},(_,i)=>make('animal-'+(21-i),i%2?'公':'母',{
-    bornAt:T-([0,12*M,30*M+3*D][i]??30*M),retained:true,
+    bornAt:T-([0,12*M,30*M+3*D][i]??30*M),retained:true,breedGrowth:false,
+    ...(i===0?{breedKey:'lop'}:i===1?{mixed:true}:{}),
   }));
   const remainder=[dead,...free.slice(0,7),spent,unmarkedDead,...free.slice(7)];
   s.pets.push(...remainder);
@@ -418,34 +419,48 @@ test('房景按登记顺序取筛选后名册前十只，死者、种源与未�
     assert.deepEqual(page.presentation.residents,animals.slice(0,10));
     assert.deepEqual(page.animals,page.presentation.residents.map(p=>p.art));
     assert.deepEqual(page.animalStages,page.presentation.residents.map(p=>p.stage));
-    assert.deepEqual(page.filters[0].map(o=>o.label),['全部','种源','未繁育']);
+    assert.deepEqual(page.filters[0].map(o=>o.label),['全部','安哥拉兔','原色兔','垂耳兔','杂交']);
     assert.deepEqual(page.filters[1].map(o=>o.label),['全部','幼年','成长','成年','老年','已故']);
     return page;
   }
   const initial=check({},all);
   assert.equal(initial.filters[0].find(o=>o.active).label,'全部');
-  check({filter:'种源'},[mother,...remainder.filter(p=>p.retained)]);
-  check({filter:'未繁育'},free);
+  check({breed:'domestic'},remainder.filter(p=>p.breedKey==='domestic'&&!p.mixed));
+  check({breed:'angora'},[mother,father]);
   const oldDead=check({filter:'已故'},[dead,unmarkedDead]);
   assert.deepEqual(oldDead.filters.map(group=>group.find(o=>o.active).label),['全部','已故']);
   check({stage:'已故'},[dead,unmarkedDead]);
-  check({filter:'未繁育',stage:'幼年'},[free[0]]);
-  check({filter:'种源',stage:'成长'},[free[1]]);
+  check({breed:'lop',stage:'幼年'},[free[0]]);
+  check({breed:'mixed',stage:'成长'},[free[1]]);
   check({stage:'老年'},[free[2]]);
   check({stage:'成年'},[mother,father,...remainder.filter(p=>stageOf(p,T)==='成年')]);
-  const held=check({filter:'种源',stage:'已故'},[dead]);
+  const held=check({breed:'domestic',stage:'已故'},[dead,unmarkedDead]);
   assert.match(held.rows.find(r=>r.animal?.id===dead.id).text,/已故 · 种源保护/);
   assert.ok(held.filters[0].every(o=>o.args.stage==='已故'));
-  assert.ok(held.filters[1].every(o=>o.args.filter==='种源'));
-
-  for(const [oldLabel,newLabel] of [['后备种源','种源'],['可配对','未繁育'],['在养','全部']]) {
-    assert.deepEqual(carePage(s,'rooms',{filter:oldLabel,stage:'成年'},T),carePage(s,'rooms',{filter:newLabel,stage:'成年'},T));
-  }
-  check({filter:'未知',stage:'未知'},all);
-  check({sex:'母'},all);
+  assert.ok(held.filters[1].every(o=>o.args.breed==='domestic'));
+  check({breed:'british',stage:'未知'},all);
+  check({breed:'lop',stage:'已故'},[]);
   s.pets=s.pets.filter(p=>p!==unmarkedDead);
   all.splice(all.indexOf(unmarkedDead),1);
-  check({filter:'未繁育',stage:'已故'},[]);
+  check({breed:'domestic',stage:'已故'},[dead]);
+  assert.deepEqual(carePage(s,'rooms',{species:'cat'},T).filters[0].map(o=>o.label),['全部','英国短毛猫']);
+});
+
+test('混排种源倒计时取各房间最早换批，卖空后仍显示，到期补货并继续倒计时',()=>{
+  const s=fresh();
+  s.coins=6000;
+  careAction(s,'care.unlock',{species:'cat',price:6000},T+9*M);
+  s.rooms.rabbit.shelf.offers=[null,null];
+  const at=T+29*M+1;
+  const before=carePage(s,'lab',{},at);
+  assert.equal(before.visual.nextBatchAt,T+30*M);
+  assert.equal(before.subtitle,'下一批 1 分钟');
+  assert.ok(before.rows.every(row=>row.link.args.species==='cat'));
+  tickCare(s,T+30*M);
+  const after=carePage(s,'lab',{},T+30*M);
+  assert.equal(after.visual.nextBatchAt,T+39*M);
+  assert.equal(after.subtitle,'下一批 9 分钟');
+  assert.equal(after.rows.filter(row=>row.link.args.species==='rabbit').length,2);
 });
 
 test('开店种兔、每日单独领取、北京零点和成长精确边界',()=>{

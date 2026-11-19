@@ -240,12 +240,12 @@ export class ShopSession {
     private canRefreshDeadline(visit:Visit):boolean {
         return this.current===visit&&this.online&&!this.closed&&!this.reading&&!this.busy&&!this.confirm&&!this.dropdown;
     }
-    private bindBirthCountdown(visit:Visit,label:Label,endsAt:number):void {
+    private bindCountdown(visit:Visit,label:Label,endsAt:number,format:(seconds:number)=>string):void {
         let shown=-1,refreshRequested=false;
         const tick=()=>{
             const seconds=Math.max(0,Math.ceil((endsAt-visitNow(visit))/1000));
             if(seconds!==shown){
-                label.string=Math.floor(seconds/60)+' 分 '+String(seconds%60).padStart(2,'0')+' 秒';
+                label.string=format(seconds);
                 shown=seconds;
             }
             if(seconds>0){refreshRequested=false;return;}
@@ -382,7 +382,7 @@ export class ShopSession {
                     if(view!==this.current||this.confirm||this.busy)return;
                     this.bonusVisit=view;this.render();
                 },
-                bindBirthCountdown:(label,endsAt)=>this.bindBirthCountdown(view,label,endsAt),
+                bindCountdown:(label,endsAt,format)=>this.bindCountdown(view,label,endsAt,format),
                 bindStageCountdown:(label,endsAt,progress)=>stageClocks.push({label,endsAt,shown:-1,progress}),
                 selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,playGrowth,
                 detailPage:view.detailPage||0,turnPage:index=>{

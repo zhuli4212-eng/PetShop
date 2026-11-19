@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { initCare, careAction, carePage } from './care.mjs';
+import { initCare, careAction, carePage, stageOf } from './care.mjs';
 import { initBusiness, tickBusiness, businessHeartbeat, businessPage as view, businessAction as act,
   purchasePrice, youngPurchaseBase, salePrice, readyOrderId } from './business.mjs';
 
@@ -139,7 +139,7 @@ test('从房间挑选、报价和交付同物种的多只动物，从市场柜�
   assert.deepEqual(s.pets.map(p=>p.id),[cat.id]);
 });
 
-test('市场两个入口按房间标签显示可售和禁售个体，切换筛选保留入口及房种', () => {
+test('市场两个入口按物种和成长状态筛选，并保留禁售原因与报价范围', () => {
   const s = fresh(), [mother,father] = s.pets;
   father.bred = true;
   function add(id, fields) {
@@ -151,37 +151,35 @@ test('市场两个入口按房间标签显示可售和禁售个体，切换筛�
   const busy = add('busy-seed',{retained:true});
   const dead = add('dead-seed',{retained:true,bornAt:t0-7*24*60*min});
   const cat = add('cat-seed',{species:'cat',breedKey:'british',retained:true});
+  const dog = add('dog',{species:'dog',breedKey:'shiba'});
+  const saleable=[mother,father,dog], species=['','rabbit','cat','dog'], labels=['全部','兔','猫','狗'];
+  const stages=['全部','幼年','成长','成年','老年','已故'];
   s.rooms.rabbit.job = {motherId:busy.id,fatherId:'unregistered'};
-  const expected = {
-    全部:[mother,father,seed,busy,dead], 种源:[seed,busy,dead], 未繁育:[mother,seed],
-  };
-  for (const [filter, pets] of Object.entries(expected)) {
-    const room = carePage(s,'rooms',{species:'rabbit',filter},t0);
-    assert.deepEqual(room.rows.flatMap(row=>row.animal?[row.animal.id]:[]),pets.map(p=>p.id));
-    for (const [page,scope] of [['sale',{channel:'market',species:'rabbit'}],['market',{channel:'market'}]]) {
-      const listed = view(s,page,{...scope,filter},t0);
-      const all = page==='market' ? [...pets,cat] : pets;
-      assert.deepEqual(listed.rows.map(r=>r.link.args.id),all.map(p=>p.id));
-      assert.equal(listed.visual.eligibleCount,all.filter(p=>p===mother||p===father).length);
-      assert.equal(listed.visual.protectedCount,all.filter(p=>p.retained).length);
-      assert.deepEqual(listed.filters[0].map(choice=>choice.label),Object.keys(expected));
-      assert.deepEqual(listed.filters[0].filter(choice=>choice.active).map(choice=>choice.label),[filter]);
-      for (const choice of listed.filters[0]) {
-        assert.equal(choice.page,page);
-        assert.deepEqual(choice.args,{...scope,filter:choice.label,stage:'全部'});
-      }
+  for (const page of ['market','sale']) {
+    const start={channel:'market',...(page==='sale'&&{species:'rabbit'})};
+    const list=view(s,page,start,t0);
+    assert.deepEqual(list.filters[0].map(o=>o.label),labels);
+    assert.equal(list.filters[0].find(o=>o.active).label,page==='sale'?'兔':'全部');
+    for (const [index,choice] of list.filters[0].entries()) {
+      const key=species[index], scope={channel:'market',...(key&&{species:key})};
+      assert.equal(choice.page,page);
+      assert.deepEqual(choice.args,{...scope,stage:'全部'});
+      const listed=view(s,page,choice.args,t0);
+      const pets=s.pets.filter(p=>!key||p.species===key);
+      assert.deepEqual(listed.rows.map(r=>r.link.args.id),pets.map(p=>p.id));
+      assert.equal(listed.visual.eligibleCount,pets.filter(p=>saleable.includes(p)).length);
+      assert.equal(listed.visual.protectedCount,pets.filter(p=>p.retained).length);
       for (const [i,row] of listed.rows.entries()) {
-        const p=all[i];
+        const p=pets[i];
         assert.equal(row.link.page,'pet');
         assert.equal(row.visual.number,p.id.slice(0,5).toUpperCase());
         if(s.rooms[p.species]){
           const {stageEndsAt,...roomAnimal}=carePage(s,'rooms',{species:p.species},t0).rows.find(r=>r.animal?.id===p.id).animal;
           assert.deepEqual(row.animal,roomAnimal);
         }
-        if (p===mother || p===father) {
+        if(saleable.includes(p)) {
           assert.equal(row.select,p.id);
           assert.equal(row.visual.price,salePrice(s,p,t0,'market'));
-          assert.equal(row.visual.blockedReason,undefined);
         } else {
           assert.equal(row.select,undefined);
           assert.equal(row.visual.price,undefined);
@@ -191,22 +189,21 @@ test('市场两个入口按房间标签显示可售和禁售个体，切换筛�
         }
       }
       assert.equal(listed.actions.length,Number(listed.visual.eligibleCount>0));
-      const stages=['全部','幼年','成长','成年','老年','已故'];
+      if(listed.actions.length)assert.deepEqual(listed.actions[0].args,scope);
       assert.deepEqual(listed.filters[1].map(o=>o.label),stages);
-      for (const choice of listed.filters[1]){
+      for(const choice of listed.filters[1]){
         const stage=choice.label;
-        assert.deepEqual(choice.args,{...scope,filter,stage});
+        assert.deepEqual(choice.args,{...scope,stage});
         const filtered=view(s,page,choice.args,t0);
-        const matches=all.filter(p=>stage==='全部'||stage===(p===cat?'成长':p===dead?'已故':'成年'));
+        const matches=pets.filter(p=>stage==='全部'||stage===stageOf(p,t0));
         assert.deepEqual(filtered.rows.map(r=>r.link.args.id),matches.map(p=>p.id));
-        assert.equal(filtered.visual.eligibleCount,matches.filter(p=>p===mother||p===father).length);
         assert.ok(filtered.filters[0].every(o=>o.args.stage===stage));
       }
     }
   }
-  const empty=view(s,'sale',{channel:'market',species:'dog',filter:'已故'},t0);
-  assert.equal(empty.rows.length,0);
-  assert.equal(empty.visual.eligibleCount,0);
+  const quote=view(s,'saleQuote',{channel:'market',species:'dog',ids:[dog.id]},t0);
+  assert.equal(quote.actions[0].args.species,'dog');
+  assert.throws(()=>view(s,'saleQuote',{channel:'market',species:'dog',ids:[mother.id]},t0),/不再符合交付条件/);
   const legacy=view(s,'market',{filter:'已故'},t0);
   assert.deepEqual(legacy.filters.map(group=>group.find(o=>o.active).label),['全部','已故']);
   assert.deepEqual(legacy.rows.map(row=>row.link.args.id),[dead.id]);

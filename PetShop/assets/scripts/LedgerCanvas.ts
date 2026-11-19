@@ -14,7 +14,7 @@ export interface LedgerUI {
     playGrowth?: boolean;
     back: () => void;
     choose: (choice: Choice) => void;
-    bindBirthCountdown: (label: Label, endsAt: number) => void;
+    bindCountdown: (label: Label, endsAt: number, format: (seconds: number) => string) => void;
     bindStageCountdown: (label: Label, endsAt: number, progress?:(seconds:number)=>void) => void;
     openFilter: (fields: FilterField[], index: number) => void;
     openBreedingBonus: () => void;
@@ -140,16 +140,15 @@ export function press(parent: Node, name: string, title: string, x: number, y: n
     return n;
 }
 
-/** The room publishes status and sex choices. The market publishes status alone. */
-export function animalFilters(c:PageCanvas):void {
+export function animalFilters(c:PageCanvas,field:'品种'|'物种'):void {
     const groups=(c.p.filters||[]).filter(group=>group.length);
     if(!groups.length)return;
     const gap=8,h=44,y=c.slot(h,10),w=(c.inner-gap*(groups.length-1))/groups.length;
     const fields:FilterField[]=groups.map((options,i)=>{
         const current=options.find(a=>a.active)||options[0];
         const x=-c.inner/2+w/2+i*(w+gap);
-        const anchor=frame(c.body,i?'GrowthStageFilter':'StatusFilter',x,y,w,h,'#FFF1D2','#B39665',false);
-        const label=(i?'成长状态':'状态')+'　'+current.label;
+        const anchor=frame(c.body,i?'GrowthStageFilter':field==='品种'?'BreedFilter':'SpeciesFilter',x,y,w,h,'#FFF1D2','#B39665',false);
+        const label=(i?'成长状态':field)+'　'+current.label;
         caption(anchor,'Caption',label,-5,0,w-28,h-2,14,'#29483E').isBold=true;
         const arrow=box(anchor,'Arrow',w/2-16,-1,10,8).addComponent(Graphics);
         for(let j=0;j<3;j++)rect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');

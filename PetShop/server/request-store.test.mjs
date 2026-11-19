@@ -24,7 +24,7 @@ test('出生解除双亲保护，已繁育无法重新留种，旧档的无效�
   const pending=roundTrip(game);
   timer.advance(119999);
   const resumed=new RequestGameStore(pending,timer);
-  const marked=g=>g.page('rooms',{filter:'种源'}).page.rows.filter(r=>r.animal).map(r=>r.animal.id);
+  const marked=g=>g.page('rooms',{}).page.rows.filter(r=>r.animal?.retained).map(r=>r.animal.id);
   assert.deepEqual(marked(resumed),[mother,father]);
   timer.advance(1);
   assert.deepEqual(marked(resumed),[]);

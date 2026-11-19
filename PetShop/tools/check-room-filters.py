@@ -12,11 +12,15 @@ from playwright.sync_api import sync_playwright
 
 GAME = Path(__file__).resolve().parents[1]
 RESOURCES = GAME / "assets/resources"
-STATUSES = ["全部", "种源", "未繁育"]
 STAGES = ["全部", "幼年", "成长", "成年", "老年", "已故"]
 BREEDS = {"rabbit": ["domestic", "lop", "angora", "lionhead"],
           "cat": ["british", "american", "persian", "maine"],
           "dog": ["shiba", "corgi", "poodle", "dachshund"]}
+BREED_NAMES = dict(zip(
+    [key for keys in BREEDS.values() for key in keys],
+    ["原色兔", "垂耳兔", "安哥拉兔", "狮子兔", "英国短毛猫", "美国短毛猫", "波斯猫", "缅因猫",
+     "柴犬", "柯基犬", "贵宾犬", "腊肠犬"],
+))
 SERVER = """
 import { GameStore } from './server/game-store.mjs';
 import { createPetShopServer } from './server/main.mjs';
@@ -30,7 +34,7 @@ const s=store.state, template=s.pets[0], samples=JSON.parse(process.argv[2]);
 s.rooms.cat=structuredClone(s.rooms.rabbit); s.rooms.dog=structuredClone(s.rooms.rabbit);
 s.visitBook.opening=false;
 s.shopXp=18000;
-s.pets=samples.map(({busy,stage,minutes,...p})=>({...structuredClone(template),...p,bornAt:now-minutes*60000}));
+s.pets=samples.map(({busy,stage,minutes,...p})=>({...structuredClone(template),...p,breedGrowth:false,bornAt:now-minutes*60000}));
 for (const [species,room] of Object.entries(s.rooms)){
   const [mother,father]=['母','公'].map(sex=>s.pets.find(p=>p.species===species && p.sex===sex &&
     samples.find(a=>a.id===p.id).busy));
@@ -67,11 +71,8 @@ def fixture(reverse):
     return pets[::-1] if reverse else pets
 
 
-def matches(p, status, stage):
-    return (stage == "全部" or p["stage"] == stage) and {
-        "全部": True, "种源": p["retained"],
-        "未繁育": p["stage"] != "已故" and not p["busy"] and not p["bred"],
-    }[status]
+def matches(p, breed, stage):
+    return (stage == "全部" or p["stage"] == stage) and (breed == "全部" or BREED_NAMES[p["breedKey"]] == breed)
 
 
 def countdown_fixture():
@@ -160,7 +161,11 @@ BROWSER = r"""() => {
 
 
 def tap(page, name):
-    point = page.evaluate("""name=>{const q=roomQA,n=q.find(name);return n&&q.point(n.worldPosition)}""", name)
+    point = page.evaluate("""name=>{
+      const q=roomQA, node=q.find(name);
+      const target=name.startsWith('Hotspot_')?node?.getChildByName('Sign')??node:node;
+      return target&&q.point(target.worldPosition);
+    }""", name)
     assert point and 0 <= point[0] < page.viewport_size["width"] and 0 <= point[1] < page.viewport_size["height"], (name, point)
     page.touchscreen.tap(*point)
 
@@ -322,8 +327,10 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(url)
-    page.wait_for_function("""()=>window.cc?.director?.getScene()?.getChildByName('Canvas')
-        ?.getComponent('ShopMain')?.home?.active""", timeout=90000)
+    page.wait_for_function("""()=>{
+        const main=window.cc?.director?.getScene()?.getChildByName('Canvas')?.getComponent('ShopMain');
+        return main?.state==='open'&&main.home.active&&!main.session.active;
+    }""", timeout=90000)
     page.evaluate(BROWSER)
     tap(page, "Hotspot_rooms")
 
@@ -332,17 +339,21 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
           const v=roomQA.visit(),p=v?.data;
           return v?.key==='rooms' && (v.args.species||'rabbit')===species &&
             p?.filters?.[0].find(o=>o.active)?.label===status &&
-            p.filters[1].find(o=>o.active)?.label===stage && roomQA.find('StatusFilter');
+            p.filters[1].find(o=>o.active)?.label===stage && roomQA.find('BreedFilter');
         }""", arg=[species,status,stage])
 
+    def breed_choices(species):
+        return ["全部", *dict.fromkeys(BREED_NAMES[p["breedKey"]] for p in pets if p["species"] == species)]
+
     def select(index, label):
-        tap(page, ("StatusFilter", "GrowthStageFilter")[index])
+        tap(page, ("BreedFilter", "GrowthStageFilter")[index])
         page.wait_for_function("()=>!!roomQA.find('FilterMenu')")
         opts = page.evaluate("""()=>roomQA.find('Options',roomQA.find('FilterMenu')).children
             .map(n=>[roomQA.label(n,'Caption'),n.name])""")
-        assert [k for k, _ in opts] == (STATUSES, STAGES)[index], opts
+        species=page.evaluate("roomQA.visit().args.species||'rabbit'")
+        assert [k for k, _ in opts] == (breed_choices(species), STAGES)[index], opts
         if growth_screenshot and width == 390 and index == 1 and label == "幼年" and page.evaluate(
-            "()=>roomQA.visit().data.filters[0].find(o=>o.active).label==='种源'"
+            "()=>roomQA.visit().data.filters[0].find(o=>o.active).label==='原色兔'"
         ):
             page.screenshot(path=str(growth_screenshot))
         tap(page, dict(opts)[label])
@@ -504,16 +515,16 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
                 check(species,"全部","全部")
         check_movement(species, shown)
         if species=="rabbit":
-            for status in STATUSES:
+            for status in breed_choices(species):
                 select(0,status)
                 for stage in STAGES:
                     select(1,stage)
                     check(species,status,stage)
         elif species=="cat":
-            select(0,"种源")
+            select(0,"缅因猫")
             select(1,"老年")
-            random_entries(species,"种源","老年",1)
-            check_movement(species,check(species,"种源","老年"))
+            random_entries(species,"缅因猫","老年",1)
+            check_movement(species,check(species,"缅因猫","老年"))
     assert not errors,errors
     page.close()
     return screenshot

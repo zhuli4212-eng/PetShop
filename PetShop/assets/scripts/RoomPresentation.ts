@@ -178,11 +178,10 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const countText=count===matched?count+' 只登记':'符合 '+matched+' / 共 '+count+' 只';
     section(c,name+'房名册',countText);
     guideNote(c);
-    const status=c.p.filters?.[0]?.find(option=>option.active)?.args?.filter||c.args.filter||'全部';
     const stage=c.p.filters?.[1]?.find(option=>option.active)?.args?.stage||'全部';
     if(!c.p.guide){
-        buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,filter:status,stage},label:'挑选出售'}]);
-        animalFilters(c);
+        buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,stage},label:'挑选出售'}]);
+        animalFilters(c,'品种');
     }
     c.startList();
     all.forEach((a,i)=>petLine(c,a,i,openPet(c,a),'›',i===all.length-1));
@@ -374,7 +373,7 @@ function breeding(c:PageCanvas,m:RoomPage):void {
     const card=book(c,'Job',110),w=c.inner-29;
     caption(card,'When','预计出生',0,31,w,22,14,muted);
     const remaining=heading(card,'Remaining','',0,2,w,34,21,green);
-    c.ui.bindBirthCountdown(remaining,m.endsAt!);
+    c.ui.bindCountdown(remaining,m.endsAt!,s=>Math.floor(s/60)+' 分 '+String(s%60).padStart(2,'0')+' 秒');
     caption(card,'Parents',m.parents!.filter(a=>a).map(a=>a!.name).join(' × '),0,-32,w,24,13,muted);
     guideNote(c);
     c.startFooter();

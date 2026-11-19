@@ -6,6 +6,7 @@ import { occupiedPetNames, takePetName } from './pet-names.mjs';
 import { activeNutrition, nutritionDuration, nutritionPrice, nutritionStock, nutritionTier, nutritionWindow } from './room-nutrition.mjs';
 
 const MINUTE = 60_000, DAY = 24 * 60 * MINUTE, BATCH = 30 * MINUTE;
+export const shelfBatchEndsAt=room=>room.openedAt+(room.shelf.number+1)*BATCH;
 export const SPECIES = {
   rabbit: { name:'兔', breeds:['domestic','lop','angora','lionhead'], young:12, growth:18, adult:3, old:1, wait:2, min:3, litter:[25,50,25], roomCost:0, review:40, guide:250, art:'shop-modules/rabbit-room' },
   cat: { name:'猫', breeds:['british','american','persian','maine'], young:30, growth:60, adult:4, old:2, wait:7, min:2, litter:[20,55,25], roomCost:6000, review:300, guide:350, art:'rooms/cat-room' },

@@ -418,8 +418,9 @@ function marketRoster(s, page, args, target, now) {
   const reasons = Object.entries(counts).filter(([,count])=>count).map(([reason,count])=>reason+' '+count+' 只');
   return {title:channelNames.market, subtitle:[target.condition,...reasons].join(' · '),
     visual:{eligibleCount, protectedCount:counts.种源保护}, empty:'当前筛选下没有动物。', rows,
-    filters:[Object.keys(rosterFilters).map(label=>({...nextPage(label,page,{...scope,filter:label,stage}), active:label===filter})),
-      ['全部',...stageNames].map(label=>({...nextPage(label,page,{...scope,filter,stage:label}),active:label===stage}))],
+    filters:[['',...speciesList].map(key=>({...nextPage(key?speciesName(key):'全部',page,
+      {channel:'market',...(key&&{species:key}),stage}),active:key===(target.species??'')})),
+      ['全部',...stageNames].map(label=>({...nextPage(label,page,{...scope,...(filter!=='全部'&&{filter}),stage:label}),active:label===stage}))],
     actions:eligibleCount?[{...nextPage('核对所选报价','saleQuote',{...scope,...(filter!=='全部'&&{filter}),...(stage!=='全部'&&{stage})}),useSelection:true}]:[]};
 }
 function orderActions(s, id) {

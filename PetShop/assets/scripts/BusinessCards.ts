@@ -17,10 +17,10 @@ export function blocks(copy:string,w:number,size=14):number {
 export function card(c:PageCanvas,name:string,h:number,fill=cream,gap=10):Node {
     return frame(c.body,name,0,c.slot(h,gap),c.inner,h,fill,edge,true);
 }
-export function section(c:PageCanvas,title:string,detail=''):void {
+export function section(c:PageCanvas,title:string,detail=''):Label|undefined {
     const y=c.slot(25,7),right=detail?Math.min(c.inner*.54,detail.length*13+10):0;
     heading(c.body,'Section',title,-right/2,y,c.inner-right,25,17,green);
-    if(detail)text(c.body,'SectionDetail',detail,(c.inner-right)/2,y,right,25,12,brown,'right');
+    if(detail)return text(c.body,'SectionDetail',detail,(c.inner-right)/2,y,right,25,12,brown,'right');
 }
 export function note(c:PageCanvas,copy:string,warning=false):void {
     if(!copy)return;

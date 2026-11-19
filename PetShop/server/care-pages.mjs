@@ -1,6 +1,6 @@
 import {
   SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterCandidates, mixedOffspring,
-  lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview, specimen, nextCheckinBreed,
+  lifeDates, beijingTime, rosterStage, shelfBatchEndsAt, stageNames, mutationPreview, specimen, nextCheckinBreed,
 } from './care.mjs';
 import { rabbitWaitingForOpening } from './onboarding.mjs';
 import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
@@ -55,14 +55,16 @@ function roster(s,a,now) {
   const species=speciesKey(a), cfg=SPECIES[species],room=s.rooms[species];
   if(!room||(species==='rabbit'&&rabbitWaitingForOpening(s))) return closedRoom(s,species,'rooms',now);
   const all=s.pets.filter(p=>p.species===species);
-  const filter=rosterFilter(a.filter);
+  const breedKey=p=>p.mixed?'mixed':p.breedKey;
+  const breeds=new Map(all.map(p=>[breedKey(p),breedName(p)]));
+  const breed=breeds.has(a.breed)?a.breed:undefined;
   const stage=rosterStage(a.stage,a.filter);
   const shown=[];
   let nextStageAt=null;
   for(const p of all){
     const end=stageEnd(p,now);
     if(end!==null&&(nextStageAt===null||end<nextStageAt))nextStageAt=end;
-    if((stage!=='全部'&&stageOf(p,now)!==stage)||!rosterFilters[filter](s,p,now))continue;
+    if((breed&&breedKey(p)!==breed)||(stage!=='全部'&&stageOf(p,now)!==stage))continue;
     const row=petRow(s,p,now);
     row.animal.stageEndsAt=end;
     shown.push(row);
@@ -72,14 +74,15 @@ function roster(s,a,now) {
   return {title:'动物小屋',art:cfg.art,animals:residents.map(p=>p.art),animalStages:residents.map(p=>p.stage),
     presentation:{kind:'rooms',species:cfg.name,count:all.length,matchedCount:shown.length,residents,nextStageAt,
       ...(nutrition&&{nutrition})},
-    subtitle:'名册 '+shown.length+' 只 · '+filter+' · '+stage,
+    subtitle:'名册 '+shown.length+' 只 · '+(breeds.get(breed)??'全部')+' · '+stage,
     rows:[link(room.job?'查看正在繁育的一窝':'进入繁育台',room.job?'预计 '+describeRemaining(room.job.endsAt-now)+' 后出生':'挑选亲本，查看幼体的缺陷率和完美无缺率','breed',{species}),
       ...(room.lastLitter?[link('最近出生的一窝',room.lastLitter.ids.length+' 只','litter',{species})]:[]),
       ...(room.openingReceipt?[link('查看入住回执','购房时的两只幼体、成年时刻与余款','roomReceipt',{species})]:[]),
       ...shown,...(!shown.length?[{title:'当前筛选下没有动物。'}]:[])],
     tabs:options(s,'rooms',species),filters:[
-      Object.keys(rosterFilters).map(v=>({...go(v,'rooms',{species,filter:v,stage}),active:v===filter})),
-      ['全部',...stageNames].map(v=>({...go(v,'rooms',{species,filter,stage:v}),active:v===stage}))]};
+      [['','全部'],...breeds].map(([key,label])=>({...go(label,'rooms',{species,...(key&&{breed:key}),stage}),
+        active:key===(breed??'')})),
+      ['全部',...stageNames].map(v=>({...go(v,'rooms',{species,...(breed&&{breed}),stage:v}),active:v===stage}))]};
 }
 function checkin(s,now) {
   const signed=s.care.signedDay===dayAt(now);
@@ -310,7 +313,7 @@ function litterSelection(s,page,a,now) {
 function shelves(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
   if(!room)return closedRoom(s,species,'shelf',now);
-  return {title:cfg.name+'种源货架',art:'shop-modules/lab',subtitle:'本批剩余 '+describeRemaining(room.openedAt+(room.shelf.number+1)*1_800_000-now),
+  return {title:cfg.name+'种源货架',art:'shop-modules/lab',subtitle:'本批剩余 '+describeRemaining(shelfBatchEndsAt(room)-now),
     rows:room.shelf.offers.map((p,i)=>p?shelfRow(s,p,species,now):{title:(i===0?'公':'母')+'幼体 · 本批已售',text:'本批不再补货。下一批的品种和标签随机。'}),
     tabs:options(s,'shelf',species)};
 }
@@ -335,9 +338,12 @@ function labCatalog(s,args,now) {
         action:{label,type,args,confirm,disabled:s.coins<args.price}};
     }))};
   }
-  const stock=species.map(key=>({key,offers:s.rooms[key].shelf.offers}));
-  return {...page,subtitle:'每 30 分钟换批',empty:'本批种源已售完，请等下一批上架。',
-    rows:[0,1].flatMap(i=>stock.flatMap(({key,offers})=>offers[i]?[shelfRow(s,offers[i],key,now)]:[])),
+  const stock=species.filter(key=>s.rooms[key].shelf&&(key!=='rabbit'||!rabbitWaitingForOpening(s)))
+    .map(key=>({key,room:s.rooms[key]}));
+  const nextBatchAt=stock.length?Math.min(...stock.map(({room})=>shelfBatchEndsAt(room))):undefined;
+  return {...page,...(nextBatchAt!==undefined&&{subtitle:'下一批 '+Math.max(0,Math.ceil((nextBatchAt-now)/60_000))+' 分钟',
+    visual:{nextBatchAt}}),empty:'本批种源已售完，请等下一批上架。',
+    rows:[0,1].flatMap(i=>stock.flatMap(({key,room})=>room.shelf.offers[i]?[shelfRow(s,room.shelf.offers[i],key,now)]:[])),
     actions:species.some(key=>key!=='rabbit')?[go('定向种源预约','seedReservation'),go('品种培育课题','breedingCourses')]:[]};
 }
 function offerPage(s,a,now) {
