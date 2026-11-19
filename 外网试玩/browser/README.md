@@ -4,9 +4,13 @@
 
 ## 公开免登录试玩
 
-游客打开页面后直接进入新手开局。试玩店铺保存在当前浏览器的 IndexedDB，换浏览器或清除本站数据会重新开店。试玩使用独立的 Pages 项目 `petshop-demo`。
+游客打开页面后直接进入新手开局。试玩店铺保存在当前浏览器的 IndexedDB，换浏览器或清除本站数据会重新开店。试玩使用独立的 Pages 项目 `petshop-demo`。[公开试玩入口](https://petshop-demo-6ib.pages.dev/)
 
 从工程根目录运行 `node 外网试玩/browser/build.mjs --demo --out <新的输出目录>`，默认使用 `PetShop/build/web-mobile` 的现有客户端。通过 `wrangler pages deploy <输出目录> --project-name petshop-demo --branch demo` 发布该静态目录。
+
+2026-11-19 首次发布使用源提交 `2d5be68`，客户端版本为 `demo-5be4838841ec0a09`，Pages 部署 ID 为 `6d691fca-5f50-46cc-84ea-4cee8851ce86`。
+
+本地通过 105 项游戏逻辑测试及 390 像素宽的触屏引导流程。公开入口通过游客开局、点击引导、刷新续玩及新浏览器独立开店检查。线上首页、Service Worker 和版本清单的 SHA-256 与发布目录一致。
 
 ## 账号试玩与历史发布
 
