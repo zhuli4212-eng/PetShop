@@ -139,10 +139,18 @@ function sale(c:PageCanvas):void {
     box(n,'TopRule',0,28,w,1,'#B49B70');
     text(n,'SelectionCount','已选 '+selected.length+' 只 · '+total+' 金币',-59,0,w-127,38,14,green,'left',true);
     const a=(c.p.actions||[])[0];
-    press(n,'Action0','核对'+mode,w/2-55,0,105,()=>{
+    const review=()=>{
         if(a)c.ui.choose(channel==='market'?{...a,useSelection:false,args:{...a.args,ids:selected}}:a);
-    },true,!a||!selected.length,48);
-    if(!c.p.visual?.singleSelect)buttons(c,[{label:all?'清空选择':'全选本页',type:'ui.selectAll',disabled:!ids.length,args:{ids,clear:all}}],-1);
+    };
+    const reviewDisabled=!a||!selected.length;
+    const selectAll={label:all?'清空选择':'全选本页',type:'ui.selectAll',disabled:!ids.length,args:{ids,clear:all}};
+    if(channel==='recycle'&&!c.p.visual?.singleSelect){
+        press(n,'SelectAll',selectAll.label,w/2-55,0,105,()=>c.ui.choose(selectAll),false,selectAll.disabled,48);
+        press(c.body,'Action0','核对回收',0,c.slot(48,9),w,review,true,reviewDisabled,48);
+        return;
+    }
+    press(n,'Action0','核对'+mode,w/2-55,0,105,review,true,reviewDisabled,48);
+    if(!c.p.visual?.singleSelect)buttons(c,[selectAll],-1);
 }
 function quote(c:PageCanvas):void {
     const a=c.p.actions?.find(choice=>choice.type==='sale.commit');
