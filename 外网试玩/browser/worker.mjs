@@ -2,12 +2,13 @@ import { GameError, RequestGameStore } from '../../PetShop/server/request-store.
 
 const scope = new URL(self.registration.scope);
 const storeName = 'shop';
+const databasePrefix = PETSHOP_BROWSER_DEMO ? 'petshop-demo:' : 'petshop-trial:';
 let database;
 
 function openShop() {
   if (database) return database;
   database = new Promise((resolve, reject) => {
-    const request = indexedDB.open('petshop-trial:' + scope.pathname, 1);
+    const request = indexedDB.open(databasePrefix + scope.pathname, 1);
     request.onupgradeneeded = () => request.result.createObjectStore(storeName);
     request.onsuccess = () => {
       const db = request.result;
@@ -25,7 +26,7 @@ function gameRequest(game, path, data) {
   if (path === 'heartbeat') return game.heartbeat(data.clientId, data.foreground, data.reader);
   const result = game.page(data.page, data.args || {});
   if (data.page === 'login') {
-    result.page.subtitle = '外网试玩 · 本浏览器存档';
+    result.page.subtitle = PETSHOP_BROWSER_DEMO ? '免登录试玩 · 本浏览器存档' : '外网试玩 · 本浏览器存档';
     result.page.rows.unshift({ title: '试玩进度', text: '使用当前浏览器回到这个网址，可继续经营。清除本站数据会重置试玩进度。' });
   }
   return result;
@@ -41,7 +42,7 @@ async function transact(path, data) {
     let result, domainError;
     read.onsuccess = () => {
       try {
-        const game = new RequestGameStore(read.result ?? null);
+        const game = new RequestGameStore(read.result ?? null, { onboarding: PETSHOP_BROWSER_DEMO });
         try { result = gameRequest(game, path, data); }
         catch (error) { domainError = error; }
         if (game.dirty) store.put(game.snapshot(), 'player');
