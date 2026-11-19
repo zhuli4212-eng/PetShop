@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { initCare, tickCare, carePage, careAction, dayAt, repairLegacyParentRetention } from './care.mjs';
+import { initCare, tickCare, carePage, careAction, dayAt, clearBredRetention } from './care.mjs';
 import { initBusiness, tickBusiness, businessPage, businessAction, businessHeartbeat, readyOrderId, validateSaleQuote } from './business.mjs';
 import { initShow, tickShow, showPage, showAction } from './show.mjs';
 import { shopProgress, saleExperience, shopRaceAccess } from './shop-progression.mjs';
@@ -103,11 +103,8 @@ export class ShopEngine {
   }
   initialize(restored,{fromBackup=false,resetConnections=false}={}) {
     const s=restored ?? newState(this.wall(),this.onboarding);
-    const checkParents=s.care.parentRetentionChecked!==true;
-    if(checkParents){
-      if(repairLegacyParentRetention(s))s.version++;
-      s.care.parentRetentionChecked=true;
-    }
+    const retentionChanged=Boolean(restored)&&clearBredRetention(s);
+    if(retentionChanged)s.version++;
     const needsVisitBook=initVisitBook(s,!!restored);
     const needsTasks=initTasks(s);
     const needsOpening=!Number.isFinite(s.createdAt);
@@ -119,7 +116,7 @@ export class ShopEngine {
     if(restored && this.wall()<s.clock) s.clockEvent={at:s.clock,text:'检测到设备时钟回拨，经营时间从上次存档继续。'};
     this.anchor=Math.max(s.clock,this.wall()); this.mark=this.monotonic();
     this.savedAt=s.clock;
-    if(!restored || checkParents || needsXp || needsOpening || needsVisitBook || needsTasks || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
+    if(!restored || retentionChanged || needsXp || needsOpening || needsVisitBook || needsTasks || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
     this.state=s;
   }
   now() {

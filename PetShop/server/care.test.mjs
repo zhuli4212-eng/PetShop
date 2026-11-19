@@ -698,3 +698,29 @@ test('留种核价拒绝过期窝次、外来编号与已变化名册；一只�
   assert.throws(()=>businessAction(s,action.type,action.args,now),/已离店/);
   assert.deepEqual(s,before);
 });
+
+test('已繁育的同窝动物不进入留种选单，旧报价不能把它重新标记为种源',()=>{
+  const s=fresh(),now=T+2*M,[mother,father]=s.pets;
+  s.sales=[];
+  careAction(s,'care.breed',{species:'rabbit',mother:mother.id,father:father.id},T);
+  tickCare(s,now);
+  const {bornAt,ids}=s.rooms.rabbit.lastLitter, key={species:'rabbit',bornAt};
+  const spent=s.pets.find(p=>p.id===ids[0]);
+  const offer={...key,offered:ids};
+  const oldSale=carePage(s,'litterSale',{...offer,ids:[spent.id]},now).actions[0];
+  spent.bred=true;
+  const newQuote=businessPage(s,'saleQuote',{channel:'market',ids:ids.slice(1)},now).actions[0];
+  const staleRetention={...newQuote.args,litterRetention:oldSale.args.litterRetention};
+  const before=structuredClone(s);
+
+  const page=carePage(s,'litterKeep',key,now);
+  assert.deepEqual(page.rows.map(r=>r.select),ids.slice(1));
+  assert.equal(carePage(s,'litterSale',{...offer,ids:[spent.id]},now).title,'本窝名册已变化');
+  assert.throws(()=>careAction(s,'care.keepLitter',{...key,keepIds:ids},now),/本窝名册已变化/);
+  assert.throws(()=>businessAction(s,oldSale.type,oldSale.args,now),/变化/);
+  assert.throws(()=>businessAction(s,newQuote.type,staleRetention,now),/本窝名册已变化/);
+  assert.deepEqual(s,before);
+  careAction(s,'care.keepLitter',{...key,keepIds:ids.slice(1)},now);
+  assert.equal(spent.retained,undefined);
+  assert.ok(s.pets.filter(p=>ids.slice(1).includes(p.id)).every(p=>p.retained));
+});

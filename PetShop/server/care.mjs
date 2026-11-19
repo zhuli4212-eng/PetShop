@@ -180,7 +180,7 @@ export function admitPurchasedPet(s,room,offer,now) {
 }
 export function initCare(s,now,{onboarding=false}={}) {
   if (s.care) return;
-  s.care={seed:randomBytes(16).toString('hex'),signedDay:null,claimIds:[],parentRetentionChecked:true,defectGradesUpdated:true};
+  s.care={seed:randomBytes(16).toString('hex'),signedDay:null,claimIds:[],defectGradesUpdated:true};
   s.rooms={rabbit:newRoom(now)};
   const usedNames=new Set();
   s.pets=onboarding?[]:[
@@ -190,49 +190,11 @@ export function initCare(s,now,{onboarding=false}={}) {
   tickCare(s,now);
 }
 
-// Some early saves kept both parents' pre-breeding marks after a recorded birth.
-// Receipt versions order player decisions without relying on the player's device clock.
-export function repairLegacyParentRetention(s) {
-  const candidates=new Map(s.pets.filter(p=>p.bred===true&&p.retained===true&&!isBusy(s,p))
-    .map(p=>[p.id,{pet:p,paired:0,marked:0}]));
-  if(!candidates.size)return false;
-  const parents=new Set();
-  for(const child of s.pets){
-    if(child.bornAt<=s.clock){parents.add(child.motherId);parents.add(child.fatherId);}
-  }
-  for(const room of Object.values(s.rooms)){
-    const litter=room?.lastLitter;
-    if(litter?.bornAt<=s.clock)for(const p of litter.parents||[])parents.add(p.id);
-  }
-  for(const receipt of Object.values(s.receipts)){
-    const version=receipt?.result?.version;
-    if(!Number.isSafeInteger(version)||version<1||version>s.version)return false;
-    let command;
-    try {command=JSON.parse(receipt.key);} catch {return false;}
-    if(!Array.isArray(command)||command.length!==2)return false;
-    const [type,args]=command;
-    if(!args||typeof args!=='object')return false;
-    if(type==='care.breed'){
-      for(const id of [args.mother,args.father]){
-        const parent=candidates.get(id);
-        if(parent)parent.paired=Math.max(parent.paired,version);
-      }
-    }else{
-      let kept;
-      if(type==='care.retain'&&args.retained===true)kept=[args.id];
-      else if(type==='care.keepLitter')kept=args.keepIds;
-      else if(type==='sale.commit'&&args.litterRetention)kept=args.litterRetention.keepIds;
-      else continue;
-      if(!Array.isArray(kept))return false;
-      for(const id of kept){
-        const parent=candidates.get(id);
-        if(parent)parent.marked=Math.max(parent.marked,version);
-      }
-    }
-  }
+// Saves from older builds may still have a mark applied after the animal bred.
+export function clearBredRetention(s) {
   let changed=false;
-  for(const [id,{pet,paired,marked}] of candidates){
-    if(parents.has(id)&&marked>0&&marked<paired){
+  for(const pet of s.pets){
+    if(pet.bred&&pet.retained){
       pet.retained=false;
       changed=true;
     }
@@ -371,15 +333,15 @@ export function chargeQuoted(s,expected,amount) {
   requireValue(s.coins>=amount,'金币不足。需要 '+amount+' 金币。');
   s.coins-=amount;
 }
-export function litterMembers(s,litter,now) {
+export function litterCandidates(s,litter,now) {
   const ids=new Set(litter.ids);
-  return s.pets.filter(p=>ids.has(p.id)&&!isBusy(s,p)&&stageOf(p,now)!=='已故');
+  return s.pets.filter(p=>ids.has(p.id)&&!p.bred&&!isBusy(s,p)&&stageOf(p,now)!=='已故');
 }
 // A litter decision applies to the same unprotected animals the player reviewed.
 export function retainedLitterPets(s, decision, soldIds, now) {
   const litter=s.rooms[decision.species]?.lastLitter;
   requireValue(litter && litter.bornAt===decision.bornAt,'出生记录已更新，请重新挑选。');
-  const eligible=litterMembers(s,litter,now).filter(p=>!p.retained);
+  const eligible=litterCandidates(s,litter,now).filter(p=>!p.retained);
   requireValue(Array.isArray(decision.keepIds)&&Array.isArray(soldIds),'本窝选单无效。');
   const all=[...decision.keepIds,...soldIds], chosen=new Set(all), keep=new Set(decision.keepIds);
   requireValue(chosen.size===all.length&&all.length===eligible.length&&eligible.every(p=>chosen.has(p.id)),
@@ -392,6 +354,7 @@ export function careAction(s,type,args,now) {
     const p=s.pets.find(p=>p.id===args.id);
     requireValue(p,'这只动物已离店。');
     requireValue(typeof args.retained==='boolean','请选择留种或取消留种。');
+    requireValue(!args.retained||!p.bred,'已繁育动物无法留种。');
     requireValue(!args.retained||stageOf(p,now)!=='已故','已故动物无法新留种。');
     p.retained=args.retained;
     return p.name+(p.retained?'已标记为种源。':'已取消留种。');

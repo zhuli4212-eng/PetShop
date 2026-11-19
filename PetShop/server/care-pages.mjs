@@ -1,5 +1,5 @@
 import {
-  SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterMembers, mixedOffspring,
+  SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterCandidates, mixedOffspring,
   lifeDates, beijingTime, rosterFilter, rosterFilters, rosterStage, stageNames, mutationPreview, specimen, nextCheckinBreed,
 } from './care.mjs';
 import { rabbitWaitingForOpening } from './onboarding.mjs';
@@ -134,7 +134,7 @@ function detail(s,a,now) {
       ...priceRows(s,p,now),
       ...(unrecorded>0?[{title:'早期复评',text:'此前 '+unrecorded+' 次复评仅留有次数。'}]:[]),
       ...history.map(h=>({title:fields[h.field]+'复评',text:beijingTime(h.at)+'（北京） · '+h.before+'（'+h.beforeRarity+'） → '+h.after+'（'+h.afterRarity+'） · 评分 '+h.grade}))],
-    actions:[...(stage!=='已故'||p.retained?[{label:p.retained?'取消留种':'留种',type:'care.retain',args:{id:p.id,retained:!p.retained}}]:[]),
+    actions:[...(p.retained||(!p.bred&&stage!=='已故')?[{label:p.retained?'取消留种':'留种',type:'care.retain',args:{id:p.id,retained:!p.retained}}]:[]),
       ...(canBreed(s,p,now)?[go('去繁育台配对','breed',{species:p.species,[p.sex==='公'?'father':'mother']:p.id})]:[]),
       ...(!isBusy(s,p)&&stage!=='已故'?[go('特征复评','review',{species:p.species,id:p.id})]:[]),
       ...(!isBusy(s,p)&&!p.retained?[stage==='已故'?go('前往动物回收','recycle',{species:p.species,preselectId:p.id}):go('前往自由市场','market',{preselectId:p.id})]:[])]};
@@ -244,11 +244,11 @@ function litterSelection(s,page,a,now) {
   if(!latest||latest.bornAt!==a.bornAt){
     return {title:'出生记录已更新',rows:[{title:'请重新打开这间房的出生记录。'}],actions:[go('查看出生记录','litter',{species})]};
   }
-  const members=litterMembers(s,latest,now), eligible=members.filter(p=>!p.retained);
+  const members=litterCandidates(s,latest,now), eligible=members.filter(p=>!p.retained);
   const identity={species,bornAt:latest.bornAt};
   if(page==='litterKeep') {
     return {title:'挑选留种',subtitle:'已有种源自动保留。勾选本次留种的动物，其余进入出售核价。',selectionLabel:'留养',
-      rows:members.map(p=>({...petRow(s,p,now),...(!p.retained&&{select:p.id})})),empty:'这一窝当前没有可出售的动物。',
+      rows:members.map(p=>({...petRow(s,p,now),...(!p.retained&&{select:p.id})})),empty:'这一窝当前没有可挑选的未繁育动物。',
       actions:eligible.length?[{...go('核对其余动物售价','litterSale',{...identity,offered:eligible.map(p=>p.id)}),
         useSelection:true,allowEmptySelection:true}]:[go('查看出生记录','litter',{species})]};
   }
