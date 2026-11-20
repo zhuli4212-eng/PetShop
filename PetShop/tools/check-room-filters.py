@@ -35,7 +35,12 @@ s.rooms.cat=structuredClone(s.rooms.rabbit); s.rooms.dog=structuredClone(s.rooms
 s.visitBook.opening=false;
 s.shopXp=18000;
 s.pets=samples.map(({busy,stage,minutes,...p})=>({...structuredClone(template),...p,breedGrowth:false,bornAt:now-minutes*60000}));
+['从容','眼神灵动','绒光','仪态出众','比例匀美'].forEach((label,i)=>{
+  s.pets[0].traits[i]={...s.pets[0].traits[i],label,rarity:'稀有'};
+  delete s.pets[0].traits[i].tagId;
+});
 for (const [species,room] of Object.entries(s.rooms)){
+  room.items.review=2;
   const [mother,father]=['母','公'].map(sex=>s.pets.find(p=>p.species===species && p.sex===sex &&
     samples.find(a=>a.id===p.id).busy));
   room.job={motherId:mother.id,fatherId:father.id,mother,father,endsAt:now+86400000,offspring:[]};
@@ -190,13 +195,14 @@ def varied(samples):
 
 
 NEXT_STAGE={'幼年':'距成长','成长':'距成年','成年':'距老年','老年':'距寿终'}
-TIMER=re.compile(r'(?:(\d+)\s*天\s*)?(?:(\d+):)?(\d+):(\d{2})')
+TIMER=re.compile(r'(?:距\S+ )?(?:(\d+) 天|(\d+) 小时 (\d+) 分|(\d+) 分 (\d+) 秒)')
 
 
 def seconds(text):
     match=TIMER.fullmatch(text.strip())
     assert match,text
-    days,hours,minutes,seconds=(int(i or 0) for i in match.groups())
+    days,hours,hour_minutes,minutes,seconds=(int(i or 0) for i in match.groups())
+    minutes+=hour_minutes
     assert minutes<60 and seconds<60,text
     return ((days*24+hours)*60+minutes)*60+seconds
 
@@ -204,38 +210,167 @@ def seconds(text):
 def row_controls(page,id):
     return page.evaluate("""id=>{
       const q=roomQA,r=q.row(id);
-      const fields=Object.fromEntries(['Name','Number','Stage','Identity','StockBadge','StageTarget','StageCountdown']
+      const fields=Object.fromEntries(['Name','Number','ScoreLabel','Score','Stage','Identity','StockBadge','StageCountdown','ViewDetails','ExpandTraits']
         .map(k=>[k,r.getChildByName(k)]).filter(([,n])=>n).map(([k,n])=>[k,{
           text:(n.getComponent(cc.Label)||n.getChildByName('Caption').getComponent(cc.Label)).string,
           ...q.bounds(n)}]));
       const v=q.visit(),animal=v.data.rows.find(r=>r.animal?.id===id).animal;
+      fields.thumb=q.bounds(r.getChildByName('Thumb'));
+      fields.card=q.bounds(r);
       fields.remaining=animal.stageEndsAt==null?null:Math.ceil((animal.stageEndsAt-v.serverClockOffset-performance.now())/1000);
       return fields;
     }""",id)
 
 
+def tap_row_control(page,id,name):
+    page.evaluate("""([id,name])=>{
+      const q=roomQA,n=q.row(id).getChildByName(name),s=q.scroll(),content=s.content;
+      const p=q.ui(content).convertToNodeSpaceAR(n.worldPosition);
+      s.stopAutoScroll();s.scrollToOffset(new cc.Vec2(0,Math.max(0,Math.min(s.getMaxScrollOffset().y,-p.y-60))),0);
+    }""",[id,name])
+    point=page.evaluate("([id,name])=>roomQA.point(roomQA.row(id).getChildByName(name).worldPosition)",[id,name])
+    page.touchscreen.tap(*point)
+
+
+def verify_design(page,screenshots=None):
+    ids=page.evaluate("roomQA.visit().data.rows.filter(r=>r.animal).slice(0,2).map(r=>r.animal.id)")
+    assert len(ids)==2
+    assert page.evaluate("roomQA.visit().expandedAnimal===undefined")
+    for id in ids:
+        fields=row_controls(page,id)
+        assert all(abs(fields[key]['left']-fields['Name']['left'])<1
+                   for key in ('Identity','Stage')),fields
+        assert fields['thumb']['bottom']<fields['Score']['top'],fields
+        assert fields['ScoreLabel']['text']=='评分' and fields['ViewDetails']['text']=='详情',fields
+        assert fields['card']['bottom']-fields['card']['top']<=115,fields
+        if 'StageCountdown' in fields:
+            name,clock=fields['Name'],fields['StageCountdown']
+            assert abs(clock['top']+clock['bottom']-name['top']-name['bottom'])<1,fields
+            assert name['right']<clock['left'] and clock['right']<fields['ViewDetails']['left'],fields
+            assert clock['bottom']<=fields['Identity']['top']+1,fields
+        toggle=fields['ExpandTraits']
+        assert toggle['text']=='展开' and toggle['bottom']-toggle['top']<=30,toggle
+        assert page.evaluate("""id=>{
+          const row=roomQA.row(id),control=row.getChildByName('ExpandTraits');
+          return !row.getChildByName('TraitType0') && !control.getComponent(cc.Graphics)
+            && !!control.getChildByName('Chevron');
+        }""",id)
+    tap_row_control(page,ids[0],'Thumb')
+    page.wait_for_function("id=>roomQA.visit().expandedAnimal===id && !!roomQA.row(id).getChildByName('TraitType0')",arg=ids[0])
+    assert row_controls(page,ids[0])['ExpandTraits']['text']=='收起'
+    tap_row_control(page,ids[1],'Name')
+    page.wait_for_function("([first,second])=>roomQA.visit().expandedAnimal===second && !roomQA.row(first).getChildByName('TraitType0') && !!roomQA.row(second).getChildByName('TraitType0')",arg=ids)
+    tap_row_control(page,ids[0],'ViewDetails')
+    page.wait_for_function("id=>roomQA.visit()?.data?.presentation?.animal?.id===id",arg=ids[0])
+    # Cocos Font assets and browser FontFace readiness are separate checks.
+    # Verify the actual three browser families before trusting canvas screenshots.
+    try:
+        page.wait_for_function("""()=>{const faces=[...document.fonts].filter(f=>/Noto(Sans|Serif)CJKsc/.test(f.family));
+          return new Set(faces.map(f=>f.family)).size===3&&faces.every(f=>f.status==='loaded');}""",timeout=90000)
+    finally:
+        font_faces=page.evaluate("[...document.fonts].map(f=>({family:f.family,status:f.status}))")
+        print(f"{page.viewport_size['width']}px browser FontFace status: {json.dumps(font_faces,ensure_ascii=False)}",flush=True)
+    check=page.evaluate(r"""()=>{
+      const q=roomQA,file=q.find('AnimalFile'),data=q.visit().data,a=data.presentation.animal;
+      const traits=file.getComponentsInChildren(cc.Label).filter(l=>l.node.parent.name.match(/^Trait[0-4]$/));
+      const picture=q.find('Illustration',file),tags=picture.children.filter(n=>/^Tag\d+_\d+$/.test(n.name));
+      return {id:q.find('Id',file).getComponent(cc.Label).string,expectedId:'#'+a.number,
+        types:traits.filter(l=>l.node.name==='Type').length,grades:traits.filter(l=>l.node.name==='Grade').length,
+        oldColumns:traits.filter(l=>['Tag','Rarity'].includes(l.node.name)).length,
+        tags:tags.map(n=>q.label(n,'Caption')).sort(),expectedTags:a.tags.map(t=>t.label).sort(),
+        tagLines:new Set(tags.map(n=>n.position.y)).size,
+        defect:q.label(q.find('Defect',file),'Caption'),expectedDefect:a.defect.label+' · '+a.defect.grade,
+        prices:data.rows.filter(r=>['品种和品质','阶段与繁育','荣誉加价','店铺加成'].includes(r.title)).length,
+        fonts:q.find('Canvas',cc.director.getScene()).getComponentsInChildren(cc.Label)
+          .filter(l=>!l.font||l.useSystemFont||l.isBold).map(l=>[l.node.name,l.string,l.font?.name,l.useSystemFont,l.isBold]),
+        nameFont:q.find('Name',file).getComponent(cc.Label).font?.name,
+        nameSize:q.find('Name',file).getComponent(cc.Label).fontSize,
+        bodySize:traits.find(l=>l.node.name==='Type').fontSize,
+        typeFont:traits.find(l=>l.node.name==='Type').font?.name,
+        gradeFont:traits.find(l=>l.node.name==='Grade').font?.name};
+    }""")
+    assert check['id']==check['expectedId'] and check['types']==check['grades']==5 and check['oldColumns']==0,check
+    assert check['tags']==check['expectedTags'] and check['tagLines']<=2 and check['defect']==check['expectedDefect'] and check['prices']==0,check
+    assert not check['fonts'] and 'Serif' in check['nameFont'] and 'Sans' in check['typeFont'] and 'Bold' in check['gradeFont'],check
+    assert check['nameSize']==21 and check['bodySize']==14,check
+    if screenshots:
+        screenshots.mkdir(parents=True,exist_ok=True)
+        page.screenshot(path=str(screenshots/f"detail-{page.viewport_size['width']}.png"),timeout=90000)
+    review_index=page.evaluate("roomQA.visit().data.actions.findIndex(a=>a.page==='review'&&!a.disabled)")
+    assert review_index>=0
+    tap(page,'Action'+str(review_index))
+    page.wait_for_function("roomQA.visit()?.data?.presentation?.kind==='review'")
+    state=page.evaluate("""()=>{const q=roomQA,p=q.visit().data;return {
+      use:p.actions.filter(a=>a.type==='care.review'),title:p.title,beforeTags:p.presentation.animal.tags,reviews:p.presentation.reviews,
+      buttons:[0,1,2].map(i=>q.bounds(q.find('Action'+i))),
+      tagRows:q.find('DeskPage').getComponentsInChildren(cc.Label).filter(l=>l.node.name==='Type'&&/^ReviewTag/.test(l.node.parent.name)).length,
+      count:p.presentation.animal.tags.length,fieldActions:p.rows.some(r=>!!r.action)};}""")
+    assert len(state['use'])==1 and 'field' not in state['use'][0]['args'] and state['tagRows']==state['count'] and not state['fieldActions'],state
+    review_columns=page.evaluate("""count=>Array.from({length:count},(_,i)=>{
+      const q=roomQA,row=q.find('ReviewTag'+i);
+      return ['Type','Tag','Rarity'].map(name=>q.bounds(row.getChildByName(name)));
+    })""",state['count'])
+    for field,tag,rarity in review_columns:
+        assert field['right']<=tag['left'] and tag['right']<=rarity['left']
+        assert abs(tag['left']-review_columns[0][1]['left'])<1
+    assert state['title']=='特征复评' and all(b['bottom']-b['top']>=44 for b in state['buttons']),state
+    assert abs(state['buttons'][1]['top']-state['buttons'][2]['top'])<1 and state['buttons'][0]['bottom']<=state['buttons'][1]['top'],state
+    if screenshots:page.screenshot(path=str(screenshots/f"review-{page.viewport_size['width']}.png"),timeout=90000)
+    tap(page,'Action0')
+    page.wait_for_function("(()=>{const m=cc.director.getScene().getChildByName('Canvas').getComponent('ShopMain');return m.session.confirm?.text?.includes('可能降档');})()")
+    # Cancel using the dialog's actual cancel button; remain in the same review.
+    cancel=page.evaluate("""()=>{const q=roomQA,all=q.find('Canvas',cc.director.getScene()).getComponentsInChildren(cc.Label);
+      const l=all.find(l=>l.node.activeInHierarchy&&['暂不','取消','返回'].includes(l.string)&&l.node.parent.name==='Cancel');
+      const n=l?.node.parent||q.find('Cancel');return n&&q.point(n.worldPosition);}""")
+    assert cancel
+    page.touchscreen.tap(*cancel)
+    page.wait_for_function("(()=>{const m=cc.director.getScene().getChildByName('Canvas').getComponent('ShopMain');return !m.session.confirm&&roomQA.visit()?.data?.presentation?.kind==='review';})()")
+    tap(page,'Back')
+    page.wait_for_function("id=>roomQA.visit()?.data?.presentation?.animal?.id===id&&roomQA.visit().key==='pet'",arg=ids[0])
+    review_index=page.evaluate("roomQA.visit().data.actions.findIndex(a=>a.page==='review'&&!a.disabled)")
+    tap(page,'Action'+str(review_index))
+    page.wait_for_function("roomQA.visit()?.data?.presentation?.kind==='review'")
+    tap(page,'Action0')
+    page.wait_for_function("!!roomQA.find('Confirm')")
+    tap(page,'Accept')
+    page.wait_for_function("""([id,reviews])=>{const v=roomQA.visit();return v?.key==='pet'&&v.data?.presentation?.animal?.id===id&&
+      v.data.rows.some(r=>r.title==='复评 '+reviews+' / 3 次');}""",arg=[ids[0],state['reviews']+1])
+    result=page.evaluate("""()=>{const p=roomQA.visit().data;return {tags:p.presentation.animal.tags,
+      history:p.rows.some(r=>r.title.endsWith('复评')&&r.text?.includes(' → '))};}""")
+    assert result['history'] and len(result['tags'])==len(state['beforeTags']),result
+    assert sum(a['rarity']!=b['rarity'] for a,b in zip(result['tags'],state['beforeTags']))==1,result
+    for a,b in zip(result['tags'],state['beforeTags']):
+        assert [a[k] for k in ('tagId','label','grade')]==[b[k] for k in ('tagId','label','grade')],result
+    tap(page,'Back')
+    page.wait_for_function("id=>roomQA.visit()?.key==='rooms' && roomQA.visit().expandedAnimal===id",arg=ids[1])
+    tap_row_control(page,ids[1],'ExpandTraits')
+    page.wait_for_function("roomQA.visit().expandedAnimal===undefined")
+    page.evaluate("roomQA.scroll().scrollToTop(0)")
+    if screenshots:page.screenshot(path=str(screenshots/f"roster-{page.viewport_size['width']}.png"),timeout=90000)
+    print(f"{page.viewport_size['width']}px: aligned roster and review, compact expansion, V5 columns/fonts, review use/cancel and return passed",flush=True)
+
+
 def verify_countdowns(page,server,rabbits,select,wait_room,screenshot):
     wait_room('rabbit')
-    # Inspect actual text and rendered bounds. Top name, badge and ID share a
-    # line. Each of the two identity/status lines shares a row with the timer.
+    # Inspect countdown units and the corresponding in-game text bounds.
     for p in rabbits:
         fields=row_controls(page,p['id'])
-        assert fields['Name']['text']==p['name'] and fields['Number']['text']=='#'+p['id'][:5].upper(),fields
+        assert fields['Name']['text']==p['name'] and fields['ScoreLabel']['text']=='评分' and fields['Score']['text'].isdigit() and 'Number' not in fields,fields
         assert p['stage'] in fields['Stage']['text'],fields
-        header=['Name','StockBadge','Number'] if p['retained'] else ['Name','Number']
         assert ('StockBadge' in fields)==p['retained'],fields
         if p['retained']:
             assert fields['StockBadge']['text']=='种源',fields
-        for left,right in zip(header,header[1:]):
-            assert fields[left]['right']<=fields[right]['left']+1,fields
+        assert fields['Name']['right']<=fields['ViewDetails']['left']+1,fields
         if p['stage']=='已故':
-            assert 'StageTarget' not in fields and 'StageCountdown' not in fields,fields
+            assert 'StageCountdown' not in fields,fields
             continue
         remaining=seconds(fields['StageCountdown']['text'])
-        assert fields['StageTarget']['text']==NEXT_STAGE[p['stage']] and remaining>0,fields
-        assert abs(remaining-fields['remaining'])<=1,fields
+        text=fields['StageCountdown']['text']
+        assert text.startswith(NEXT_STAGE[p['stage']]+' ') and remaining>0,fields
+        precision=86400 if ' 天' in text else 60 if ' 小时' in text else 1
+        assert -1<=fields['remaining']-remaining<=precision+1,fields
         for left in ('Identity','Stage'):
-            for right in ('StageTarget','StageCountdown'):
+            for right in ('StageCountdown',):
                 l,r=fields[left],fields[right]
                 if min(l['bottom'],r['bottom'])>max(l['top'],r['top'])+2:
                     assert l['right']<=r['left']+1,fields
@@ -263,7 +398,7 @@ def verify_countdowns(page,server,rabbits,select,wait_room,screenshot):
         tap(page,'Tab'+str(tab))
         wait_room(species)
         sample=page.evaluate("roomQA.visit().data.rows.find(r=>r.animal?.stage==='成长').animal.id")
-        assert row_controls(page,sample)['StageTarget']['text']=='距成年'
+        assert row_controls(page,sample)['StageCountdown']['text'].startswith('距成年 ')
     tap(page,'Tab0')
     wait_room('rabbit')
     select(1,'幼年')
@@ -282,14 +417,17 @@ def verify_countdowns(page,server,rabbits,select,wait_room,screenshot):
         v=locate(anchor)
         if v['top']+7<v['y']<v['bottom']-7:break
         x=v['x']; bottom=v['bottom']-14; top=v['top']+14
-        assert top<bottom and v['y']>=bottom-7,v
+        assert top<bottom,v
+        start,end=(bottom,top) if v['y']>(top+bottom)/2 else (top,bottom)
+        distance=min(abs(end-start),abs(v['y']-(top+bottom)/2))
+        end=start+distance if end>start else start-distance
         for i in range(9):
             cdp.send('Input.dispatchTouchEvent',{'type':'touchStart' if not i else 'touchMove',
-                     'touchPoints':[{'x':x,'y':bottom+(top-bottom)*i/8}]})
+                     'touchPoints':[{'x':x,'y':start+(end-start)*i/8}]})
             page.wait_for_timeout(35)
         page.wait_for_timeout(120)
         cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
-        page.wait_for_function("!roomQA.scroll().isAutoScrolling()")
+        page.wait_for_function("!roomQA.scroll().isScrolling()&&!roomQA.scroll().isAutoScrolling()")
     else:raise AssertionError(('Could not reach young animal by touch',anchor,v))
     assert page.evaluate("roomQA.scroll().getScrollOffset().y")>30
     before=locate(anchor)
@@ -302,17 +440,26 @@ def verify_countdowns(page,server,rabbits,select,wait_room,screenshot):
     assert rows()==young[1:],rows()
     after=locate(anchor)
     assert abs(after['y']-before['y'])<3,(before,after)
-    clock=row_controls(page,anchor)['StageCountdown']
-    clock_y=(clock['bottom']+clock['top'])/2
-    assert after['top']<=clock_y<=after['bottom'],(clock,after)
-    page.touchscreen.tap((clock['left']+clock['right'])/2,clock_y)
+    tap_row_control(page,anchor,'ViewDetails')
     page.wait_for_function("id=>roomQA.visit()?.data?.presentation?.animal?.id===id",arg=anchor)
+    room_offset=page.evaluate("cc.director.getScene().getChildByName('Canvas').getComponent('ShopMain').session.feature.offset")
     tap(page,'Back')
     wait_room('rabbit',stage='幼年')
-    assert abs(locate(anchor)['y']-after['y'])<3
+    assert abs(page.evaluate("roomQA.scroll().getScrollOffset().y")-room_offset)<3
     select(1,'成长')
     wait_room('rabbit',stage='成长')
-    assert moving in rows() and row_controls(page,moving)['StageTarget']['text']=='距成年'
+    assert moving in rows() and row_controls(page,moving)['StageCountdown']['text'].startswith('距成年 ')
+    select(1,'幼年')
+    wait_room('rabbit',stage='幼年')
+    tap_row_control(page,anchor,'ViewDetails')
+    page.wait_for_function("id=>roomQA.visit()?.data?.presentation?.animal?.id===id",arg=anchor)
+    server.stdin.write(anchor+'\n');server.stdin.flush()
+    assert server.stdout.readline().strip()=='boundary armed'
+    page.wait_for_function("""id=>{const q=roomQA,v=q.visit();return v?.key==='pet'&&v.data.presentation.animal.id===id&&
+      v.data.presentation.animal.stage==='成长'&&q.find('DeskPage').getComponentsInChildren(cc.Label)
+        .some(l=>l.node.name==='Value'&&l.string.startsWith('成长 · 距成年 '));}""",arg=anchor,timeout=25000)
+    tap(page,'Back')
+    wait_room('rabbit',stage='幼年')
     select(1,'已故')
     wait_room('rabbit',stage='已故')
     for id in rows():
@@ -320,7 +467,7 @@ def verify_countdowns(page,server,rabbits,select,wait_room,screenshot):
     print(f"{page.viewport_size['width']}px: four stage timers, one-second ticks, filtered transition, scroll anchor, dossier return and deceased rows passed",flush=True)
 
 
-def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=None,countdown_screenshot=None):
+def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=None,countdown_screenshot=None,design_screenshots=None,design_only=False):
     page = browser.new_page(viewport={"width": width, "height": 568 if width == 320 else 844},
                             is_mobile=True, has_touch=True, reduced_motion="reduce", device_scale_factor=1)
     page.set_default_timeout(25000)
@@ -330,7 +477,7 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
     page.wait_for_function("""()=>{
         const main=window.cc?.director?.getScene()?.getChildByName('Canvas')?.getComponent('ShopMain');
         return main?.state==='open'&&main.home.active&&!main.session.active;
-    }""", timeout=90000)
+    }""", timeout=180000)
     page.evaluate(BROWSER)
     tap(page, "Hotspot_rooms")
 
@@ -368,14 +515,16 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
         snapshot = page.evaluate(r"""()=>{
           const q=roomQA,p=q.visit().data,desk=q.find('DeskPage');
           return {rows:p.rows.filter(r=>r.animal).map(r=>r.animal.id),
+            scores:p.rows.filter(r=>r.animal).map(r=>r.animal.score),
             residents:p.presentation.residents.map(r=>r.id),n:q.residents().length,matched:p.presentation.matchedCount,
             cards:desk.getComponentsInChildren(cc.Label).filter(l=>l.node.name==='Name'&&/^Animal\d+$/.test(l.node.parent.name))
               .sort((a,b)=>Number(a.node.parent.name.slice(6))-Number(b.node.parent.name.slice(6)))
-              .map(l=>[l.string,q.label(l.node.parent,'Number')]),
+              .map(l=>[l.string,q.label(l.node.parent,'ScoreLabel')+' '+q.label(l.node.parent,'Score'),!!l.node.parent.getChildByName('Number')]),
             empty:desk.getComponentsInChildren(cc.Label).some(l=>l.string.includes('没有动物'))};
         }""")
         assert snapshot["rows"] == ids and snapshot["residents"] == ids[:10], (status,stage,snapshot,ids)
-        assert snapshot["cards"] == [[p["name"],"#"+p["id"][:5].upper()] for p in want], snapshot
+        assert all(isinstance(score,int) and 0<=score<=960 for score in snapshot["scores"]),snapshot
+        assert snapshot["cards"] == [[p["name"],f"评分 {score}",False] for p,score in zip(want,snapshot["scores"])],snapshot
         assert snapshot["n"] == min(10,len(want)) and snapshot["matched"] == len(want), snapshot
         assert want or snapshot["empty"], snapshot
         shown = [artwork(p) for p in want[:10]]
@@ -476,8 +625,10 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
 
     if countdown_server:
         try:
-            verify_countdowns(page,countdown_server,[p for p in pets if p['species']=='rabbit'],
-                              select,wait_room,countdown_screenshot)
+            wait_room('rabbit')
+            verify_design(page,design_screenshots)
+            if not design_only:verify_countdowns(page,countdown_server,[p for p in pets if p['species']=='rabbit'],
+                                                 select,wait_room,countdown_screenshot)
             assert not errors,errors
         finally:
             page.close()
@@ -537,12 +688,15 @@ def main():
     parser.add_argument("--growth-screenshot",type=Path,help="optional output path for the open growth filter at 390px")
     parser.add_argument("--countdown-screenshot",type=Path,help="optional output path for 390px room timers")
     parser.add_argument("--countdowns-only",action="store_true",help="run just the live stage-transition fixtures")
+    parser.add_argument("--design-only",action="store_true",help="run layout, fonts and dossier/review navigation only")
+    parser.add_argument("--design-screenshots",type=Path,help="directory for dossier and roster screenshots at each width")
+    parser.add_argument("--widths",type=int,nargs='+',default=[320,390],help="logical viewport widths")
     args=parser.parse_args()
     shot=None
     with sync_playwright() as pw:
         browser=pw.chromium.launch(channel="msedge",args=["--use-angle=swiftshader"])
-        for width in (320,390):
-            for ticking in ([True] if args.countdowns_only else [False,True]):
+        for width in args.widths:
+            for ticking in ([True] if args.countdowns_only or args.design_only else [False,True]):
                 pets=countdown_fixture() if ticking else fixture(reverse=width==320)
                 with TemporaryDirectory(prefix="petshop-room-filter-") as temp:
                     process=subprocess.Popen(["node","--input-type=module","-e",SERVER,temp,json.dumps(pets,ensure_ascii=False),
@@ -551,7 +705,7 @@ def main():
                     try:
                         port=int(process.stdout.readline())
                         shot=verify(browser,f"http://127.0.0.1:{port}",pets,width,args.growth_screenshot,
-                                    process if ticking else None,args.countdown_screenshot) or shot
+                                    process if ticking else None,args.countdown_screenshot,args.design_screenshots,args.design_only) or shot
                     finally:
                         process.terminate()
                         process.wait(timeout=10)

@@ -1,13 +1,14 @@
+import { setTextStyle, setTextWeight } from './ShopTypography';
 import { BlockInputEvents, Color, Graphics, Mask, Node, ScrollView, UITransform, Vec2 } from 'cc';
 import type { Args, Choice, GuideCue, LedgerPage, LedgerRow } from './ShopConnection';
-import { box, caption, frame, heading, lines, paper, picture, press, rect, tap, type LedgerUI, type PageCanvas } from './LedgerCanvas';
+import { animalCardWidth, animalDetails, animalSummary, animalSummaryHeight, box, caption, frame, heading, lines, paper, picture, press, rect, tap, type LedgerUI, type PageCanvas } from './LedgerCanvas';
 import { drawRoom } from './RoomPresentation';
 import { drawBusiness, nutritionStore } from './BusinessPresentation';
 import { guideDialog, guideEntrance, guideNote, guideTarget, revealGuideTarget, showGuideSpotlight } from './TutorialPresentation';
 
 export { box, caption, picture } from './LedgerCanvas';
 export const ledgerModal = (key: string): boolean =>
-    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','openingGuide','openingLitterQuote','audioSettings','seedReservation','breedingCourses'].includes(key);
+    ['saleQuote','research','researchNode','researchTable','recycle','roomNutrition','nutritionDetail','nutritionShop','checkinReceipt','openingGuide','openingLitterQuote','audioSettings','seedReservation','breedingCourses','breedItems'].includes(key);
 
 function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toTasks=false, fixed=false): void {
     const h = modal ? 54 : 64;
@@ -20,10 +21,10 @@ function drawHeader(parent: Node, width: number, height: number, title: string, 
     rect(g,-width/2,-h/2,width,modal ? 2 : 3,'#6D4C32');
     if (modal) {
         const inset = 14;
-        heading(n,'Title',title,fixed?0:-width/2+inset+(width-90)/2,1,fixed?width-30:width-90,h-8,20,paper.cream);
+        setTextStyle(heading(n,'Title',title,fixed?0:-width/2+inset+(width-90)/2,1,fixed?width-30:width-90,h-8,20,paper.cream),'contentTitle').color=new Color().fromHEX('#FFE3A1');
         if(fixed)return;
         const close=frame(n,'Back',width/2-34,1,48,36,'#365F4A','#8BA27A',false);
-        caption(close,'Caption','关闭',0,0,46,34,14,paper.cream,true).isBold=true;
+        setTextWeight(caption(close,'Caption','关闭',0,0,46,34,14,paper.cream,true),true);
         const hit=box(close,'Touch',0,0,50,48);tap(hit,back);
     } else {
         const backNode=box(n,'Back',-width/2+35,3,60,48);
@@ -32,12 +33,12 @@ function drawHeader(parent: Node, width: number, height: number, title: string, 
             rect(arrow,-20+i*1.4,-1+i*1.4,3,2.5,'#FFF0BD');
             rect(arrow,-20+i*1.4,-1-i*1.4,3,2.5,'#FFF0BD');
         }
-        caption(backNode,'Caption',toTasks?'回任务':'返回',toTasks?9:5,0,toTasks?43:34,40,toTasks?13:14,'#FFF0BD',true).isBold=true;
+        setTextWeight(caption(backNode,'Caption',toTasks?'回任务':'返回',toTasks?9:5,0,toTasks?43:34,40,toTasks?13:14,'#FFF0BD',true),true);
         tap(backNode,back);
         const balanceWidth=Math.max(66,String(coins).length*9+47);
         const wallet=frame(n,'Wallet',width/2-10-balanceWidth/2,3,balanceWidth,27,'#193D34','#75916A',false);
-        caption(wallet,'Value','金币 '+coins,0,0,balanceWidth-6,25,14,'#FFE4A4',true).isBold=true;
-        heading(n,'Title',title,0,3,Math.max(92,width-2*(balanceWidth+13)),50,21,paper.cream,true);
+        setTextWeight(caption(wallet,'Value','金币 '+coins,0,0,balanceWidth-6,25,14,'#FFE4A4',true),true);
+        setTextStyle(heading(n,'Title',title,0,3,Math.max(92,width-2*(balanceWidth+13)),50,22,paper.cream,true),'pageTitle');
     }
 }
 
@@ -75,7 +76,7 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
         const ids=(p.rows||[]).filter(r=>r.select).map(r=>r.select!);
         if(!ids.length||p.visual?.singleSelect)return;
         const y=slot(48), all=ids.every(id=>ui.selected.has(id));
-        caption(content,'SelectionCount',(p.selectionLabel||'已选')+' '+ui.selected.size+' 只',-54,y,inner-108,42,14,paper.green).isBold=true;
+        setTextWeight(caption(content,'SelectionCount',(p.selectionLabel||'已选')+' '+ui.selected.size+' 只',-54,y,inner-108,42,14,paper.green),true);
         press(content,'SelectAll',all?'清空选择':'全选本页',inner/2-50,y,100,
             ()=>choice({type:'ui.selectAll',args:{ids,clear:all}}));
     }
@@ -93,6 +94,26 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
     }
     function row(r:LedgerRow,i:number):void {
         const selected=!!r.select&&ui.selected.has(r.select);
+        if(r.animal){
+            const enroll=r.link?.page==='show.review';
+            const w=animalCardWidth(ctx),h=animalSummaryHeight+(enroll?18:0),top=h/2;
+            const card=frame(content,'Row'+i,0,slot(h,6),w,h,selected?'#E0E8CE':paper.card,selected?'#75916A':paper.brass,false);
+            animalSummary(ctx,card,r.animal,w,top,r.select?22:0);
+            if(r.select){
+                const cb=frame(card,'Check',-w/2+15,top-34,17,17,selected?paper.primary:'#FFFAE7',selected?'#254536':'#9F927C',false);
+                if(selected)caption(cb,'Mark','✓',0,0,15,16,12,'#FFF6D8',true);
+                tap(card,()=>ui.toggle(r.select!));
+            }else if(r.link)tap(card,()=>choice(r.link!));
+            const details=r.select||enroll?{page:'pet',args:{id:r.animal.id}}:r.link;
+            if(details)animalDetails(ctx,card,'Details',details,w,top);
+            if(enroll){
+                const target=box(card,'Registration',w/2-35,top-69,54,22);
+                setTextStyle(caption(target,'Caption','报名',0,0,54,20,12,paper.green,true),'smallAction');
+                tap(target,()=>choice(r.link!));
+                caption(card,'Fee',r.text||'',30,top-86,w-78,18,11,paper.muted);
+            }
+            return;
+        }
         const hasLink=!!(r.action||r.link);
         const left=-inner/2+10;
         const icon=r.art?49:0, check=r.select?26:0, side=r.select&&r.link?64:hasLink?20:0;
@@ -107,11 +128,11 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
         }
         if(r.art)picture(card,'Icon',r.art,left+check+20,0,41,h-10,r.stage);
         const x=left+check+icon+available/2;
-        caption(card,'Title',r.title,x,dh?h/2-8-th/2:0,available,th,15,paper.ink).isBold=true;
+        setTextWeight(caption(card,'Title',r.title,x,dh?h/2-8-th/2:0,available,th,15,paper.ink),true);
         if(r.text)caption(card,'Detail',r.text,x,h/2-8-th-dh/2,available,dh,13,paper.muted);
         if(r.select) {
             tap(card,()=>ui.toggle(r.select!));
-            if(r.link)press(card,'Details','档案',inner/2-36,0,58,()=>choice(r.link!));
+            if(r.link)press(card,'Details','详情',inner/2-36,0,58,()=>choice(r.link!));
         } else if(hasLink) {
             tap(card,()=>choice((r.link||r.action)!));
             caption(card,'Arrow','›',inner/2-15,0,18,h-8,20,paper.muted,true);
@@ -133,15 +154,13 @@ function account(ctx: PageCanvas): boolean {
         return true;
     }
     if(key==='login') {
-        const bannerHeight=Math.round(inner*.76);
-        const banner=box(body,'Shopfront',0,slot(bannerHeight),inner,bannerHeight);
-        banner.addComponent(Mask);
-        if(p.art)picture(banner,'Opening',p.art,0,0,inner,inner*1.5);
+        const bannerHeight=Math.min(inner*1.5,300);
+        if(p.art)picture(body,'Shopfront',p.art,0,slot(bannerHeight),inner,bannerHeight);
         heading(body,'AccountHeading','小店账号',0,slot(26,6),inner,26,18,paper.ink);
         ctx.startList();
         const rows=p.rows||[], id=rows.find(r=>r.title==='店主编号'), assets=rows.find(r=>r.title==='店铺资产');
         const card=frame(body,'LocalShop',0,slot(112),inner,112,paper.card);
-        caption(card,'Title',p.subtitle||'本机经营档',0,34,inner-22,25,15,paper.ink).isBold=true;
+        setTextWeight(caption(card,'Title',p.subtitle||'本机经营档',0,34,inner-22,25,15,paper.ink),true);
         caption(card,'Balance',assets?.text||'',0,7,inner-22,25,14,paper.ink);
         caption(card,'Identity','店主编号 '+(id?.text||''),0,-26,inner-22,40,12,paper.muted);
         ctx.row({title:'声音设置',text:'背景音乐与游戏音效',link:{page:'audioSettings'}},-2);
@@ -169,7 +188,7 @@ function taskList(c:PageCanvas):boolean {
         const card=frame(c.body,'TaskRow'+i,0,c.slot(h,6),w,h,row.done?'#E0E8CE':paper.card,row.done?'#75916A':paper.brass,false);
         heading(card,'Title',row.title,-44,h/2-17,textW,23,15,paper.ink);
         caption(card,'Detail',row.text||'',-44,h/2-30-linesH/2,textW,linesH,13,paper.muted);
-        caption(card,'State',row.done?'已完成':'待完成',w/2-56,0,64,25,13,row.done?paper.green:paper.muted,true).isBold=!!row.done;
+        setTextWeight(caption(card,'State',row.done?'已完成':'待完成',w/2-56,0,64,25,13,row.done?paper.green:paper.muted,true),!!row.done);
         caption(card,'Arrow','›',w/2-13,0,16,27,19,paper.green,true);
         if(row.link)tap(card,()=>c.ui.choose(row.link!));
     });
@@ -185,11 +204,11 @@ function taskList(c:PageCanvas):boolean {
             const g=coin.addComponent(Graphics);
             rect(g,-12,-8,24,16,'#865528');rect(g,-8,-12,16,24,'#865528');
             rect(g,-10,-7,20,14,'#D5A447');rect(g,-7,-10,14,20,'#D5A447');
-            caption(coin,'Glyph','金',0,0,19,18,12,'#57351C',true).isBold=true;
+            setTextWeight(caption(coin,'Glyph','金',0,0,19,18,12,'#57351C',true),true);
         }
         const contentW=width-49;
         caption(rewards,'RewardName'+i,item.name,left+43+contentW/2,10,contentW,21,12,paper.ink);
-        caption(rewards,'RewardCount'+i,'× '+item.quantity,left+43+contentW/2,-11,contentW,19,14,paper.green).isBold=true;
+        setTextWeight(caption(rewards,'RewardCount'+i,'× '+item.quantity,left+43+contentW/2,-11,contentW,19,14,paper.green),true);
     });
     const claim=c.p.actions?.[0];
     if(claim)press(c.body,'ClaimTasks',claim.label||'领取',0,c.slot(48,2),w,()=>c.ui.choose(claim),true,!!claim.disabled);
@@ -226,7 +245,7 @@ function nutrition(c:PageCanvas):boolean {
             const stock=v.stock===undefined?'':' · 已拥有 '+v.stock+' 份';
             caption(entry,'Growth',rise(v.rate)+stock,left+labelWidth/2,-12,labelWidth,22,12,paper.ink);
             const details=box(entry,'NutritionDetail'+i,w/2-39,0,68,44);
-            caption(details,'Caption','查看详情',0,0,65,36,12,paper.green,true).isBold=true;
+            setTextWeight(caption(details,'Caption','查看详情',0,0,65,36,12,paper.green,true),true);
             tap(details,()=>c.ui.choose(v.detail));
         });
         const status=c.p.visual?.hint;
@@ -251,7 +270,7 @@ function nutrition(c:PageCanvas):boolean {
     const facts=frame(c.body,'MealFacts',0,c.slot(108,8),w,108,paper.card,paper.brass,false);
     fields.forEach((r,i)=>{
         const y=36-i*24;
-        caption(facts,'Fact'+i,r.title,-w/2+43,y,64,24,14,paper.ink).isBold=true;
+        setTextWeight(caption(facts,'Fact'+i,r.title,-w/2+43,y,64,24,14,paper.ink),true);
         caption(facts,'Value'+i,r.text||'',29,y,w-95,24,13,paper.muted);
     });
     const rules=String(c.p.visual?.rules||'');

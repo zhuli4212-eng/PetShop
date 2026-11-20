@@ -33,7 +33,7 @@ function reservationPage(s,species,args,base,now) {
     const title=BREEDS[offer.breedKey].name+' · '+offer.sex;
     if(now<readyAt)return {...base,subtitle:'预约已登记',rows:[row(title,time(readyAt)+' 到货 · 北京时间')],
       actions:[button('取消预约','seed.cancel',identity,'取消本次预约，退回 '+fee+' 金币？')]};
-    const animal=specimen(s,{...offer,bornAt:now},now),price=purchasePrice(s,youngPurchaseBase(offer));
+    const animal=specimen(s,{...offer,bornAt:now},now,{inShop:false}),price=purchasePrice(s,youngPurchaseBase(offer));
     return {...base,subtitle:'预约已到货',rows:[{...row(animal.name+' · '+title,'购买 '+price+' 金币 · '+time(expiresAt)+' 前领取'),art:animal.art,stage:animal.stage}],
       actions:[button('购买预约种源','seed.claim',{...identity,price},'支付 '+price+' 金币，让这只幼体入住？',s.coins<price),
         button('放弃种源','seed.cancel',identity,'放弃已到货种源？预约费已结算。')]};

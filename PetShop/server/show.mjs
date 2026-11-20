@@ -1,7 +1,8 @@
 import { createHash, createHmac } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import events from './show-events.json' with { type: 'json' };
-import { stageOf, isBusy, breedName, petArt } from './care.mjs';
+import { stageOf, isBusy, breedName, petArt, specimen } from './care.mjs';
+import { cardQualityScore } from './animal-traits.mjs';
 import { shopRules } from './shop-features.mjs';
 import { shopRaceAccess } from './shop-progression.mjs';
 
@@ -325,7 +326,15 @@ function eventHome(s,now,rules) {
     }
     for(const row of rows.slice(start))row.visual={mode};
   }
-  const model=s.pets.find(p=>eligible(s,p,now));
+  let model, bestScore=-1;
+  for (const pet of s.pets) {
+    if (stageOf(pet,now)==='已故') continue;
+    const score=cardQualityScore(pet.traits);
+    if (score!==undefined&&score>bestScore) {
+      model=pet;
+      bestScore=score;
+    }
+  }
   return {title:'比赛',art:topicArt,visual:{schedule,...day,pet:model?petArt(model):null,petStage:model?stageOf(model,now):null},subtitle:'北京时间 · 同一轮只可报名一只动物',rows,empty:'赛历 '+time(s.show.epoch)+' 开放',
     actions:[action('奖杯收藏','collection'),action('参赛记录','show.history'),action('公开赛历届榜单','show.archive')]};
 }
@@ -353,8 +362,8 @@ function roundPage(s,a,now,rules) {
   else if(now<round.close) {
     const pets=s.pets.filter(p=>eligible(s,p,now));
     if(!pets.length) rows.push({title:'暂无可报名动物',text:'需店内成年或老年、未在繁育中的动物。'});
-    for(const p of pets) rows.push({title:p.name,text:breedName(p)+' · '+stageOf(p,now)+' · 报名 '+feeFor(s,mode,p.species)+' 金币',
-      art:petArt(p),stage:stageOf(p,now),link:link('show.review',{mode,event:round.id,theme:theme.id,pet:p.id})});
+    for(const p of pets) rows.push({title:p.name,text:'报名 '+feeFor(s,mode,p.species)+' 金币',
+      animal:specimen(s,p,now),art:petArt(p),stage:stageOf(p,now),link:link('show.review',{mode,event:round.id,theme:theme.id,pet:p.id})});
   } else rows.push({title:'本期报名已截止',text:nextRegistration(s,mode,access,now)});
   const actions=mode==='public' && !s.show.voids?.[round.id] && now>=round.result && round.index>=s.show.calendar.firstWeek?[action('查看物种榜','show.board',{event:round.id})]:[];
   return {title:theme.name,subtitle:PNAME[mode],visual:day,rows,actions};
@@ -398,13 +407,13 @@ function collectionPage(s,mode) {
   return {title:'奖杯收藏',subtitle:PNAME[selected]+' · 已收集 '+held.length+' / '+(groups[selected].length*tiers[selected].length),
     rows:groups[selected].map(t=>{
       const earned=held.filter(c=>c.themeId===t.id);
-      return {title:t.name,text:earned.length?earned.map(c=>trophies[c.tier]+' ×'+c.count).join(' · '):'尚未获杯 · '+themeLine(t),link:link('collection.theme',{theme:t.id})};
+      return {title:t.name,text:earned.length?earned.map(c=>trophies[c.tier]+' ×'+c.count).join(' · '):'尚未获杯',link:link('collection.theme',{theme:t.id})};
     }),actions:[action('私人杯册','collection',{mode:'private'}),action('模拟公开杯册','collection',{mode:'public'})]};
 }
 function collectionTheme(s,id) {
   const t=lookup(byTheme,id);
   if(!t) return collectionPage(s,'private');
-  return {title:t.name,subtitle:PNAME[t.mode]+' · '+themeLine(t),rows:tiers[t.mode].map(tier=>{
+  return {title:t.name,subtitle:PNAME[t.mode],rows:tiers[t.mode].map(tier=>{
     const c=s.show.cups[t.id+'-'+tier];
     if(!c) return {title:trophies[tier]+' · 未收集',text:'需在该赛事实际获得此档。',art:'awards/'+tier,visual:{uncollected:true}};
     const first=s.show.entries[c.first];

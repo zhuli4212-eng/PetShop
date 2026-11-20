@@ -1,3 +1,4 @@
+<div id="account-layer" hidden>
 <main class="ledger">
   <img class="shopfront" src="./trial-shopfront.png" width="384" height="576" alt="">
   <section class="sheet" aria-labelledby="heading">
@@ -10,11 +11,10 @@
       <h1 id="heading">店主登录</h1>
       <nav aria-label="账号操作">
         <a id="register-tab" href="?register" hidden>注册账号</a>
-        <a id="login-tab" href="?" hidden>返回登录</a>
+        <a id="login-tab" href="?login" hidden>返回登录</a>
       </nav>
     </header>
     <p id="loading" role="status">正在打开…</p>
-    <noscript>请启用 JavaScript 后刷新。</noscript>
     <div id="anonymous" hidden>
       <form id="account-form" method="post" action="./">
         <label for="username">账号名</label>
@@ -43,3 +43,5 @@
     <!-- PETSHOP_RELEASE -->
   </section>
 </main>
+</div>
+<noscript>请启用 JavaScript 后刷新。</noscript>

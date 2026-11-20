@@ -93,6 +93,10 @@ def verify(browser, process, width):
     def tap(**spec):
         page.wait_for_function("spec=>!!marketQA.measure(spec)",arg=spec)
         for _ in range(12):
+            # Re-measure only after inertia stops; otherwise a delayed touch can
+            # hit the neighbouring row while the canvas list is still moving.
+            page.wait_for_function("""()=> (marketQA.desk()?.getComponentsInChildren('cc.ScrollView')||[])
+                .every(s=>!s.isScrolling()&&!s.isAutoScrolling())""")
             box = page.evaluate("spec=>marketQA.measure(spec)",spec)
             x,y,top,bottom=(box[k] for k in ("x","y","top","bottom"))
             if top+2 <= y <= bottom-2:
@@ -132,9 +136,15 @@ def verify(browser, process, width):
         choose_filter(1,value)
 
     def selected(expected):
-        page.wait_for_function("""ids=>{const v=marketQA.visit();return Array.from(v.selected).sort().join('|')
-            ===ids.slice().sort().join('|') && marketQA.find('SelectionCount',marketQA.desk())?.getComponent(cc.Label)
-            .string.includes('已选 '+ids.length+' 只')}""",arg=expected)
+        try:
+            page.wait_for_function("""ids=>{const v=marketQA.visit();return Array.from(v.selected).sort().join('|')
+                ===ids.slice().sort().join('|') && marketQA.find('SelectionCount',marketQA.desk())?.getComponent(cc.Label)
+                .string.includes('已选 '+ids.length+' 只')}""",arg=expected)
+        except Exception:
+            print('Selection state:',page.evaluate("""()=>({selected:Array.from(marketQA.visit().selected),
+                label:marketQA.find('SelectionCount',marketQA.desk())?.getComponent(cc.Label).string,
+                rows:marketQA.visit().data.rows.map(r=>({id:r.animal?.id,select:r.select,reason:r.visual?.blockedReason}))})"""),flush=True)
+            raise
 
     def check(key, value, stage="全部"):
         at(key)
@@ -144,7 +154,8 @@ def verify(browser, process, width):
               const row=q.find('Row'+i,d);
               return {id:r.link.args.id,select:r.select,price:r.visual.price,reason:r.visual.blockedReason,
                 rendered:q.labels(row).map(l=>l.string),mark:q.find('Mark',row)?.getComponent(cc.Label).string,
-                gray:q.find('Icon',row)?.getComponent(cc.Sprite).grayscale};
+                hasClock:!!q.find('StageCountdown',row),number:!!q.find('Number',row),
+                gray:q.find('Portrait',row)?.getComponent(cc.Sprite).grayscale};
             })};
         }""")
         assert state["filters"]==[value,stage],state
@@ -157,6 +168,8 @@ def verify(browser, process, width):
             name,_,_,protected,dead,busy=PETS[i]
             copy=" ".join(r["rendered"])
             assert name in copy,(name,copy)
+            assert "评分" in r["rendered"] and "详情" in r["rendered"] and not r["number"],r
+            assert r["hasClock"] is (not dead),r
             reasons=[reason for reason,on in [("种源",protected),("已故",dead),("繁育中",busy)] if on]
             if reasons:
                 assert r.get("select") is None and r.get("price") is None and r.get("mark")=="–" and r["gray"],r
@@ -253,6 +266,11 @@ def verify(browser, process, width):
     tap(copy="挑选出售")
     room_ok=check("sale","兔","幼年")
     tap(copy="全选本页")
+    selected(room_ok)
+    tap(row=0,name="Details")
+    at("pet")
+    tap(name="Back")
+    check("sale","兔","幼年")
     selected(room_ok)
     quote(room_ok)
     tap(copy="修改选择")

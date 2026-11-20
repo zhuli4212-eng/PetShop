@@ -9,6 +9,7 @@ import { initTasks, recordTaskAction, recordTaskVisit, taskAction, taskShortcut,
 import { initOnboarding, openingShortcut, guideAccess, rabbitWaitingForOpening, settleOnboarding,
   openingPage, decorateOpeningPage, openingAction, recordOpeningAction } from './onboarding.mjs';
 import { breedingProgramPage, breedingProgramAction, certificateRows } from './breeding-programs.mjs';
+import { normalizeStoredTags } from './animal-traits.mjs';
 
 export { shopRules };
 const legacyEntrances = Object.keys(featureNames).filter(key=>key!=='collection');
@@ -104,7 +105,8 @@ export class ShopEngine {
   initialize(restored,{fromBackup=false,resetConnections=false}={}) {
     const s=restored ?? newState(this.wall(),this.onboarding);
     const retentionChanged=Boolean(restored)&&clearBredRetention(s);
-    if(retentionChanged)s.version++;
+    const tagsChanged=Boolean(restored)&&normalizeStoredTags(s);
+    if(retentionChanged||tagsChanged)s.version++;
     const needsVisitBook=initVisitBook(s,!!restored);
     const needsTasks=initTasks(s,Math.max(s.clock,this.wall()));
     const needsOpening=!Number.isFinite(s.createdAt);
@@ -116,7 +118,7 @@ export class ShopEngine {
     if(restored && this.wall()<s.clock) s.clockEvent={at:s.clock,text:'检测到设备时钟回拨，经营时间从上次存档继续。'};
     this.anchor=Math.max(s.clock,this.wall()); this.mark=this.monotonic();
     this.savedAt=s.clock;
-    if(!restored || retentionChanged || needsXp || needsOpening || needsVisitBook || needsTasks || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
+    if(!restored || retentionChanged || tagsChanged || needsXp || needsOpening || needsVisitBook || needsTasks || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
     this.state=s;
   }
   now() {
@@ -185,7 +187,13 @@ export class ShopEngine {
       view.visual={...view.visual,saleExperience:xp};
       if(xp)view.subtitle+=' · 店铺经验 +'+xp;
     }
-    const viewed=recordTaskVisit(s,page,args,now);
+    let viewed=recordTaskVisit(s,page,args,now);
+    if(page==='litter'&&view.presentation?.kind==='litter'){
+      const {speciesKey,bornAt}=view.presentation, room=viewed.rooms[speciesKey], litter=room?.lastLitter;
+      if(litter?.bornAt===bornAt&&!litter.viewed){
+        viewed={...viewed,rooms:{...viewed.rooms,[speciesKey]:{...room,lastLitter:{...litter,viewed:true}}}};
+      }
+    }
     if(viewed!==s){viewed.clock=now;this.save(viewed);}
     return {shop:publicShop(viewed,now,this.rules),page:view};
   }

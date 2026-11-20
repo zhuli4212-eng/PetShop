@@ -22,6 +22,7 @@ const dist = path.resolve(values.out ?? path.join(here, 'dist'));
 const shim = path.join(here, 'crypto.mjs');
 const boot = "System.import('./index.js').catch(function(err) { console.error(err); })";
 const original = await readFile(path.join(client, 'index.html'), 'utf8');
+if (original.includes('local-opening/')) throw Error('Use the original Cocos build for web publishing.');
 if (!original.includes(boot)) throw Error('The Cocos bootstrap has changed.');
 if (values.demo) await mkdir(path.dirname(dist), { recursive: true });
 await mkdir(dist, { recursive: !values.demo });
@@ -80,12 +81,23 @@ if (values.demo) {
   console.log('Public browser demo ready at', dist);
 } else {
   const login = await readFile(path.join(here,'login.html'),'utf8');
-  const style = await readFile(path.join(here,'login.css'),'utf8');
+  const style = await readFile(path.join(here,'login.css'),'utf8') + '\n' +
+    await readFile(path.join(here,'opening.css'),'utf8');
+  let opening = await readFile(path.join(here,'opening.html'),'utf8');
+  for (const name of ['shopfront','rabbit','envelope']) {
+    const image = await readFile(path.join(here,'opening',name+'.png'));
+    const asset = `src/opening-${name}.${fingerprint(image)}.png`;
+    await writeFile(path.join(dist,asset),image);
+    opening = opening.replace(`./opening/${name}.png`, './'+asset);
+  }
+  const openingScript = await readFile(path.join(here,'opening.js'));
+  const openingModule = `src/opening.${fingerprint(openingScript)}.js`;
   const loginMusic = await readFile(loginMusicFile);
   const loginMusicPath = `src/login-music.${fingerprint(loginMusic)}.mp3`;
   const loginMusicScript = await readFile(new URL('../../PetShop/server/login-music.mjs',import.meta.url));
   const loginMusicModule = `src/login-music.${fingerprint(loginMusicScript)}.js`;
   await Promise.all([
+    writeFile(path.join(dist,openingModule),openingScript),
     writeFile(path.join(dist,loginMusicPath),loginMusic),
     writeFile(path.join(dist,loginMusicModule),loginMusicScript),
   ]);
@@ -93,14 +105,14 @@ if (values.demo) {
     .replace('__PETSHOP_MAIN_SHA256__',release)
     .replace('__PETSHOP_MAIN_SCRIPT__',mainScript)
     .replace('__PETSHOP_GAME_ENTRY__',entryPath)
-    .replace('__PETSHOP_LOGIN_MUSIC_MODULE__',loginMusicModule);
+    .replace('__PETSHOP_LOGIN_MUSIC_MODULE__',loginMusicModule)
+    .replace('__PETSHOP_OPENING_MODULE__',openingModule);
   const html = original.replace('<html>', '<html lang="zh-CN">')
     .replace(/(<meta name="viewport"\s+)content="([^"]*)"/, '$1data-game-content="$2" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"')
-    .replace('<title>Cocos Creator | PetShop</title>', '<title>店主登录 · 麦穗宠物店</title>')
-    .replace('href="style.css"', 'id="game-style" media="not all" href="style.css"')
+    .replace('<title>Cocos Creator | PetShop</title>', '<title>麦穗宠物店</title>')
     .replace('</head>', `<link rel="stylesheet" id="login-style" href="./trial-login.css?v=${fingerprint(style)}"></head>`)
     .replace('<div id="GameDiv"', () => login.replace('__PETSHOP_LOGIN_MUSIC_CLIP__',loginMusicPath).replace('<!-- PETSHOP_RELEASE -->',values.version?
-      `<small class="release-version" id="petshop-release">版本 ${values.version}</small>`:'') + '\n<div id="GameDiv" hidden')
+      `<small class="release-version" id="petshop-release">版本 ${values.version}</small>`:'') + '\n' + opening + '\n<div id="GameDiv"')
     .replace(/<script src="(src\/[^"]+\.bundle\.js)" charset="utf-8">\s*<\/script>/g,
       '<script type="application/x-petshop-loader" data-game-script="$1"></script>')
     .replace(/<script>\s*System\.import\('\.\/index\.js'\)[\s\S]*?<\/script>/, `<script type="module" src="./trial-start.js?v=${fingerprint(start)}"></script>`);

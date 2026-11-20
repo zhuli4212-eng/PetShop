@@ -1,6 +1,7 @@
+import { setTextWeight } from './ShopTypography';
 import { assetManager, isValid, Sprite, SpriteFrame, UITransform } from 'cc';
 import type { Choice, LedgerPage, LedgerRow } from './ShopConnection';
-import { animalFilters, animalSummary, box, caption, frame, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
+import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { banner, blocks, brown, buttons, card, cream, dock, edge, green, info, ink, note, section, text, thumbTabs } from './BusinessCards';
 import { guideNote } from './TutorialPresentation';
 
@@ -11,6 +12,7 @@ interface ResearchBenefit {
 interface RowVisual {
     condition?:string; difficulty?:string; available?:boolean; rate?:number; choices?:Choice[];
     name?:string; number?:string; price?:number; summary?:string; blockedReason?:string; mode?:string; benefit?:ResearchBenefit; status?:string; uncollected?:boolean; bought?:boolean;
+    unit?:'张'|'份';
 }
 interface PageVisual {
     remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
@@ -58,40 +60,25 @@ function orders(c:PageCanvas):void {
     });
     dock(c,c.p.actions||[],-1);
 }
-function marketRow(c:PageCanvas,r:DisplayRow,i:number):void {
-    const v=r.visual!;
-    const chosen=!!r.select&&c.ui.selected.has(r.select),blocked=!r.select;
-    // A sale opened in a room already occupies the work window. The main market
-    // can open a dossier and return to the same list, selection and scroll position.
-    const details=c.key==='market'?r.link:undefined;
-    const w=c.inner,left=-w/2+68,right=w/2-(details?62:10),infoW=right-left;
-    const summary=v.summary||r.text||'';
-    const reason=v.blockedReason||'',reasonH=reason?blocks(reason,w-22,13)*19+9:0;
-    const mainH=76,h=mainH+reasonH,top=h/2;
-    const muted='#625F56',mainY=top-mainH/2;
-    const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,blocked?'#E8E5DB':chosen?'#E3EBCD':cream,
-        blocked?'#B6B2A6':chosen?'#618063':edge);
-    const check=frame(n,'Check',-w/2+15,mainY,17,17,blocked?'#D5D2C8':chosen?'#365F4A':'#FFF8E6',
-        blocked?'#A29E93':chosen?'#365F4A':'#9A8970',false);
-    if(chosen||blocked)text(check,'Mark',blocked?'–':'✓',0,0,16,18,14,blocked?muted:'#FFF7E3','center',true);
-    if(r.art){
-        const icon=picture(n,'Icon',r.art,-w/2+45,mainY,34,35,r.stage);
-        if(blocked)icon.getComponent(Sprite)!.grayscale=true;
-    }
-    const priceW=typeof v.price==='number'?60:0;
-    if(r.animal)animalSummary(n,r.animal,left,infoW-priceW-4,mainY,blocked);
-    else {
-        const name=(v.name||r.title)+(v.number?'  #'+v.number:'');
-        text(n,'Name',name,left+(infoW-priceW)/2,mainY+22,infoW-priceW,24,15,blocked?muted:ink,'left',true);
-        text(n,'Summary',summary,left+infoW/2,mainY-10,infoW,35,12,blocked?muted:brown);
-    }
-    if(priceW)text(n,'Price',v.price+' 金币',right-priceW/2,mainY,priceW,24,12,'#77552B','right',true);
+function tradeAnimal(c:PageCanvas,r:DisplayRow,i:number):void {
+    const animal=r.animal!,v=r.visual!;
+    const selected=!!r.select&&c.ui.selected.has(r.select),blocked=!r.select;
+    const w=animalCardWidth(c),reason=v.blockedReason||'';
+    const reasonH=reason?blocks(reason,w-22,13)*19+9:0;
+    const h=animalSummaryHeight+reasonH,top=h/2,muted='#625F56';
+    const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,blocked?'#E8E5DB':selected?'#E3EBCD':cream,
+        blocked?'#B6B2A6':selected?'#618063':edge);
+    const check=frame(n,'Check',-w/2+15,top-34,17,17,blocked?'#D5D2C8':selected?'#365F4A':'#FFF8E6',
+        blocked?'#A29E93':selected?'#365F4A':'#9A8970',false);
+    if(selected||blocked)text(check,'Mark',blocked?'–':'✓',0,0,16,18,14,blocked?muted:'#FFF7E3','center',true);
+    animalSummary(c,n,animal,w,top,22,blocked);
+    if(typeof v.price==='number')text(n,'Price',v.price+' 金币',w/2-38,top-69,60,18,12,'#77552B','right',true);
     if(reason){
-        box(n,'ReasonRule',0,top-mainH,w-16,1,'#C5C1B6');
-        text(n,'BlockedReason',reason,0,top-mainH-reasonH/2,w-22,reasonH-3,13,muted,'left',true);
+        box(n,'ReasonRule',0,top-animalSummaryHeight,w-16,1,'#C5C1B6');
+        text(n,'BlockedReason',reason,0,top-animalSummaryHeight-reasonH/2,w-22,reasonH-3,13,muted,'left',true);
     }
     if(r.select)tap(n,()=>c.ui.toggle(r.select!));
-    if(details)press(n,'Details','档案',w/2-30,mainY,46,()=>c.ui.choose(details),false,false,44);
+    animalDetails(c,n,'Details',r.link||{page:'pet',args:{id:animal.id}},w,top);
 }
 
 function sale(c:PageCanvas):void {
@@ -115,22 +102,8 @@ function sale(c:PageCanvas):void {
     guideNote(c);
     c.startList();
     for(const [i,r] of list.entries()){
-        if(channel==='market'&&r.visual){marketRow(c,r,i);continue;}
-        if(!r.select||!r.visual){c.row(r,i);continue;}
-        const chosen=c.ui.selected.has(r.select),w=c.inner,h=r.animal?76:56;
-        const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,chosen?'#E3EBCD':cream,chosen?'#618063':edge);
-        const cb=frame(n,'Check',-w/2+18,0,17,17,chosen?'#365F4A':'#FFF8E6',chosen?'#365F4A':'#9A8970');
-        if(chosen)text(cb,'Mark','✓',0,0,16,18,14,'#FFF7E3','center',true);
-        if(r.art)picture(n,'Icon',r.art,-w/2+51,0,40,38,r.stage);
-        const profileW=r.link?55:0,priceW=68,tw=w-78-priceW-profileW;
-        if(r.animal)animalSummary(n,r.animal,-w/2+79,tw-4,0);
-        else {
-            text(n,'Name',r.visual.name||r.title,-w/2+79+tw/2,10,tw,24,15,ink,'left',true);
-            text(n,'Summary',r.visual.summary||r.text||'',-w/2+79+tw/2,-12,tw,25,12,brown);
-        }
-        text(n,'Price',r.visual.price+' 金币',w/2-priceW/2-9-profileW,0,priceW,30,13,'#77552B','right',true);
-        tap(n,()=>c.ui.toggle(r.select!));
-        if(r.link)press(n,'Details','档案',w/2-28,0,48,()=>c.ui.choose(r.link!),false,false,46);
+        if(r.animal&&r.visual)tradeAnimal(c,r,i);
+        else c.row(r,i);
     }
     if(!list.length)c.empty();
     c.startFooter();
@@ -145,9 +118,9 @@ function sale(c:PageCanvas):void {
     };
     const reviewDisabled=!a||!selected.length;
     const selectAll={label:all?'清空选择':'全选本页',type:'ui.selectAll',disabled:!ids.length,args:{ids,clear:all}};
-    if(channel==='recycle'&&!c.p.visual?.singleSelect){
+    if((channel==='market'||channel==='recycle')&&!c.p.visual?.singleSelect){
         press(n,'SelectAll',selectAll.label,w/2-55,0,105,()=>c.ui.choose(selectAll),false,selectAll.disabled,48);
-        press(c.body,'Action0','核对回收',0,c.slot(48,9),w,review,true,reviewDisabled,48);
+        press(c.body,'Action0','核对'+mode,0,c.slot(48,9),w,review,true,reviewDisabled,48);
         return;
     }
     press(n,'Action0','核对'+mode,w/2-55,0,105,review,true,reviewDisabled,48);
@@ -201,7 +174,7 @@ export function nutritionStore(c:PageCanvas):void {
         heading(card,'MealName',r.title,textX,21,textWidth,22,15,paper.green);
         caption(card,'Growth','成长速度 '+rate+' 倍',textX,0,textWidth,20,13,paper.ink);
         caption(card,'Stock','库存 '+stock+' 份',textX,-21,textWidth,20,13,paper.muted);
-        caption(card,'Price',price+' 金币',right,23,96,20,14,paper.ink,true).isBold=true;
+        setTextWeight(caption(card,'Price',price+' 金币',right,23,96,20,14,paper.ink,true),true);
         press(card,'NutritionPurchase'+i,r.action.label!,right,-12,94,()=>c.ui.choose(r.action),true,!!r.action.disabled,42);
     });
 }
@@ -213,7 +186,7 @@ function labMenu(c:PageCanvas,active:string):void {
         ()=>c.ui.choose(act('研究','research')),false,false,44);
     press(scene,'LabRecycle','动物回收',right-recycleWidth/2,y,recycleWidth,
         ()=>c.ui.choose(act('动物回收','recycle')),false,false,44);
-    c.strip([['seed','种源'],['nutrition','营养餐'],['services','服务单']].map(([tab,label])=>({
+    c.strip([['seed','种源'],['nutrition','营养餐'],['services','物品']].map(([tab,label])=>({
         ...act(label,'lab',tab==='seed'?{}:{tab}),active:active===tab,
     })),'LabTab');
 }
@@ -235,25 +208,25 @@ function lab(c:PageCanvas):void {
 }
 function seedRow(c:PageCanvas,r:DisplayRow,i:number):void {
     if(!r.animal||typeof r.visual?.price!=='number'){info(c,r,i);return;}
-    const bought=!!r.visual.bought,w=c.inner,n=card(c,'Row'+i,76,bought?'#E8E5DB':cream,6);
-    picture(n,'Icon',r.animal.art,-w/2+33,0,46,46,r.animal.stage);
-    animalSummary(n,r.animal,-w/2+65,w-156,0);
-    text(n,'Price',bought?'已购入':r.visual.price+' 金币',w/2-57,0,72,24,13,brown,'right',true);
+    const bought=!!r.visual.bought,w=animalCardWidth(c),h=animalSummaryHeight;
+    const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,bought?'#E8E5DB':cream,edge);
+    animalSummary(c,n,r.animal,w,h/2,0,bought);
+    text(n,'Price',bought?'已购入':r.visual.price+' 金币',w/2-38,h/2-69,60,18,12,brown,'right',true);
     if(r.link){
-        text(n,'Arrow','›',w/2-11,0,14,40,20,green,'center');
         tap(n,()=>c.ui.choose(r.link!));
+        animalDetails(c,n,'Details',r.link,w,h/2);
     }
 }
-function catalogService(c:PageCanvas,r:LedgerRow,i:number):void {
+function catalogService(c:PageCanvas,r:DisplayRow,i:number):void {
     const a=r.action!, w=c.inner;
     const detail=(r.text||'').split('\n');
     const price=detail.pop()||'', copy=detail.join('\n');
     const dh=blocks(copy,w-20,13)*18,h=96+dh,n=card(c,'ServiceOffer'+i,h);
     if(r.art)picture(n,'Icon',r.art,-w/2+26,h/2-24,31,31);
-    text(n,'Title',r.title,18,h/2-24,w-61,31,15,ink,'left',true);
+    text(n,'Title',r.title,r.art?18:0,h/2-24,w-(r.art?61:20),31,15,ink,'left',true);
     text(n,'Effect',copy,0,h/2-45-dh/2,w-20,dh,13,brown);
     text(n,'Price',price,-55,-h/2+24,w-130,32,13,brown);
-    press(n,'ServicePurchase'+i,a.disabled?'金币不足':'购买 1 张',w/2-61,-h/2+26,102,()=>c.ui.choose(a),true,!!a.disabled,40);
+    press(n,'ServicePurchase'+i,a.disabled?'金币不足':'购买 1 '+(r.visual?.unit||'张'),w/2-61,-h/2+26,102,()=>c.ui.choose(a),true,!!a.disabled,40);
 }
 const branchArt=['research-review','breeding-guide','research-market'];
 function research(c:PageCanvas):void {

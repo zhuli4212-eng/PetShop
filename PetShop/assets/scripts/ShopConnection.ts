@@ -8,7 +8,13 @@ export interface Choice {
 export interface Animal {
     id:string; number:string; name:string; breed:string; coat:string; sex:string; stage:string; status:string; art:string;
     retained?:boolean; stageEndsAt?:number|null;
+    guided?:boolean; selectedBreeding?:boolean;
+    score?:number;
+    traits?:{type:string;grade:string}[];
+    tags?:AnimalTag[];
+    defect?:{label:string;grade:string};
 }
+export interface AnimalTag {dimension:number;type:string;grade:string;tagId:string;label:string;rarity:string;}
 export interface LedgerRow {
     title:string; text?:string; art?:string; select?:string; stage?:string;
     link?:Choice; action?:Choice; done?:boolean; current?:boolean; animal?:Animal;

@@ -1,6 +1,7 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { BREEDS, SPECIES, TRAITS, breedName, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, specimen, stageEnd, stageNames, stageOf } from './care.mjs';
 import { bredValuePercent, researchBenefit } from './research-effects.mjs';
+import { getPetTags, tagIdFor } from './animal-traits.mjs';
 
 const minute = 60_000;
 const day = 24 * 60 * minute;
@@ -38,7 +39,7 @@ export function purchasePrice(s, base) {
 
 function quality(p) {
   const indexSum = p.traits.reduce((total, trait) => total + gradeNames.indexOf(trait.grade), 0);
-  const normalised = p.traits.slice(0, 5);
+  const normalised = getPetTags(p);
   return 600 + 5 * (indexSum - 18) + 18 * normalised.filter(t => t.rarity === '少见').length
     + 48 * normalised.filter(t => t.rarity === '稀有').length;
 }
@@ -73,6 +74,14 @@ export function salePrice(s, p, now, channel, rate = 100) {
   return halfUp(multiplier * (retained * rate + 100 * honor), 1000000);
 }
 
+function reachableOrderTagPool(s, species, rarityIndex, date) {
+  const candidates=s.pets.filter(p=>p.species===species&&stageOf(p,date)!=='已故');
+  candidates.push(...(s.rooms[species].shelf?.offers??[]).filter(Boolean));
+  const reserved=s.rooms[species].reservedSeed;
+  if(reserved&&date>=reserved.readyAt&&date<reserved.expiresAt)candidates.push(reserved.offer);
+  const tags=new Set(candidates.flatMap(getPetTags).map(tag=>tag.tagId));
+  return TRAITS.some((pools,dimension)=>pools[rarityIndex].some(label=>tags.has(tagIdFor(dimension,label))));
+}
 function makeOrder(s, date, first = false) {
   const species = choose(roomKeys(s, date));
   const diff = first ? 0 : weighted([70, 25, 5]);
@@ -80,7 +89,16 @@ function makeOrder(s, date, first = false) {
   if (diff && randomInt(2)) {
     order.breed = SPECIES[species].breeds[diff === 2 ? 3 : weighted([4, 3, 2])];
   } else if (diff) {
-    order.tag = choose(choose(TRAITS)[diff - 1]);
+    if(reachableOrderTagPool(s,species,diff-1,date)) {
+      // This is still the complete original pool, not a targeted inventory order.
+      const dimension = randomInt(5);
+      order.tag = choose(TRAITS[dimension][diff - 1]);
+      order.tagId = tagIdFor(dimension, order.tag);
+    } else {
+      // No available animal carries any name from this tag pool. Keep this
+      // difficulty and rate, but use its existing breed condition instead.
+      order.breed = SPECIES[species].breeds[diff === 2 ? 3 : weighted([4, 3, 2])];
+    }
   }
   return order;
 }
@@ -92,7 +110,7 @@ function orderCondition(order) {
 }
 function matchesOrder(p, order) {
   return p.species === order.species && (!order.breed || (!p.mixed && p.breedKey === order.breed))
-    && (!order.tag || p.traits.slice(0, 5).some(t => t.label === order.tag));
+    && (!order.tag && !order.tagId || getPetTags(p).some(t => order.tagId ? t.tagId === order.tagId : t.label === order.tag));
 }
 function offerIncome(s, offer, order, now) {
   // Purchased stock starts at age zero. Use the same rounding as an actual order delivery.
@@ -172,8 +190,8 @@ export function tickBusiness(s, now) {
 function visitorRequirements(p, stage) {
   const base = { species: p.species, breed: p.mixed ? 'mixed' : p.breedKey, stage };
   const list = [];
-  p.traits.slice(0, 5).forEach((t, dimension) => {
-    if (gradeNames.indexOf(t.grade) >= 4) list.push({ ...base, dimension, tag: t.label, rarity: t.rarity });
+  getPetTags(p).forEach(t => {
+    if (gradeNames.indexOf(t.grade) >= 4) list.push({ ...base, dimension:t.dimension, tag: t.label, tagId:t.tagId, tagRulesVersion:2 });
   });
   if (gradeNames.indexOf(p.traits[1].grade) >= 4) {
     list.push({ ...base, coat: BREEDS[p.breedKey].coats[p.coatIndex - 1] });
@@ -209,15 +227,16 @@ function matchesVisit(p, request, now) {
   if (p.species !== request.species || (p.mixed ? 'mixed' : p.breedKey) !== request.breed ||
       stageOf(p, now) !== request.stage) return false;
   if (request.tag) {
-    const trait = p.traits[request.dimension];
-    return trait.label === request.tag && trait.rarity === request.rarity && gradeNames.indexOf(trait.grade) >= 4;
+    const trait = getPetTags(p).find(t => t.dimension === request.dimension);
+    return Boolean(trait && (request.tagId ? trait.tagId === request.tagId : trait.label === request.tag)
+      && (request.tagRulesVersion === 2 || trait.rarity === request.rarity) && gradeNames.indexOf(trait.grade) >= 4);
   }
   return request.coat === BREEDS[p.breedKey].coats[p.coatIndex - 1] && gradeNames.indexOf(p.traits[1].grade) >= 4;
 }
 function visitCondition(v) {
   const r = v.requirement;
   return [r.breed === 'mixed' ? '杂交' + speciesName(r.species) : BREEDS[r.breed].name, r.stage,
-    r.tag ? r.rarity + '标签「' + r.tag + '」且该维至少A' : r.coat + '花色且品相至少A'].join(' · ');
+    r.tag ? (r.tagRulesVersion===2?'':r.rarity) + '标签「' + r.tag + '」且该维至少A' : r.coat + '花色且品相至少A'].join(' · ');
 }
 // Track the union of confirmed foreground intervals. Another device may confirm an
 // earlier start later, so keeping only the most recent end would lose valid time.
@@ -455,8 +474,7 @@ export function businessPage(s, page, args, now) {
         const price = salePrice(s, p, target.quoteAtBirth?.(p)?p.bornAt:now, channel, target.rate);
         return { title: p.name + '  ·  ' + price + ' 金币', visual:{ name:p.name,price,summary:petCaption(p,now) },
           text: petCaption(p, now) + ' · #' + p.id.slice(0, 6).toUpperCase(),
-          art: petArt(p), stage: stageOf(p, now), select: p.id,
-          ...(channel==='recycle'&&{animal:specimen(s,p,now)}) };
+          art: petArt(p), stage: stageOf(p, now), select: p.id, animal:specimen(s,p,now) };
       }),
       actions: eligible.length ? [{ label: '核对所选报价', page: 'saleQuote', args: targetArgs, useSelection: true }] : [] };
   }

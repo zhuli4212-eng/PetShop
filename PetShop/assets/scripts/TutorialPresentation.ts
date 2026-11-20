@@ -1,3 +1,4 @@
+import { setTextWeight } from './ShopTypography';
 import { _decorator, Color, Component, Graphics, Mask, Node, ScrollView, tween, UIOpacity, UITransform, Vec2, Vec3 } from 'cc';
 import { box, caption, frame, lines, paper, picture, press, type PageCanvas } from './LedgerCanvas';
 import { claimGuideTarget, releaseGuideTarget } from './ShopNavigation';
@@ -210,7 +211,7 @@ export function guideDialog(c:PageCanvas):boolean {
         const row=c.p.rows![0],h=58;
         const n=frame(c.body,'TutorialMeal',0,c.slot(h),c.inner,h,'#E0E8CE','#75916A',false);
         picture(n,'MealIcon',row.art!,-c.inner/2+26,0,29,39);
-        caption(n,'Title',row.title,23,12,c.inner-64,23,15,paper.green).isBold=true;
+        setTextWeight(caption(n,'Title',row.title,23,12,c.inner-64,23,15,paper.green),true);
         caption(n,'Effect',row.text!,23,-12,c.inner-64,23,13,paper.muted);
     }
     if(c.p.subtitle&&!c.p.visual?.letterOpened&&c.p.subtitle!==c.p.guide?.text){

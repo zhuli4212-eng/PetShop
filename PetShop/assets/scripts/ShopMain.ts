@@ -1,3 +1,4 @@
+import { bindSceneFonts, loadShopFonts, setTextWeight } from './ShopTypography';
 import { _decorator, Component, game, Game, EventKeyboard, input, Input, isValid, KeyCode,
     Graphics, Label, Node, screen, sys, UITransform, view } from 'cc';
 import { api, connectShop, requestId, sendDeparture, type ShopSnapshot, type ShopLetter } from './ShopConnection';
@@ -14,6 +15,31 @@ const ROOM_HEIGHT = 682.5;
 interface WeChatMenu {
     getMenuButtonBoundingClientRect?: () => { bottom: number };
     getWindowInfo?: () => { windowHeight: number };
+}
+type PreviewWindow = Window & { petshopBeforeShop?: (showEntry:()=>void)=>Promise<void> };
+
+function startupNotice(failed=false):void {
+    if(typeof document==='undefined')return;
+    let notice=document.getElementById('petshop-startup-status');
+    if(!notice){
+        notice=document.createElement('div');
+        notice.id='petshop-startup-status';
+        notice.setAttribute('role','status');
+        notice.style.cssText='position:fixed;inset:0;z-index:10000;display:grid;place-content:center;gap:16px;padding:24px;background:#202c26;color:#fff0d0;text-align:center;font:16px/1.6 sans-serif';
+        document.body.appendChild(notice);
+    }
+    notice.replaceChildren(document.createTextNode(failed?'加载失败，请重试。':'正在加载…'));
+    if(failed){
+        const button=document.createElement('button');
+        button.textContent='重新载入';
+        button.style.cssText='font:inherit;padding:10px 20px';
+        button.onclick=()=>window.location.reload();
+        notice.appendChild(button);
+    }
+}
+
+function dismissStartupNotice():void {
+    if(typeof document!=='undefined')document.getElementById('petshop-startup-status')?.remove();
 }
 
 @ccclass('ShopMain')
@@ -54,6 +80,7 @@ export class ShopMain extends Component {
     private letterShortcut!:Node;
 
     onLoad(): void {
+        bindSceneFonts(this.node);
         this.home = this.node.getChildByName('ShopHome')!;
         this.room = this.home.getChildByName('RoomPlane')!;
         this.header = this.home.getChildByName('Header')!;
@@ -78,14 +105,14 @@ export class ShopMain extends Component {
         this.taskShortcut=frame(this.footer,'TaskShortcut',0,0,184,46,'#F0DCAC','#987446',false);
         this.taskProgress=caption(this.taskShortcut,'Progress','',-2,10,168,18,12,'#685035');
         this.nextTask=caption(this.taskShortcut,'NextTask','',-8,-9,156,22,14,'#29483E');
-        this.nextTask.isBold=true;
+        setTextWeight(this.nextTask,true);
         caption(this.taskShortcut,'Arrow','›',79,-5,17,29,20,'#496944',true);
         tap(this.taskShortcut,()=>{
             const next=this.shop?.taskShortcut?.choice;
             if(this.state==='open'&&!this.session.active&&next?.page)void this.session.open(next.page,next.args);
         });
         this.letterShortcut=frame(this.footer,'LetterShortcut',0,0,90,42,'#F0DCAC','#987446',false);
-        caption(this.letterShortcut,'Caption','交接信',0,0,84,40,14,'#29483E',true).isBold=true;
+        setTextWeight(caption(this.letterShortcut,'Caption','交接信',0,0,84,40,14,'#29483E',true),true);
         tap(this.letterShortcut,()=>{
             if(this.state==='open'&&!this.session.active)void this.session.open('openingGuide');
         });
@@ -115,6 +142,19 @@ export class ShopMain extends Component {
 
     private async openStore(): Promise<void> {
         this.state = 'connecting';
+        startupNotice();
+        try {
+            await loadShopFonts();
+            if(!isValid(this,true))return;
+            if(typeof window!=='undefined'){
+                await (window as PreviewWindow).petshopBeforeShop?.(dismissStartupNotice);
+            }
+        } catch {
+            if(isValid(this,true))startupNotice(true);
+            return;
+        }
+        if(!isValid(this,true))return;
+        startupNotice();
         this.showPage();
         let shop: ShopSnapshot;
         try {
@@ -123,18 +163,20 @@ export class ShopMain extends Component {
             if (!isValid(this, true)) return;
             this.state = 'offline';
             this.showPage();
+            dismissStartupNotice();
             return;
         }
         if (!isValid(this, true)) return;
         this.applyShop(shop);
         this.state = 'open';this.showPage();
+        dismissStartupNotice();
         try {const msg=await this.session.recover();if(msg){this.applyShop(await connectShop(this.serverOrigin));this.notify(msg);}}
         catch {this.notify('上次请求尚待确认，重连后会核对原回执。');}
         this.showHomeNotes();
         void this.pulse();
     }
 
-    onDestroy():void {this.session?.dispose();this.audio?.dispose();}
+    onDestroy():void {dismissStartupNotice();this.session?.dispose();this.audio?.dispose();}
     private notify(message:string):void {
         if(!message||!this.node.isValid)return;
         if(this.toast){this.toast.removeFromParent();this.toast.destroy();}

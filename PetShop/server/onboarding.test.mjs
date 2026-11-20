@@ -71,7 +71,9 @@ test('交接信可重读，关掉照常经营，首对赠餐和首窝特例仍�
   f.advance(1000);
   const children=page('litter').rows.filter(r=>r.litterMember);
   assert.equal(children.length,4);
-  assert.equal(page('pet',{id:children[2].animal.id}).presentation.traits.length,6);
+  const childDetails=page('pet',{id:children[2].animal.id}).presentation;
+  assert.equal(childDetails.traits.length,5);
+  assert.deepEqual(childDetails.animal.defect,{grade:'B',label:'基本健全'});
   assert.throws(()=>act('care.retain',{id:mother,retained:true}),/已繁育动物无法留种/);
 });
 

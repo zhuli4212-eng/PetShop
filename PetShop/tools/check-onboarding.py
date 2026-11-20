@@ -139,7 +139,7 @@ def verify(browser, url, proc, width, output):
     ready("lab")
     touch.wait("()=>!!pairQA.find('Picture',pairQA.find('Artwork'))?.getComponent(cc.Sprite)?.spriteFrame")
     assert page.evaluate("pairQA.visit().data.rows.map(r=>r.link.args.species)") == ["rabbit", "cat", "rabbit", "cat"]
-    assert page.evaluate("()=>['种源','营养餐','服务单'].every(t=>pairQA.title(t,pairQA.find('DeskPage')))")
+    assert page.evaluate("()=>['种源','营养餐','物品'].every(t=>pairQA.title(t,pairQA.find('DeskPage')))")
     assert page.evaluate("""()=>{
         const q=pairQA, a=q.visit().data.rows[0].animal, row=q.find('Row0',q.find('DeskPage'));
         const text=name=>q.find(name,row).getComponent(cc.Label).string;
@@ -169,7 +169,7 @@ def verify(browser, url, proc, width, output):
         const a=pairQA.box(pairQA.find('LabResearch')),b=pairQA.box(pairQA.find('LabRecycle'));
         return Math.abs(a.top-b.top)<1&&a.right<b.left;
     }""")
-    snap("培育中心服务单")
+    snap("培育中心物品")
     catalog_offset = page.evaluate("pairQA.offset()")
     tap("LabResearch")
     ready("research")

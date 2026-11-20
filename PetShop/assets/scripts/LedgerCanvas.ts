@@ -3,6 +3,7 @@ import type { Animal, Args, Choice, LedgerPage, LedgerRow } from './ShopConnecti
 import type { RoomFloor } from './RoomFloor';
 import { playTap } from './ShopAudio';
 import { allowsGuideTap } from './ShopNavigation';
+import { setTextFont, setTextStyle, setTextWeight } from './ShopTypography';
 
 export const paper = {
     ink: '#443A29', muted: '#6C5E46', page: '#F6E9CB', card: '#FFF1D2',
@@ -15,11 +16,13 @@ export interface LedgerUI {
     back: () => void;
     choose: (choice: Choice) => void;
     bindCountdown: (label: Label, endsAt: number, format: (seconds: number) => string) => void;
-    bindStageCountdown: (label: Label, endsAt: number, progress?:(seconds:number)=>void) => void;
+    bindStageCountdown: (label: Label, endsAt: number, progress?:(seconds:number)=>void, prefix?:string) => void;
     openFilter: (fields: FilterField[], index: number) => void;
     openBreedingBonus: () => void;
     toggle: (id: string) => void;
     selected: Set<string>;
+    expandedAnimal?:string;
+    toggleAnimal:(id:string)=>void;
     offset: number;
     detailPage: number;
     turnPage: (index:number) => void;
@@ -75,8 +78,7 @@ export function caption(parent: Node, name: string, value: string, x: number, y:
                         size: number, color: string, center = false): Label {
     const n = box(parent, name, x, y, w, h);
     const l = n.addComponent(Label);
-    l.useSystemFont = true;
-    l.fontFamily = 'Microsoft YaHei, PingFang SC, sans-serif';
+    setTextFont(l);
     l.string = String(value);
     l.fontSize = size;
     l.lineHeight = Math.round(size * 1.45);
@@ -85,32 +87,65 @@ export function caption(parent: Node, name: string, value: string, x: number, y:
     l.verticalAlign = Label.VerticalAlign.CENTER;
     l.overflow = Label.Overflow.SHRINK;
     l.enableWrapText = true;
+    // Assigning a loaded font while a new Label still has overflow NONE can
+    // resize its UITransform. Restore the layout box after all label setters.
+    n.getComponent(UITransform)!.setContentSize(w,h);
     return l;
 }
 
 export function heading(parent: Node, name: string, value: string, x: number, y: number, w: number, h: number,
                         size: number, color: string, center = false): Label {
     const l = caption(parent, name, value, x, y, w, h, size, color, center);
-    l.fontFamily = 'SimSun, Songti SC, serif';
-    l.isBold = true;
+    setTextFont(l,true);
     l.lineHeight = Math.ceil(size * 1.3);
+    l.node.getComponent(UITransform)!.setContentSize(w,h);
     return l;
 }
 
 export function stockBadge(parent:Node,x:number,y:number):void {
-    const badge=frame(parent,'StockBadge',x,y,36,20,'#DCE6C7','#95A77E',false);
-    caption(badge,'Caption','种源',0,0,34,18,11,'#36573D',true).isBold=true;
+    const badge=frame(parent,'StockBadge',x,y,36,20,'#DCE7BD','#95A77E',false);
+    setTextStyle(caption(badge,'Caption','种源',0,0,34,18,10,'#395741',true),'status');
 }
 
-export function animalSummary(parent:Node,animal:Animal,left:number,width:number,y:number,muted=false):void {
-    const badgeWidth=animal.retained?41:0,numberWidth=50;
-    const nameWidth=Math.min(width-numberWidth-badgeWidth,Math.max(34,animal.name.length*17));
-    const detail=muted?'#625F56':'#725C42',main=muted?detail:'#493A27';
-    heading(parent,'Name',animal.name,left+nameWidth/2,y+22,nameWidth,23,16,main);
-    if(animal.retained)stockBadge(parent,left+nameWidth+20,y+22);
-    caption(parent,'Number','#'+animal.number,left+nameWidth+badgeWidth+numberWidth/2,y+21,numberWidth-4,16,10,muted?detail:'#856E4D');
-    caption(parent,'Identity',animal.breed+' · '+animal.coat,left+width/2,y,width,19,12,detail);
-    caption(parent,'Stage',animal.sex+' · '+animal.stage+' · '+animal.status,left+width/2,y-19,width,19,12,detail);
+export const animalSummaryHeight=84;
+export const animalCardWidth=(c:PageCanvas):number=>c.inner-12;
+const animalDetailsWidth=54;
+const nextStage:Record<string,string>={幼年:'成长',成长:'成年',成年:'老年',老年:'寿终'};
+
+export function animalSummary(c:PageCanvas,parent:Node,a:Animal,width:number,top:number,checkWidth=0,disabled=false):void {
+    const left=-width/2+checkWidth,textLeft=left+69;
+    const textWidth=width-checkWidth-69-animalDetailsWidth-21;
+    const thumb=box(parent,'Thumb',left+34,top-34,50,48,disabled?'#DBD6C8':'#ECDEB8');
+    const portrait=picture(thumb,'Portrait',a.art,0,0,48,46,a.stage);
+    if(disabled)portrait.getComponent(Sprite)!.grayscale=true;
+    if(a.retained)stockBadge(parent,left+28,top-13);
+    caption(parent,'ScoreLabel','评分',left+23,top-69,23,18,11,'#5A523B').lineHeight=16;
+    const score=setTextStyle(caption(parent,'Score',a.score===undefined?'—':String(a.score),left+49,top-69,26,18,13,paper.green),'number');
+    score.fontSize=13;score.lineHeight=18;score.enableWrapText=false;
+
+    const target=nextStage[a.stage],timed=!!target&&Number.isFinite(a.stageEndsAt);
+    const nameWidth=timed?Math.min(textWidth-67,Math.max(36,Array.from(a.name).length*17+4)):textWidth;
+    const name=setTextStyle(caption(parent,'Name',a.name,textLeft+nameWidth/2,top-24,nameWidth,24,17,paper.ink),'entry');
+    name.enableWrapText=false;
+    const info=[
+        ['Identity',a.breed+' · '+a.coat,48],
+        ['Stage',a.sex+' · '+a.stage+' · '+a.status,67],
+    ] as const;
+    for(const [key,value,offset] of info){
+        const label=setTextStyle(caption(parent,key,value,textLeft+textWidth/2,top-offset,textWidth,19,12,paper.muted),'secondary');
+        label.enableWrapText=false;
+    }
+    if(timed){
+        const clockWidth=textWidth-nameWidth-6,clockX=textLeft+nameWidth+6+clockWidth/2;
+        const clock=setTextStyle(caption(parent,'StageCountdown','',clockX,top-24,clockWidth,30,12,paper.ink),'countdown');
+        clock.fontSize=12;clock.lineHeight=15;clock.enableWrapText=clockWidth<100;
+        c.ui.bindStageCountdown(clock,a.stageEndsAt!,undefined,'距'+target+' ');
+    }
+}
+
+export function animalDetails(c:PageCanvas,parent:Node,name:string,choice:Choice,width:number,top:number):void {
+    const control=press(parent,name,'详情',width/2-35,top-34,animalDetailsWidth,()=>c.ui.choose(choice),false,false,44);
+    setTextStyle(control.getChildByName('Caption')!.getComponent(Label)!,'smallAction');
 }
 
 export function tap(n: Node, fn: () => void): void {
@@ -127,7 +162,7 @@ export function tap(n: Node, fn: () => void): void {
 export function press(parent: Node, name: string, title: string, x: number, y: number, w: number, fn: () => void,
                       primary = false, disabled = false, h = 48, secondaryFill = '#F0D6A3'): Node {
     const edge = disabled ? '#ABA58F' : primary ? '#254536' : '#A38252';
-    const fill = disabled ? '#D7CFB7' : primary ? paper.primary : secondaryFill;
+    const fill = disabled ? '#F0E5CC' : primary ? '#345B48' : secondaryFill==='#F0D6A3'?'#EDD3A0':secondaryFill;
     const n = frame(parent, name, x, y, w, h, fill, edge, false);
     const g = n.getComponent(Graphics)!;
     if (!disabled) {
@@ -135,7 +170,8 @@ export function press(parent: Node, name: string, title: string, x: number, y: n
         rect(g, -w/2, -h/2-1, w, 1, edge);
     }
     const l = caption(n, 'Caption', title, 0, 0, w-8, h-4, 14, disabled ? '#706E5F' : primary ? '#FFF0C8' : paper.ink, true);
-    l.isBold = true;
+    setTextStyle(l,primary?'primaryButton':'secondaryButton');
+    if(disabled)l.color=new Color().fromHEX('#71654E');
     if (!disabled) tap(n, fn);
     return n;
 }
@@ -149,7 +185,7 @@ export function animalFilters(c:PageCanvas,field:'品种'|'物种'):void {
         const x=-c.inner/2+w/2+i*(w+gap);
         const anchor=frame(c.body,i?'GrowthStageFilter':field==='品种'?'BreedFilter':'SpeciesFilter',x,y,w,h,'#FFF1D2','#B39665',false);
         const label=(i?'成长状态':field)+'　'+current.label;
-        caption(anchor,'Caption',label,-5,0,w-28,h-2,14,'#29483E').isBold=true;
+        setTextWeight(caption(anchor,'Caption',label,-5,0,w-28,h-2,14,'#29483E'),true);
         const arrow=box(anchor,'Arrow',w/2-16,-1,10,8).addComponent(Graphics);
         for(let j=0;j<3;j++)rect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');
         tap(anchor,()=>c.ui.openFilter(fields,i));
@@ -186,7 +222,7 @@ export function filterMenu(parent:Node,fields:FilterField[],index:number,close:(
         const width=anchor.width-4;
         const entry=box(panel,'Option'+i,0,height/2-2-rowHeight*(i+.5),width,rowHeight,option.active?'#DFE8CC':'#FFF1D2');
         if(i>0)box(entry,'Rule',0,rowHeight/2-.5,width,1,'#D8C29A');
-        caption(entry,'Caption',option.label||'',-7,0,width-32,rowHeight-3,14,option.active?paper.green:paper.ink).isBold=!!option.active;
+        setTextWeight(caption(entry,'Caption',option.label||'',-7,0,width-32,rowHeight-3,14,option.active?paper.green:paper.ink),!!option.active);
         if(option.active)caption(entry,'Mark','✓',width/2-15,0,20,rowHeight-3,14,paper.green,true);
         tap(entry,()=>{close();if(!option.active)choose({...option,replace:true});});
     });
@@ -243,6 +279,7 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
     if(page.art)paths.add(stageArt(page.art, page.stage || ''));
     for(const pageArt of page.visual?.openingBooklet??[])paths.add(pageArt.art);
     if(counter)paths.add('shop-modules/'+counter);
+    if(key==='show'&&page.visual?.pet)paths.add(stageArt(page.visual.pet,page.visual.petStage||''));
     if(['roomNutrition','nutritionShop','checkinReceipt'].includes(key)||key==='lab'&&args.tab==='nutrition'){
         for(const row of page.rows||[])if(row.art)paths.add(stageArt(row.art,row.stage||''));
     }

@@ -1,4 +1,4 @@
-import { Label, Node, ScrollView, sys, UITransform } from 'cc';
+import { Label, Node, ScrollView, sys, UITransform, Vec2 } from 'cc';
 import { api, connectShop, requestId, ServerError, type Args, type Choice, type Command, type LedgerPage, type ShopSnapshot, type ShopLetter } from './ShopConnection';
 import { drawLedger, confirmBox, ledgerModal } from './ShopEntranceView';
 import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
@@ -7,10 +7,10 @@ import { RoomFloor } from './RoomFloor';
 import { drawBreedingBonus } from './RoomPresentation';
 import type { AudioSetting, ShopAudio } from './ShopAudio';
 
-interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; }
+interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; expandedAnimal?:string; roomAnchor?:{id:string;delta:number}; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
 interface ResponseReceipt { message:string; requestId:string; }
-interface StageClock {label:Label;endsAt:number;shown:number;progress?:(seconds:number)=>void;}
+interface StageClock {label:Label;endsAt:number;shown:string;prefix?:string;progress?:(seconds:number)=>void;}
 interface Host {
     layer:Node; origin:string; height:()=>number; wallet:()=>ShopSnapshot;
     audio:ShopAudio;
@@ -20,11 +20,11 @@ interface Host {
 const storagePrefix='petshop.command.';
 const clockMs=()=>globalThis.performance?.now?.()??Date.now();
 const visitNow=(visit:Visit)=>clockMs()+visit.serverClockOffset!;
-function stageTime(seconds:number):string {
-    const pad=(n:number)=>String(n).padStart(2,'0');
-    const days=Math.floor(seconds/86400),hours=Math.floor(seconds/3600)%24,minutes=Math.floor(seconds/60)%60;
-    if(days)return days+'天 '+pad(hours)+':'+pad(minutes)+':'+pad(seconds%60);
-    return (hours?hours+':'+pad(minutes):String(minutes))+':'+pad(seconds%60);
+export function stageTime(seconds:number):string {
+    if(seconds>=86400)return Math.floor(seconds/86400)+' 天';
+    if(seconds>=3600){const minutes=Math.floor(seconds/60);return Math.floor(minutes/60)+' 小时 '+minutes%60+' 分';}
+    const whole=seconds>0?Math.max(1,Math.floor(seconds)):0;
+    return Math.floor(whole/60)+' 分 '+whole%60+' 秒';
 }
 function renderState(page?:LedgerPage):LedgerPage|undefined {
     if(page?.presentation?.kind!=='breeding')return page;
@@ -165,6 +165,8 @@ export class ShopSession {
         }else{
             if(!this.feature)throw new Error('请先进入相应的店铺功能。');
             const prior=this.panel;
+            if(key==='review'&&prior?.key==='pet')visit.returnPanel=prior;
+            if(key==='breedItems')visit.returnPanel=prior?.key==='breedItems'?prior.returnPanel:prior;
             if(key==='nutritionDetail'||key==='nutritionShop'){
                 visit.returnPanel=prior?.key===key?prior.returnPanel:prior;
             }
@@ -178,13 +180,18 @@ export class ShopSession {
                 const source=prior?.key==='litterKeep'?prior.returnPanel:prior;
                 visit.returnPanel=source?.key==='litter'?source.returnPanel:source;
             }
+            if(key==='pet'&&prior){
+                if(prior.key==='review')visit.returnPanel=prior.returnPanel?.returnPanel;
+                else visit.returnPanel=prior.key==='pet'?prior.returnPanel:prior;
+            }
             if((key==='pet'||key==='litterKeep')&&prior?.key==='litter'){
                 visit.returnPanel=prior;
                 prior.litterBirth=prior.data?.presentation?.bornAt;
             }
-            if(key==='breed'&&prior?.data?.presentation?.kind==='pairConfirm'
-                &&args.mother===prior.args.mother&&args.father===prior.args.father){
-                visit.detailPage=prior.detailPage;visit.offset=prior.offset;
+            const priorPair=prior?.key==='breedItems'?prior.returnPanel:prior;
+            if(key==='breed'&&priorPair?.data?.presentation?.kind==='pairConfirm'
+                &&args.mother===priorPair.args.mother&&args.father===priorPair.args.father){
+                visit.detailPage=priorPair.detailPage;visit.offset=priorPair.offset;
             }
             if(prior&&['openingLitterSale','openingLitterQuote'].includes(key))visit.returnPanel=prior;
             if(key==='saleQuote'||key==='litterSale') {
@@ -210,7 +217,7 @@ export class ShopSession {
     back():void{
         if(this.dropdown){this.closeFilter();return;}
         if(this.bonusVisit){this.bonusVisit=undefined;this.render();return;}
-        if(this.confirm&&(this.panel?.data?.presentation?.kind==='pairConfirm'||this.confirmOverModal)){
+        if(this.confirm&&(this.panel?.data?.presentation?.kind==='pairConfirm'||this.panel?.key==='review'||this.confirmOverModal)){
             this.confirm=undefined;this.render(false);return;
         }
         if(!this.feature)return;
@@ -257,7 +264,7 @@ export class ShopSession {
         tick();
         label.schedule(tick,.1);
     }
-    private bindRoomClocks(visit:Visit,scroll:ScrollView,clocks:StageClock[]):void {
+    private bindStageClocks(visit:Visit,scroll:ScrollView,clocks:StageClock[]):void {
         const roomEnd=visit.data?.presentation?.nextStageAt;
         let next=Number.isFinite(roomEnd)?roomEnd!:Infinity;
         for(const clock of clocks)next=Math.min(next,clock.endsAt);
@@ -266,12 +273,12 @@ export class ShopSession {
         const tick=()=>{
             const now=visitNow(visit);
             for(const clock of clocks){
-                const seconds=Math.max(0,Math.ceil((clock.endsAt-now)/1000));
-                if(seconds!==clock.shown){
-                    clock.label.string=stageTime(seconds);
-                    clock.shown=seconds;
-                    clock.progress?.(seconds);
+                const seconds=Math.max(0,(clock.endsAt-now)/1000),value=(clock.prefix||'')+stageTime(seconds);
+                if(value!==clock.shown){
+                    clock.label.string=value;
+                    clock.shown=value;
                 }
+                clock.progress?.(seconds);
             }
             if(now>=next&&!requested&&this.scroll===scroll&&this.canRefreshDeadline(visit)){
                 requested=true;
@@ -314,7 +321,7 @@ export class ShopSession {
             const ids=new Set((result.page.rows||[]).map(r=>r.select).filter(Boolean));
             if(visit.version===undefined)for(const id of result.page.initialSelection||[]){if(ids.has(id))visit.selected.add(id);}
             visit.selected.forEach(id=>{if(!ids.has(id))visit.selected.delete(id);});
-            this.remember();this.keepRoomPosition(visit,result.page);
+            this.remember();if(redraw)this.keepRoomPosition(visit,result.page);
             visit.data=result.page;visit.version=result.shop.version;
             if(redraw)this.render(false);
             if(!quiet&&result.page.readNoteIds?.length)this.host.readNotes(result.shop.profileId,result.page.readNoteIds);
@@ -336,25 +343,33 @@ export class ShopSession {
     }
     private keepRoomPosition(v:Visit,next:LedgerPage):void {
         if(v.key!=='rooms'||this.renderedVisit!==v||!this.scroll?.content||!v.offset)return;
-        const petIds=(data?:LedgerPage)=>(data?.rows||[]).filter(r=>r.link?.page==='pet').map(r=>String(r.link!.args!.id));
+        const petIds=(data?:LedgerPage)=>(data?.rows||[]).filter(r=>r.animal).map(r=>r.animal!.id);
         const before=petIds(v.data),after=petIds(next);
-        if(before.length===after.length&&before.every((id,i)=>id===after[i]))return;
         const content=this.scroll.content;
-        const first=content.getChildByName('Animal0');
-        if(!first)return;
-        const height=first.getComponent(UITransform)!.height;
-        const top=-first.position.y-height/2;
-        if(v.offset<top)return;
-        const index=Math.min(before.length-1,Math.floor((v.offset-top)/height));
-        // Anchor the first visible animal. If it left the store, keep the nearest
-        // surviving row in its visual position.
+        const entries=before.map((id,i)=>{
+            const node=content.getChildByName('Animal'+i),height=node?.getComponent(UITransform)?.height||0;
+            return {id,top:node?-node.position.y-height/2:Infinity,height};
+        });
+        const index=entries.findIndex(row=>row.top+row.height>v.offset);
+        if(index<0||v.offset<entries[0]?.top)return;
+        // Preserve an actual row's visual position across expansion, removal and
+        // stage-filter refreshes; rows no longer have a constant height.
         for(let distance=0;distance<before.length;distance++){
             for(const i of distance?[index+distance,index-distance]:[index]){
                 if(i<0||i>=before.length)continue;
-                const j=after.indexOf(before[i]);
-                if(j>=0){v.offset=Math.max(0,v.offset+(j-index)*height);return;}
+                if(after.includes(before[i])){v.roomAnchor={id:before[i],delta:v.offset-entries[i].top};return;}
             }
         }
+    }
+    private restoreRoomPosition(v:Visit,scroll:ScrollView):void {
+        const anchor=v.roomAnchor;v.roomAnchor=undefined;
+        if(!anchor||!scroll.content)return;
+        const index=(v.data?.rows||[]).filter(r=>r.animal).findIndex(r=>r.animal!.id===anchor.id);
+        const row=scroll.content.getChildByName('Animal'+index);
+        if(!row)return;
+        const top=-row.position.y-row.getComponent(UITransform)!.height/2;
+        v.offset=Math.max(0,Math.min(scroll.getMaxScrollOffset().y,top+anchor.delta));
+        scroll.scrollToOffset(new Vec2(0,v.offset),0);
     }
     render(remember=true):void {
         const v=this.current;if(!v||!v.data)return;
@@ -383,8 +398,13 @@ export class ShopSession {
                     this.bonusVisit=view;this.render();
                 },
                 bindCountdown:(label,endsAt,format)=>this.bindCountdown(view,label,endsAt,format),
-                bindStageCountdown:(label,endsAt,progress)=>stageClocks.push({label,endsAt,shown:-1,progress}),
+                bindStageCountdown:(label,endsAt,progress,prefix)=>stageClocks.push({label,endsAt,shown:'',progress,prefix}),
                 selected:view.selected,offset:view.offset,roomFloor:view.roomFloor,playGrowth,
+                expandedAnimal:view.expandedAnimal,toggleAnimal:id=>{
+                    if(view!==this.current||this.busy||this.confirm)return;
+                    this.scroll?.stopAutoScroll();this.remember();this.keepRoomPosition(view,view.data!);
+                    view.expandedAnimal=view.expandedAnimal===id?undefined:id;this.render(false);
+                },
                 detailPage:view.detailPage||0,turnPage:index=>{
                     if(view!==this.current||this.confirm)return;
                     view.detailPage=index;this.render(false);
@@ -405,7 +425,8 @@ export class ShopSession {
                 ready:view.version!==undefined||view.key==='payment',
                 pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
             });
-            if(view.key==='rooms')this.bindRoomClocks(view,scroll,stageClocks);
+            this.restoreRoomPosition(view,scroll);
+            if(stageClocks.length||Number.isFinite(view.data.presentation?.nextStageAt))this.bindStageClocks(view,scroll,stageClocks);
             if(!backdrop){this.scroll=scroll;this.renderedVisit=view;}
         }
         const confirm=this.confirm;

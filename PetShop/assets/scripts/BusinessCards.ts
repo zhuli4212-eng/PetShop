@@ -1,4 +1,5 @@
-import { Label, Mask, Node, Sprite } from 'cc';
+import { setTextWeight } from './ShopTypography';
+import { Label, Node, Sprite } from 'cc';
 import type { Choice, LedgerRow } from './ShopConnection';
 import { box, caption, frame, heading, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 
@@ -6,7 +7,7 @@ export const ink='#493B28', green='#36533C', brown='#705B3D', edge='#C6A571', cr
 export function text(parent:Node,name:string,copy:string,x:number,y:number,w:number,h:number,size=14,color=ink,align:'left'|'right'|'center'='left',bold=false):Label {
     const label=caption(parent,name,copy,x,y,w,h,size,color,align==='center');
     if(align==='right')label.horizontalAlign=Label.HorizontalAlign.RIGHT;
-    label.isBold=bold;
+    setTextWeight(label,bold);
     label.lineHeight=Math.round(size*1.35);
     return label;
 }
@@ -52,26 +53,25 @@ export function thumbTabs(c:PageCanvas,items:Choice[]):void {
     });
 }
 const ratios:Record<string,number>={orders:512/220,lab:512/288,market:512/288,stage:384/256};
-/** Same cover crop and image focus as .banner/.dr-scene in the approved portrait preview. */
 export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'research'|'services'|'stage'|'rank'='normal',animal?:string,animalStage?:string):Node {
     const full=variant==='normal'||variant==='research'||variant==='services',w=full?c.width:c.inner;
-    const h=variant==='services'?Math.min(90,w*.19):variant==='research'?Math.min(116,Math.max(84,w*.24)):
-        variant==='stage'?Math.min(162,w*(c.width<=350?.31:.39)):variant==='rank'?Math.min(112,w*.27):w/2.85;
+    const h=w/(ratios[art]||1);
     const n=box(c.body,'Artwork',0,c.slot(h+3,10),w,h+3,'#856235');
-    const crop=box(n,'Crop',0,1.5,w,h);crop.addComponent(Mask);
-    const r=ratios[art]||1,imageWidth=Math.max(w,h*r),imageHeight=imageWidth/r;
-    const offset=(imageHeight-h)*((variant==='research'?.16:variant==='stage'?.5:.44)-.5);
-    picture(crop,'Picture','shop-modules/'+art,0,offset,imageWidth,imageHeight);
-    if(animal)picture(crop,'Contestant',animal,0,-.115*h,h*.45,h*.39,animalStage);
+    const scene=box(n,'Scene',0,1.5,w,h);
+    picture(scene,'Picture','shop-modules/'+art,0,0,w,h);
+    if(animal) {
+        const deck=-h*.255;
+        picture(scene,'Contestant',animal,0,deck+h*.22,h*.68,h*.54,animalStage);
+    }
     if(title&&variant==='rank'){
-        const stripe=box(crop,'CaptionStrip',0,-h/2+19,w,38,'#294F41');
+        const stripe=box(scene,'CaptionStrip',0,-h/2+19,w,38,'#294F41');
         heading(stripe,'Title',title,0,0,w-18,32,17,'#FFF0CE');
     }else if(title){
         const pw=title.length*16+18;
-        const sign=frame(crop,'Sign',-w/2+12+pw/2,-h/2+22,pw,27,'#28483D','#CBA771');
+        const sign=frame(scene,'Sign',-w/2+12+pw/2,-h/2+22,pw,27,'#28483D','#CBA771');
         heading(sign,'Caption',title,0,0,pw-4,25,15,'#FFE8AE',true);
     }
-    return crop;
+    return scene;
 }
 export function info(c:PageCanvas,r:LedgerRow,i:number,mutedArt=false):void {
     const hasPic=!!r.art,pad=10,left=hasPic?62:pad,right=r.link||r.action?23:pad;

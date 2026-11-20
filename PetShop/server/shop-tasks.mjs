@@ -74,7 +74,7 @@ const earlyGroups=[
   ]},
   {id:'learn-services',title:'认识培育服务',coins:60,item:'review',rows:(_s,p)=>[
     entry('查看一只兔子的档案','从兔房挑一只兔子，查看成长时间和属性。',!!p.archive,'rooms',rabbit),
-    entry('查看服务单','了解复评单和选育指导单的用途。',!!p.services,'lab',{tab:'services',fromTasks:true}),
+    entry('查看物品','了解复评单、选育单和药剂的用途。',!!p.services,'lab',{tab:'services',fromTasks:true}),
     keepTask(p,2),
   ]},
   {id:'add-seeds',title:'添补新种源',coins:80,item:'select',rows:(_s,p)=>[buyTask(p,2),breedTask(p,2,1),litterTask(p,2,1)]},
@@ -212,7 +212,7 @@ function recordEarlyAction(s,type,args) {
     p[counter]=(p[counter]??0)+1;
   }
   if(type==='sale.commit')recordEarlySale(p,s.sales.at(-1));
-  const kept=type==='care.retain'&&args.retained?[args.id]:type==='care.keepLitter'?args.keepIds:
+  const kept=type==='care.retain'&&args.retained?[args.id]:type==='care.keepLitter'?(args.ids??args.keepIds):
     type==='sale.commit'?args.litterRetention?.keepIds:undefined;
   const rabbits=kept?.filter(id=>s.pets.some(p=>p.id===id&&p.species==='rabbit'));
   if(!rabbits?.length)return;

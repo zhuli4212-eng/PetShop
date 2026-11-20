@@ -1,0 +1,67 @@
+#opening{--ink:#16291f;--paper:#fff4d6;--edge:#c9a46c;--brown:#3c2a1a;--gold:#fff1c9;
+  font-family:"Noto Serif SC","Songti SC","Source Han Serif SC","SimSun",serif}
+#opening{position:fixed;inset:0;display:grid;place-items:center;background:var(--ink);z-index:3;transition:opacity .8s}
+#opening.intro-out{opacity:0;pointer-events:none}
+/* 舞台：按店面图 384×576 的比例，竖屏铺满 */
+.intro-stage{position:relative;width:min(100vw,calc(100svh * 2 / 3));aspect-ratio:2/3;overflow:hidden;isolation:isolate;}
+.intro-stage img{image-rendering:pixelated;display:block}
+/* 推进过程中保留店面图的四条边。 */
+.intro-stage .intro-bg{
+  position:absolute;inset:0;width:100%;height:100%;
+  image-rendering:auto;transform-origin:50% 64%;transform:translateZ(0) scale(1);
+}
+.intro-ready .intro-bg{animation:push 11s ease-out forwards;will-change:transform}
+@keyframes push{from{transform:translateZ(0) scale(.96)}to{transform:translateZ(0) scale(1)}}
+.intro-fade{position:absolute;inset:0;background:#0d1812}
+.intro-ready .intro-fade{animation:unveil 1.6s ease-out forwards}
+@keyframes unveil{to{opacity:0;visibility:hidden}}
+/* 晨光扫过店面 */
+.intro-sweep{position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,226,150,.30) 50%,transparent 70%)}
+.intro-s-light .intro-sweep{animation:sweep 2.4s ease-in-out forwards}
+@keyframes sweep{0%{opacity:1;transform:translateX(-100%)}100%{opacity:1;transform:translateX(100%)}}
+/* 小兔蹦到门口 */
+.intro-rabbit{position:absolute;left:27%;top:74%;width:15%;opacity:0}
+.intro-s-rabbit .intro-rabbit{animation:show .2s forwards,hop .5s .2s 3 cubic-bezier(.3,.8,.5,1)}
+@keyframes show{to{opacity:1}}
+@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-16%)}}
+/* 交接信落下，火漆微光 */
+.intro-mail{position:absolute;left:30%;width:40%;top:-20%;transform:rotate(-8deg);opacity:0;
+  filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}
+.intro-mail img{width:100%}
+.intro-glow{position:absolute;left:36%;top:30%;width:28%;aspect-ratio:1;border-radius:50%;opacity:0;
+  background:radial-gradient(circle,rgba(255,233,160,.85),transparent 70%)}
+.intro-s-letter .intro-mail{opacity:1;animation:drop .9s cubic-bezier(.3,1.4,.5,1) forwards,bob 2.6s .9s ease-in-out infinite}
+.intro-s-letter .intro-glow{animation:pulse 1.8s 1s ease-in-out infinite}
+@keyframes drop{to{top:34%;transform:rotate(0)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4%)}}
+@keyframes pulse{0%,100%{opacity:.1}50%{opacity:.8}}
+/* 字幕：和游戏里的米色纸条一致 */
+.intro-cap{position:absolute;left:8%;right:8%;bottom:7%;padding:.7em 1em;text-align:center;
+  background:var(--paper);color:var(--brown);border:2px solid var(--edge);box-shadow:0 3px 0 rgba(0,0,0,.3);
+  font-size:clamp(14px,4.4vw,20px);letter-spacing:.08em}
+.intro-cap[hidden]{display:none}
+.intro-cap.intro-in{animation:rise .6s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* 标题 */
+.intro-dim{position:absolute;inset:0;background:#0d1812;opacity:0;transition:opacity 1.2s}
+.intro-s-title .intro-dim{opacity:.78}
+.intro-s-title .intro-mail,.intro-s-title .intro-rabbit{opacity:0;transition:opacity .6s;animation:none}
+.intro-title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6em;
+  opacity:0;transform:translateY(12px);transition:opacity 1.2s .4s,transform 1.2s .4s;pointer-events:none}
+.intro-s-title .intro-title{opacity:1;transform:none}
+.intro-title h1{margin:0;font-size:clamp(36px,12vw,60px);letter-spacing:.2em;padding-left:.2em;color:var(--gold);
+  font-family:inherit;font-weight:700;line-height:1.15;text-shadow:0 3px 0 #3b2a1a,0 0 20px rgba(255,200,100,.5)}
+.intro-title p{margin:0;color:#e6d3a3;font-size:clamp(14px,4vw,18px);letter-spacing:.3em}
+/* 开场控制 */
+.intro-skip{cursor:pointer;min-height:44px;position:absolute;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:5;
+  background:rgba(13,24,18,.55);color:#e6d3a3;border:1px solid #8a6b3d;padding:.35em .8em;font:inherit;font-size:13px}
+
+@media (min-width:530px) {
+  .intro-stage {width:min(clamp(310px,46.21svh,390px), calc(100svh * 2 / 3));}
+}
+@media (prefers-reduced-motion:reduce) {
+  #opening,.intro-title,.intro-dim {transition:none;}
+  .intro-ready .intro-bg,.intro-ready .intro-fade {animation:none;}
+  .intro-fade {display:none;}
+}

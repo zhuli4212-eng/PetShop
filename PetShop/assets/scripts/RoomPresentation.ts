@@ -1,17 +1,18 @@
 import { BlockInputEvents, Color, Graphics, Label, Node, UITransform } from 'cc';
-import type { Animal, Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
-import { animalFilters, animalSummary, box, caption, frame, heading, paper, picture, press, rect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
+import type { Animal, AnimalTag, Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
+import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, heading, paper, picture, press, rect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
 import { litterPositions } from './RoomFloor';
 import { guideNote, growthSpark } from './TutorialPresentation';
+import { setTextStyle, setTextWeight } from './ShopTypography';
 
 interface ParentTrait { grade:string; label:string; }
 interface RoomPage {
     kind:string; species?:string; count?:number; matchedCount?:number; residents?:Animal[]; wait?:number; waitText?:string; remaining?:number;
     maturity?:number; estimate?:string; youngArt?:string; price?:number; breed?:string; coins?:number; signed?:boolean; date?:string;
     parents?:(Animal|null)[]; candidates?:Animal[]; confirm?:Choice; animal?:Animal; bornAt?:number; endsAt?:number;
-    guide?:{count:number;index:number};
     nutrition?:NutritionEffect;
+    reviews?:number;inventory?:number;
     traits?:{type:string;label:string;rarity:string;grade:string}[];
     parentTraits?:{name:string;mother:ParentTrait;father:ParentTrait}[];
 }
@@ -84,11 +85,11 @@ function feedingStation(c:PageCanvas,scene:Node,h:number,effect?:NutritionEffect
     const panelWidth=c.width*.24,size=c.width<350?10:12;
     const panel=frame(station,'NutritionProgress',(376-px)*spriteScale,36,panelWidth,44,paper.card,paper.brass,false);
     tap(panel,open);
-    caption(panel,'Rate','成长加速 ×'+effect.rate,0,12,panelWidth-8,15,size,paper.green,true).isBold=true;
+    setTextWeight(caption(panel,'Rate','成长加速 ×'+effect.rate,0,12,panelWidth-8,15,size,paper.green,true),true);
     const line=panelWidth-8,labelWidth=line*.57,clockWidth=line-labelWidth;
     caption(panel,'Duration','有效时间',-clockWidth/2,-4,labelWidth,14,size,paper.muted,true);
     const countdown=caption(panel,'Countdown','',labelWidth/2,-4,clockWidth,14,size,paper.green,true);
-    countdown.isBold=true;
+    setTextWeight(countdown,true);
     const width=panelWidth-10,bar=4;
     const track=box(panel,'Track',0,-16,width,bar,'#CCB07A');
     const fill=box(track,'Fill',0,0,width,bar).addComponent(Graphics);
@@ -133,27 +134,64 @@ function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:
     });
     return scene;
 }
-function petLine(c:PageCanvas,a:Animal,i:number,choose:(()=>void)|undefined,tail='›',last=false,selected=false):void {
-    const h=76;
-    const card=frame(c.body,'Animal'+i,0,c.slot(h,last?10:0),c.inner,h,selected?'#E8E8C9':'#FBEFCF','#C7AD7A');
-    const left=-c.inner/2,picWidth=52;
-    const thumb=box(card,'Thumb',left+10+picWidth/2,0,picWidth,50,'#ECDEB8');
-    box(thumb,'Ledge',0,-24,picWidth,2,'#D1B783');
-    animalArt(thumb,a,0,0,picWidth,50);
-    const textLeft=left+picWidth+19,bodyW=c.inner-picWidth-72;
-    const target=(c.key==='rooms'||c.key==='roomRoster')&&Number.isFinite(a.stageEndsAt)?nextStage[a.stage]:'';
-    const timerW=Math.min(92,Math.max(77,c.inner*.24)),right=c.inner/2-9;
-    const detailW=target?Math.min(bodyW,right-timerW-7-textLeft):bodyW;
-    animalSummary(card,a,textLeft,detailW,0);
-    caption(card,'Tail',tail,c.inner/2-22,target?22:0,39,target?21:h-4,13,'#47604A',true).isBold=true;
-    if(target){
-        const x=right-timerW/2;
-        caption(card,'StageTarget','距'+target,x,0,timerW,19,12,muted).horizontalAlign=2;
-        const clock=caption(card,'StageCountdown','',x,-19,timerW,20,13,green);
-        clock.horizontalAlign=2;clock.isBold=true;
-        c.ui.bindStageCountdown(clock,a.stageEndsAt!);
-    }
+function petLine(c:PageCanvas,a:Animal,i:number,choose?:()=>void,tail='',last=false,selected=false,details?:Choice):void {
+    const h=animalSummaryHeight,w=animalCardWidth(c);
+    const card=frame(c.body,'Animal'+i,0,c.slot(h,last?10:4),w,h,selected?'#E8E8C9':paper.card,'#C7AD7A');
+    animalSummary(c,card,a,w,h/2);
+    if(tail)setTextStyle(caption(card,'Tail',tail,w/2-35,details?h/2-69:0,58,18,11,green,true),'compact');
     if(choose)tap(card,choose);
+    if(details)animalDetails(c,card,'ViewDetails',details,w,h/2);
+}
+const tagColors:Record<string,[string,string]>={普通:['#EEE6D8','#483D31'],少见:['#D9E9F3','#214A6B'],稀有:['#EEE0F3','#57346D']};
+function traitChip(parent:Node,name:string,text:string,rarity:string,x:number,y:number,w:number,defect=false,compact=false):void {
+    const [fill,color]=defect?['#F0E8D3','#4A412D']:(tagColors[rarity]||tagColors.普通);
+    const chip=box(parent,name,x,y,w,compact?20:22,fill);
+    const label=setTextStyle(caption(chip,'Caption',text,0,0,w-6,compact?18:20,12,color,true),defect?'defect':'tag');
+    label.color=new Color().fromHEX(color);label.enableWrapText=false;
+    label.fontSize=compact?11:12;label.lineHeight=compact?16:18;
+}
+function traitTags(parent:Node,tags:AnimalTag[],left:number,top:number,width:number,right=false,compact=false):void {
+    const lines:{tag:AnimalTag;width:number}[][]=[[]];let used=0;
+    for(const tag of tags){
+        const size=Math.min(width,tag.label.length*(compact?11:12)+10);
+        if(used&&used+4+size>width){lines.push([]);used=0;}
+        lines[lines.length-1].push({tag,width:size});used+=size+(used?4:0);
+    }
+    lines.forEach((line,row)=>{
+        const total=line.reduce((sum,t)=>sum+t.width,0)+Math.max(0,line.length-1)*4;
+        let x=left+(right?width-total:0);
+        line.forEach(({tag,width:w},i)=>{traitChip(parent,'Tag'+row+'_'+i,tag.label,tag.rarity,x+w/2,top-row*24,w,false,compact);x+=w+4;});
+    });
+}
+function rosterLine(c:PageCanvas,a:Animal,i:number):void {
+    const expanded=c.ui.expandedAnimal===a.id;
+    const h=animalSummaryHeight+30+(expanded?132:0),top=h/2;
+    const width=animalCardWidth(c),left=-width/2;
+    const card=frame(c.body,'Animal'+i,0,c.slot(h,8),width,h,paper.card,'#C7AD7A');
+    tap(card,()=>c.ui.toggleAnimal(a.id));
+    animalSummary(c,card,a,width,top);
+    animalDetails(c,card,'ViewDetails',{page:'pet',args:{id:a.id}},width,top);
+    const rowWidth=width-20;
+    rule(card,rowWidth,top-animalSummaryHeight);
+    const toggle=box(card,'ExpandTraits',0,top-animalSummaryHeight-13,rowWidth,26);
+    setTextStyle(caption(toggle,'Caption',expanded?'收起':'展开',-11,0,rowWidth-22,20,13,'#365848'),'expand');
+    const arrow=box(toggle,'Chevron',rowWidth/2-8,0,12,12).addComponent(Graphics);
+    const direction=expanded?-1:1;
+    arrow.strokeColor=new Color().fromHEX('#365848');
+    arrow.lineWidth=1.8;
+    arrow.moveTo(-4,2*direction);
+    arrow.lineTo(0,-2*direction);
+    arrow.lineTo(4,2*direction);
+    arrow.stroke();
+    if(!expanded)return;
+    const columns=(a.traits||[]).slice(0,5),cw=rowWidth/5;
+    columns.forEach((t,index)=>{
+        const x=left+10+cw*(index+.5);
+        setTextStyle(caption(card,'TraitType'+index,t.type,x,top-129,cw,22,14,ink,true),'body');
+        setTextStyle(caption(card,'TraitGrade'+index,t.grade,x,top-151,cw,21,14,green,true),'grade');
+    });
+    traitTags(card,a.tags||[],left+10,top-179,rowWidth);
+    if(a.defect)traitChip(card,'Defect',a.defect.label+' · '+a.defect.grade,'',left+81,top-226,142,true);
 }
 function book(c:PageCanvas,name:string,h:number):Node {
     const outer=frame(c.body,name,0,c.slot(h,10),c.inner,h,'#F0DEB4','#AB8C58',true);
@@ -171,7 +209,7 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const scene=roomScene(c,c.p.art!,c.p.rows?all:m.residents||[],name,true);
     if(c.p.visual?.grownIds){
         const status=frame(scene,'TutorialMatured',c.width*.21,c.width*.21,109,26,paper.card,paper.brass,false);
-        caption(status,'Text','首对幼兔已成年',0,0,105,24,12,paper.green,true).isBold=true;
+        setTextWeight(caption(status,'Text','首对幼兔已成年',0,0,105,24,12,paper.green,true),true);
     }else feedingStation(c,scene,c.width*9/16,m.nutrition);
     c.startList();
     const count=m.count??all.length,matched=m.matchedCount??all.length;
@@ -184,7 +222,7 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         animalFilters(c,'品种');
     }
     c.startList();
-    all.forEach((a,i)=>petLine(c,a,i,openPet(c,a),'›',i===all.length-1));
+    all.forEach((a,i)=>rosterLine(c,a,i));
     if(!all.length)note(c,c.p.empty||'当前筛选下没有动物。');
     c.startFooter();
     c.actions(extras.filter(r=>r.link?.page==='litter'||r.link?.page==='roomReceipt').map(r=>({...r.link!,label:r.title})));
@@ -252,49 +290,85 @@ function checkIn(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     c.startList();
     if(m.signed) {
         section(c,'今日领养','已登记');
-        rows.filter(r=>r.animal).forEach((r,i)=>petLine(c,r.animal!,i,openPet(c,r.animal!)));
+        rows.filter(r=>r.animal).forEach((r,i)=>petLine(c,r.animal!,i,openPet(c,r.animal!),'',false,false,r.link));
     } else note(c,'领养后入住兔房，自然成长约 '+(m.maturity??30)+' 分钟成年。');
     const room=c.p.actions?.find(a=>a.page==='rooms');
     c.startFooter();
     if(room)press(c.body,'RoomRoster',room.label||'',0,c.slot(48),c.inner,()=>c.ui.choose(room));
 }
 function detail(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
-    const a=m.animal!,card=book(c,'AnimalFile',230),w=c.inner-24,left=-w/2;
-    caption(card,'BookName',m.species+'房 · 个体档案',-w/4,95,w/2,22,13,'#826645');
-    heading(card,'Id','#'+a.number,w/4,95,w/2,22,14,green).horizontalAlign=2;
-    rule(card,w,78);
-    const identityW=Math.floor(w*.34),identityX=left+identityW/2;
-    if(a.retained)stockBadge(card,left+19,61);
-    animalArt(card,a,identityX,17,identityW-8,72);
-    heading(card,'Name',a.name,identityX,-34,identityW,25,18,green);
-    caption(card,'Breed',a.breed+' · '+a.coat,identityX,-58,identityW,24,12,ink);
-    caption(card,'Status',a.sex+' · '+a.stage+' · '+a.status,identityX,-84,identityW,28,12,muted);
-    box(card,'Divider',left+identityW+4,-13,1,167,'#D8C39B');
-    const start=left+identityW+12,traitW=w/2-start;
-    heading(card,'TraitsTitle','个体特征',start+traitW/2,60,traitW,22,15,green);
-    (m.traits||[]).forEach((t,i)=>{
-        const y=35-i*25;
-        const line=box(card,'Trait'+i,start+traitW/2,y,traitW,25);
-        box(line,'Rule',0,-12,traitW,1,'#E2CCA4');
-        const x=-traitW/2,gradeW=22,rarity=t.rarity!=='普通',rarityW=rarity?27:0;
-        const typeW=t.type.length>2?41:32,tagW=traitW-typeW-gradeW-rarityW;
-        caption(line,'Type',t.type,x+typeW/2,0,typeW,22,12,muted);
-        caption(line,'Tag',t.label,x+typeW+tagW/2,0,tagW,23,13,ink);
-        if(rarity)caption(line,'Rarity',t.rarity,traitW/2-gradeW-rarityW/2,0,rarityW,22,11,'#86592F',true);
-        heading(line,'Grade',t.grade,traitW/2-gradeW/2,0,gradeW,23,14,green,true);
+    const a=m.animal!,card=book(c,'AnimalFile',278),w=c.inner-24,left=-w/2;
+    setTextStyle(caption(card,'BookName',m.species+'房 · 个体档案',-w/4,115,w/2,22,12,muted),'secondary');
+    setTextStyle(caption(card,'Id','#'+a.number,w/4,115,w/2,22,14,green),'identifier');
+    card.getChildByName('Id')!.getComponent(Label)!.horizontalAlign=2;
+    rule(card,w,98);
+    const identityW=Math.floor(w*.54),identityX=left+identityW/2;
+    const portrait=box(card,'Illustration',identityX,22,identityW,132,'#EEE1BA');
+    animalArt(portrait,a,0,-13,identityW-10,100);
+    traitTags(portrait,a.tags||[],-identityW/2+4,53,identityW-8,true,true);
+    const badgeLeft=-identityW/2+4;
+    const picks:[string,string,string][]=[];
+    if(a.guided)picks.push(['GuidePick','#DCE7BD','#395741']);
+    if(a.selectedBreeding)picks.push(['GuaranteedPick','#D9E9F3','#214A6B']);
+    if(a.retained)stockBadge(portrait,badgeLeft+18,picks.length?-34:-53);
+    picks.forEach(([key,fill,color],index)=>{
+        const badge=frame(portrait,key,badgeLeft+18+index*40,-53,36,18,fill,color,false);
+        setTextWeight(caption(badge,'Caption','优选',0,0,34,16,10,color,true),true);
     });
+    setTextStyle(heading(card,'Name',a.name,identityX,-65,identityW,28,21,green),'animalName');
+    setTextStyle(caption(card,'Breed',a.breed+' · '+a.coat,identityX,-89,identityW,22,12,muted),'secondary');
+    setTextStyle(caption(card,'Status',a.sex+' · '+a.stage+' · '+a.status,identityX,-111,identityW,25,12,muted),'secondary');
+    box(card,'Divider',left+identityW+6,-16,1,209,'#D8C39B');
+    const start=left+identityW+14,traitW=w/2-start;
+    setTextStyle(heading(card,'TraitsTitle','个体特征',start+traitW/2,80,traitW,24,17,green),'section');
+    setTextStyle(caption(card,'TypeHeader','属性',start+traitW*.30,55,traitW*.60,20,12,muted),'column');
+    setTextStyle(caption(card,'GradeHeader','等级',start+traitW*.80,55,traitW*.40,20,12,muted,true),'column');
+    (a.traits||m.traits||[]).slice(0,5).forEach((t,i)=>{
+        const line=box(card,'Trait'+i,start+traitW/2,31-i*24,traitW,24);
+        box(line,'Rule',0,-12,traitW,1,'#E2CCA4');
+        setTextStyle(caption(line,'Type',t.type,-traitW*.20,0,traitW*.60,22,14,ink),'body');
+        setTextStyle(caption(line,'Grade',t.grade,traitW*.30,0,traitW*.40,22,14,green,true),'grade');
+    });
+    setTextStyle(caption(card,'DefectTitle','缺陷',start+traitW/2,-92,traitW,18,11,muted),'compact');
+    if(a.defect)traitChip(card,'Defect',a.defect.label+' · '+a.defect.grade,'',start+traitW/2,-113,traitW,true,true);
     c.startList();
-    const summary=[['阶段',rows[0]?.text],['来源',rows[1]?.text],...rows.slice(8).map(row=>[row.title,row.text])];
-    for(const [title,value] of summary){
+    for(const row of rows){
+        const {title,text:value}=row;
         if(!title||!value)continue;
         const labelW=90,h=Math.max(32,Math.ceil(value.length/Math.max(1,Math.floor((c.inner-labelW-18)/13)))*19+10);
         const line=frame(c.body,'DetailLine',0,c.slot(h,2),c.inner,h,'#F9EDCF','#D3BD92',false);
-        caption(line,'Key',title,(-c.inner+labelW)/2+8,0,labelW,24,13,muted);
-        caption(line,'Value',value,(labelW+2)/2,0,c.inner-labelW-18,h-4,13,ink);
+        setTextStyle(caption(line,'Key',title,(-c.inner+labelW)/2+8,0,labelW,24,13,muted),'field');
+        const label=setTextStyle(caption(line,'Value',value,(labelW+2)/2,0,c.inner-labelW-18,h-4,13,ink),'value');
+        if(title==='阶段'&&nextStage[a.stage]&&Number.isFinite(a.stageEndsAt))
+            c.ui.bindStageCountdown(setTextStyle(label,'countdown'),a.stageEndsAt!,undefined,a.stage+' · 距'+nextStage[a.stage]+' ');
     }
     if(a.retained)note(c,a.stage==='已故'?'取消留种后可前往动物回收。':'种源不可出售，可在这里取消留种。');
     c.startFooter();
     c.actions(c.p.actions||[]);
+}
+function review(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
+    const a=m.animal!,card=book(c,'ReviewAnimal',93);
+    animalArt(card,a,-c.inner/2+46,0,65,70);
+    setTextStyle(heading(card,'Name',a.name,35,17,c.inner-110,28,21,green),'animalName');
+    setTextStyle(caption(card,'Identity',a.breed+' · '+a.sex+' · '+a.stage,35,-10,c.inner-110,24,12,muted),'secondary');
+    section(c,'当前特征标签',(a.tags?.length||0)+' 条');
+    c.startList();
+    (a.tags||[]).forEach((tag,i)=>{
+        const line=frame(c.body,'ReviewTag'+i,0,c.slot(47,5),c.inner,47,paper.card,paper.brass,false);
+        setTextStyle(caption(line,'Type',tag.type,-c.inner/2+31,0,48,23,13,muted),'field');
+        const chipLeft=-c.inner/2+62;
+        const chipWidth=Math.min(c.inner-124,Math.max(48,tag.label.length*12+10));
+        traitChip(line,'Tag',tag.label,tag.rarity,chipLeft+chipWidth/2,0,chipWidth);
+        setTextStyle(caption(line,'Rarity',tag.rarity,c.inner/2-32,0,47,23,12,muted,true),'secondary');
+    });
+    rows.forEach((row,i)=>c.row(row,i));
+    note(c,'剩余 '+(3-(m.reviews||0))+' 次 · 持有 '+(m.inventory||0)+' 张');
+    c.startFooter();
+    const actions=c.p.actions||[];
+    if(actions[0])c.actions([actions[0]],1);
+    const secondary=actions.slice(1),buttonW=(c.inner-6)/2,y=secondary.length?c.slot(48,8):0;
+    secondary.forEach((action,i)=>press(c.body,'Action'+(i+1),action.label||'查看',
+        (i?1:-1)*(buttonW+6)/2,y,buttonW,()=>c.ui.choose(action),false,!!action.disabled,48));
 }
 function compareParents(c:PageCanvas,traits:NonNullable<RoomPage['parentTraits']>):void {
     const gap=7,w=(c.inner-gap)/2,rowH=31,h=35+traits.length*rowH,y=c.slot(h,8);
@@ -332,12 +406,9 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         c.startFooter();
         const actions=c.p.actions||[],start=actions.find(a=>a.type==='care.breed');
         const toggle=actions.find(a=>a.type==='care.toggle');
-        const selected=m.guide?.index??start?.args?.guide??-1;
-        const options=actions.filter(a=>a.page==='breed'&&a.replace&&Number.isInteger(a.args?.guide));
-        const choice=options.find(a=>a.args?.guide===selected)||options[0];
+        const tools=actions.find(a=>a.page==='breedItems');
         const y=c.slot(48,6),w=toggle?(c.inner-6)*.55:c.inner;
-        const anchor=press(c.body,'ChooseGuide',choice.label+' ▾',(w-c.inner)/2,y,w,
-            ()=>c.ui.openFilter([{anchor,options}],0));
+        if(tools)press(c.body,'AddItems',tools.label!,(w-c.inner)/2,y,w,()=>c.ui.choose(tools));
         if(toggle)press(c.body,'BonusSettings','五维加成设置',(w+6)/2,y,c.inner-w-6,c.ui.openBreedingBonus);
         const cancel=actions.find(a=>a.label==='取消繁育');
         if(start&&cancel){
@@ -356,7 +427,7 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
         petLine(c,p,i,()=>{
             const args={...c.args,picking:true,[key]:active?null:p.id};
             c.ui.choose({page:'breed',args,replace:true});
-        },active?'已选':'选择',i===candidates.length-1,active);
+        },active?'已选':'选择',i===candidates.length-1,active,{page:'pet',args:{id:p.id}});
     });
     if(!candidates.length)note(c,'当前没有可配对的亲本。');
     c.startFooter();
@@ -420,7 +491,7 @@ export function drawBreedingBonus(parent:Node,preview:MutationPreview|undefined,
             heading(row,'Chance',(enabled?field.on:field.off)+'%',chanceX,0,colChance,25,15,green,true);
         });
     }
-    const hint=fields.length?'上浮以幼体选中的亲本评分为基准，已计入本窝指导单的选择。':'当前经营服务未提供逐项概率。';
+    const hint=fields.length?'上浮以幼崽继承的亲本等级为起点。选育单锁定的属性按道具效果结算。':'当前经营服务未提供逐项概率。';
     caption(panel,'Explanation',hint,0,-h/2+80,inner,38,13,muted);
     press(panel,'Back','返回配对',0,-h/2+34,inner,close,false,false,44);
 }
@@ -436,12 +507,12 @@ function litter(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     }
     roomScene(c,c.p.art!,animals,m.species!,true,true,links);
     c.startList();
-    section(c,'这一窝',m.count+' 只出生');
+    section(c,'这一窝');
     guideNote(c);
     if(c.p.subtitle)note(c,c.p.subtitle);
     c.startList();
     members.forEach((r,i)=>{
-        if(r.animal)petLine(c,r.animal,i,r.link?()=>c.ui.choose(r.link!):undefined,r.link?'›':'',i===members.length-1);
+        if(r.animal)petLine(c,r.animal,i,r.link?()=>c.ui.choose(r.link!):undefined,'',i===members.length-1,false,r.link);
         else c.row(r,i);
     });
     rows.filter(r=>!r.litterMember&&!r.animal).forEach((r,i)=>c.row(r,members.length+i));
@@ -458,7 +529,7 @@ export function drawRoom(c:PageCanvas):boolean {
         c.startList();
         animals.forEach((r,i)=>{
             const id=r.select,selected=!!id&&c.ui.selected.has(id);
-            petLine(c,r.animal!,i,id?()=>c.ui.toggle(id):undefined,id?(selected?'✓ 留养':'留养'):'已留种',i===animals.length-1,selected);
+            petLine(c,r.animal!,i,id?()=>c.ui.toggle(id):undefined,id?(selected?'✓ 留种':'留种'):'已留种',i===animals.length-1,selected,r.link);
         });
         c.startFooter();
         c.selection();
@@ -469,6 +540,7 @@ export function drawRoom(c:PageCanvas):boolean {
         case 'rooms':case 'roster':inRoom(c,m,rows);return true;
         case 'locked':locked(c,m);return true;
         case 'pet':detail(c,m,rows);return true;
+        case 'review':review(c,m,rows);return true;
         case 'checkin':checkIn(c,m,rows);return true;
         case 'pair':case 'pairConfirm':pairing(c,m,rows);return true;
         case 'breeding':breeding(c,m);return true;

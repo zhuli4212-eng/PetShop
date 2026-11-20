@@ -148,7 +148,8 @@ function repairPurchasedSeeds(s,g,now) {
     const pet=findPet(s,id);
     if(pet?.species==='rabbit'&&pet.sex===offer.sex&&pet.breedKey==='lop'&&!pet.bred&&
         pet.tutorialDeathAt===undefined&&!isBusy(s,pet))continue;
-    const restored=recoveredRabbit(s,g,now,'seed',id,{sex:offer.sex,breed:'lop',bornAt:adultOffer(offer,now).bornAt});
+    const restored=recoveredRabbit(s,g,now,'seed',id,{sex:offer.sex,breed:'lop',bornAt:adultOffer(offer,now).bornAt,
+      traits:offer.traits,tagRulesVersion:offer.tagRulesVersion,tagCount:offer.tagCount});
     g.offers[index]={...offer,id:restored.id,name:restored.name};
     g.offerIds[index]=restored.id;
     g.purchased[g.purchased.indexOf(id)]=restored.id;
@@ -264,7 +265,7 @@ export function decorateOpeningPage(s,key,args,view,now) {
   }
   if(key==='lab'&&g.offers&&!['nutrition','services'].includes(args.tab)){
     const offers=g.offers.filter(p=>!g.purchased.includes(p.id)).map(offer=>{
-      const animal=specimen(s,adultOffer(offer,now),now);
+      const animal=specimen(s,adultOffer(offer,now),now,{inShop:false});
       return {title:animal.name,text:'开店种源 · '+seedPrice+' 金币',animal,art:animal.art,stage:'成年',
         link:choice(undefined,'offer',{...rabbit,id:offer.id}),visual:{price:seedPrice}};
     });

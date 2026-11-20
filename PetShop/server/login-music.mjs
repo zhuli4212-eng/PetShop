@@ -1,19 +1,19 @@
-export function bindLoginMusic() {
+export function bindLoginMusic({autoplay = false} = {}) {
   const audio = document.getElementById('login-music');
   const button = document.getElementById('login-music-control');
   const preference = 'petshop.login.music';
-  let enabled = true, interacted = false, active = true;
+  let enabled = true, canPlay = autoplay, active = true;
   try { enabled = localStorage.getItem(preference) !== 'off'; } catch {}
 
   audio.volume = .8;
   function play() {
-    if (active && enabled && interacted && !document.hidden && audio.paused) {
+    if (active && enabled && canPlay && !document.hidden && audio.paused) {
       void audio.play().catch(() => {});
     }
   }
   function interact(event) {
     if (!button.contains(event.target)) {
-      interacted = true;
+      canPlay = true;
       play();
     }
   }
@@ -27,7 +27,7 @@ export function bindLoginMusic() {
   button.addEventListener('click', () => {
     enabled = audio.paused;
     try { localStorage.setItem(preference, enabled ? 'on' : 'off'); } catch {}
-    interacted = true;
+    canPlay = true;
     if (enabled) play();
     else audio.pause();
   });
@@ -39,6 +39,7 @@ export function bindLoginMusic() {
   });
   window.addEventListener('pagehide', () => audio.pause());
   button.hidden = false;
+  play();
 
   return value => {
     active = value;

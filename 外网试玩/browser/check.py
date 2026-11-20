@@ -104,11 +104,13 @@ def visible_form(page, register=False):
     name,submit=page.locator("#username"),page.locator("#submit")
     password=page.locator('#password')
     name.wait_for(state="visible")
+    page.locator('#opening').wait_for(state="hidden")
     assert password.is_visible() and password.get_attribute('type')=='password'
     assert password.get_attribute('autocomplete')==('new-password' if register else 'current-password')
     assert password.evaluate('node=>node.required')
     assert submit.is_visible()
-    assert not page.locator("#GameDiv").is_visible()
+    assert page.locator("#GameDiv").is_visible()
+    assert page.locator('#account-layer').is_visible()
     assert ("注册" if register else "登录") in submit.inner_text()
     for item in [name,password,submit]:
         box=item.bounding_box()
@@ -140,9 +142,9 @@ def form_only(browser,url,screenshot=None):
                 if width>=1000:assert stage['width']<width/2,stage
                 backdrop=page.locator('.shopfront').bounding_box()
                 form=page.locator('#account-form').bounding_box()
-                assert backdrop['x']<=form['x'] and backdrop['y']<=form['y']
-                assert form['x']+form['width']<=backdrop['x']+backdrop['width']+1
-                assert form['y']+form['height']<=backdrop['y']+backdrop['height']+1
+                assert abs(backdrop['x']+backdrop['width']/2-width/2)<3
+                assert backdrop['y']+backdrop['height']<=form['y']
+                assert page.locator(".shopfront").evaluate("img=>getComputedStyle(img).objectFit")=='contain'
                 if screenshot and width in [390,1280]:
                     screenshot.parent.mkdir(parents=True,exist_ok=True)
                     label=('-desktop' if width==1280 else '')+('-register' if registering else '')

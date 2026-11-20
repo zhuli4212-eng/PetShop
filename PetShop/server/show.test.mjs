@@ -27,6 +27,23 @@ function enter(s,mode,theme,at=epoch,pet=s.pets[0]) {
   const action=preview(s,mode,theme,at,pet);
   return showAction(s,action.type,action.args,at);
 }
+test('赛事舞台展示在店活体最高综合评分，幼体可展示且不改变报名资格',()=>{
+  const s=fresh();
+  const young=animal('小猫');
+  Object.assign(young,{species:'cat',breedKey:'british',bornAt:epoch});
+  for(const trait of young.traits)trait.grade='S';
+  const dead=animal('已故',epoch-10*D);
+  for(const trait of dead.traits)trait.grade='S+';
+  s.pets.push(young,dead);
+  const page=showPage(s,'show',{},epoch);
+  assert.match(page.visual.pet,/british/);
+  assert.equal(page.visual.petStage,'幼年');
+  const topic=page.rows.find(row=>row.link?.args?.mode==='private');
+  const round=showPage(s,topic.link.page,topic.link.args,epoch);
+  assert.deepEqual(round.rows.filter(row=>row.animal).map(row=>row.animal.id),[s.pets[0].id]);
+  s.pets=[dead];
+  assert.equal(showPage(s,'show',{},epoch).visual.pet,null);
+});
 test('40个主题，28天覆盖每个私人赛三次，报名窗口左闭右开',()=>{
   const s=fresh(),counts={};
   assert.equal(new Set(themes.map(t=>t.name)).size,40);

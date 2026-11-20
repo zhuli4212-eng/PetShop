@@ -4,7 +4,7 @@ export function rareRedrawPercent(level) {
 }
 
 export function scoreRiseChance(baseGrade, otherGrade, level) {
-  let chance = [.18, .18, .18, .18, .10, .06, 0][baseGrade];
+  let chance = [.18, .18, .18, .18, .07, .03, 0][baseGrade];
   if (otherGrade < baseGrade - 1) chance = Math.min(chance, .03);
   return Math.min(.90, chance * (1 + .03 * level));
 }

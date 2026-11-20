@@ -1,10 +1,14 @@
 import {
-  SPECIES, BREEDS, GRADES, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterCandidates, mixedOffspring,
+  SPECIES, BREEDS, stageOf, stageEnd, breedName, petArt, fields, coatName, canBreed, stockStatus, dayAt, isBusy, itemName, litterCandidates, mixedOffspring,
   lifeDates, beijingTime, rosterStage, shelfBatchEndsAt, stageNames, mutationPreview, specimen, nextCheckinBreed,
+  guideField, serviceItemPrice, serviceItemStock, serviceItemUnit, selectionItemNames, selectionFieldCount, validSelection,
+  antiAgeUses, antiAgeLimit, reshapeUses, reshapeLimit,
 } from './care.mjs';
 import { rabbitWaitingForOpening } from './onboarding.mjs';
-import { businessPage, offerOrderRows, purchasePrice, salePrice, valuation, youngPurchaseBase } from './business.mjs';
+import { businessPage, offerOrderRows, purchasePrice, salePrice, youngPurchaseBase } from './business.mjs';
 import { activeNutrition, nutritionPage } from './room-nutrition.mjs';
+import { getPetTags } from './animal-traits.mjs';
+import { defectDisplayLabel } from './defect.mjs';
 
 const go = (label,page,args={}) => ({label,page,args});
 const link = (title,text,page,args={},extra={}) => ({title,text,link:{page,args},...extra});
@@ -108,38 +112,40 @@ function ageDescription(ms) {
   return [days&&days+' 天',hours&&hours+' 小时',minutes%60&&minutes%60+' 分钟'].filter(Boolean).join(' ');
 }
 function priceRows(s,p,now) {
-  const v=valuation(s,p,now), dead=v.stage==='已故';
+  const dead=stageOf(p,now)==='已故';
   const total=salePrice(s,p,now,dead?'recycle':'market');
-  const terms=[{title:'品种和品质',text:'品种基价 '+v.base+' 金币 · 六维及标签折算品质系数约 '+Number((v.qualityUnits/600).toFixed(4))},
-    {title:'荣誉加价',text:v.honor+' 金币 · 取该动物历来最高荣誉'},
-    {title:'店铺加成',text:'成交额 +'+Number(((v.multiplier-10000)/100).toFixed(2))+'%'}];
-  if(dead)terms.splice(1,0,{title:'已故回收',text:'保底 '+v.minimum+' 金币'+(v.honor?'，成年估值 '+v.adult+' 的 10% 加荣誉的 50%，取整后与保底取高。':'，本只按保底回收。')});
-  else terms.splice(1,0,{title:'阶段与繁育',text:v.stage+'按 '+v.stagePercent+'% 估值 '+v.value+' 金币。'+(p.bred?'已繁育保留 '+v.bredRate+'%，计 '+v.retained+' 金币（保底 '+v.minimum+'）。':'未繁育，计 '+v.retained+' 金币。')});
-  terms.push({title:dead?'当前回收估值':'当前市场估值',text:total+' 金币'+(p.retained?' · 已留种保护':isBusy(s,p)?' · 繁育中':'')});
-  return terms;
+  return [{title:dead?'当前回收估值':'当前市场估值',text:total+' 金币'+(p.retained?' · 已留种保护':isBusy(s,p)?' · 繁育中':'')}];
 }
 function detail(s,a,now) {
   const p=s.pets.find(p=>p.id===a.id);
   if(!p)return empty('动物档案','这只动物已离店。');
   const stage=stageOf(p,now),until=stageEnd(p,now), dates=lifeDates(p);
   const history=p.reviewHistory??[],unrecorded=p.reviews-history.length;
+  const room=s.rooms[p.species],doses=antiAgeUses(p),reshaped=reshapeUses(p);
+  const hasAntiAge=room&&serviceItemStock(room,'antiAge')>0;
+  const hasReshape=room&&serviceItemStock(room,'reshape')>0;
   return {title:'个体档案',art:petArt(p),stage,subtitle:breedName(p)+' · '+coatName(p)+' · '+p.sex,
-    presentation:{kind:'pet',species:SPECIES[p.species].name,speciesKey:p.species,animal:specimen(s,p,now),traits:p.traits},
-    rows:[{title:stage+' · '+stockStatus(s,p),text:until?'距离下一阶段约 '+describeRemaining(until-now):
+    presentation:{kind:'pet',species:SPECIES[p.species].name,speciesKey:p.species,animal:specimen(s,p,now),traits:p.traits.slice(0,5),nextStageAt:until},
+    rows:[{title:'阶段',text:until?stage+' · 距'+({幼年:'成长',成长:'成年',成年:'老年',老年:'寿终'}[stage])+' '+describeRemaining(until-now):
       stage!=='已故'?'仍在房内。':p.retained?'取消留种后可前往动物回收。':'已故个体可在培育中心回收。'},
-      {title:'身份 #'+number(p),text:p.source+(p.motherId?' · 母 '+p.motherName+' / 父 '+p.fatherName:'')+(p.mixed?' · 外形 '+BREEDS[p.breedKey].name:'')},
-      ...p.traits.map(t=>({title:t.type+' · '+t.grade,text:t.label+' · '+t.rarity})),
+      {title:'来源',text:p.source+(p.motherId?' · 母 '+p.motherName+' / 父 '+p.fatherName:'')+(p.mixed?' · 外形 '+BREEDS[p.breedKey].name:'')},
       {title:'复评 '+p.reviews+' / 3 次',text:'已获最高荣誉系数 '+p.honor},
       {title:stage==='已故'?'寿终时年龄':'实际年龄',text:ageDescription(Math.min(now,dates.deathAt)-p.bornAt)},
       {title:'出生时刻',text:beijingTime(p.bornAt)+'（北京）'},
       {title:'成年时刻',text:beijingTime(dates.adultAt)+'（北京）'},
+      ...(doses?[{title:'抗衰老药剂',text:'已用 '+doses+' / '+antiAgeLimit+' 份 · 老年期增加 '+doses+' 天'}]:[]),
+      ...(reshaped?[{title:'缺陷重塑剂',text:'已用 '+reshaped+' / '+reshapeLimit+' 份'}]:[]),
       ...(stage==='已故'?[{title:'自然寿终',text:beijingTime(dates.deathAt)+'（北京）'}]:[]),
       ...priceRows(s,p,now),
       ...(unrecorded>0?[{title:'早期复评',text:'此前 '+unrecorded+' 次复评仅留有次数。'}]:[]),
       ...history.map(h=>({title:fields[h.field]+'复评',text:beijingTime(h.at)+'（北京） · '+h.before+'（'+h.beforeRarity+'） → '+h.after+'（'+h.afterRarity+'） · 评分 '+h.grade}))],
     actions:[...(p.retained||(!p.bred&&stage!=='已故')?[{label:p.retained?'取消留种':'留种',type:'care.retain',args:{id:p.id,retained:!p.retained}}]:[]),
       ...(canBreed(s,p,now)?[go('去繁育台配对','breed',{species:p.species,[p.sex==='公'?'father':'mother']:p.id})]:[]),
-      ...(!isBusy(s,p)&&stage!=='已故'?[go('特征复评','review',{species:p.species,id:p.id})]:[]),
+      ...(!isBusy(s,p)&&stage!=='已故'?[{...go(p.reviews>=3?'复评次数已用完':'特征复评','review',{species:p.species,id:p.id}),disabled:p.reviews>=3}]:[]),
+      ...(hasAntiAge&&stage!=='已故'&&doses<antiAgeLimit?[act('使用抗衰老药剂','care.antiAge',{species:p.species,id:p.id},
+        '用 1 份后，老年期会多 1 天。还可用 '+(antiAgeLimit-doses)+' 次。','pet',{id:p.id})]:[]),
+      ...(hasReshape&&['幼年','成长'].includes(stage)&&reshaped<reshapeLimit?[act('使用缺陷重塑剂','care.reshape',{species:p.species,id:p.id},
+        '55% 减轻一档，45% 加重一档。若结果超过最高或最低档，会保留原档，仍消耗 1 份。还可用 '+(reshapeLimit-reshaped)+' 次。','pet',{id:p.id})]:[]),
       ...(!isBusy(s,p)&&!p.retained?[stage==='已故'?go('前往动物回收','recycle',{species:p.species,preselectId:p.id}):go('前往自由市场','market',{preselectId:p.id})]:[])]};
 }
 function pairPage(s,a,now) {
@@ -154,20 +160,20 @@ function pairPage(s,a,now) {
     .sort((a,b)=>Number(b.retained===true)-Number(a.retained===true));
   const mother=choices.find(p=>p.id===a.mother&&p.sex==='母'),father=choices.find(p=>p.id===a.father&&p.sex==='公');
   const args={species,...(mother?{mother:mother.id}:{}),...(father?{father:father.id}:{})};
-  const allowed=mother&&father?fields.slice(0,5).map((_,i)=>i).filter(i=>mother.traits[i].grade!==father.traits[i].grade):[];
-  const guide=allowed.includes(a.guide)&&room.items.guide>0?a.guide:-1;
+  const guide=mother&&father&&a.useGuide===true&&room.items.guide>0&&!a.picking?guideField(s,mother,father):-1;
+  const selection=validSelection(room,a.selection)&&!a.picking?a.selection:null;
   const [rare=0,mutation=0]=s.research?.[species]??[];
   const preview=mother&&father?mutationPreview(mother,father,guide,mutation,!!room.mutationEnabled):undefined;
   if(!mother||!father||a.picking) {
     const sex=!mother?'母':'公',pool=choices.filter(p=>p.sex===sex);
     return {title:'繁育台',art:'shop-modules/breeding-guide',subtitle:'挑选一公一母 · 目前可配 '+choices.length+' 只',
       presentation:{kind:'pair',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>p?specimen(s,p,now):null),mutationPreview:preview,
-        candidates:choices.map(p=>specimen(s,p,now)),confirm:mother&&father?go('核对亲本','breed',{...args,guide}):null},
+        candidates:choices.map(p=>specimen(s,p,now)),confirm:mother&&father?go('核对亲本','breed',args):null},
       rows:[
         {title:mother?'母本：'+mother.name:father?'父本：'+father.name:'选择亲本',text:'点选一只可配的'+sex+'性作为'+(sex==='母'?'母本':'父本')+'。'},
         ...pool.map(p=>petRow(s,p,now,'breed',{...args,[sex==='母'?'mother':'father']:p.id})),
         ...(!pool.length?[{title:'暂无合适的'+sex+'性亲本',text:'成年、老年且未繁育的空闲动物可参与配对。'}]:[])],
-      tabs:options(s,'breed',species),actions:[...(room.lastLitter?[go(room.lastLitter.bornAt===s.onboarding?.firstLitterAt?'查看首窝':'查看最近一窝','litter',{species})]:[]),go('查看房间','rooms',{species})]};
+      tabs:options(s,'breed',species),actions:[...(room.lastLitter&&!room.lastLitter.viewed?[go(room.lastLitter.bornAt===s.onboarding?.firstLitterAt?'查看首窝':'查看最近一窝','litter',{species})]:[]),go('查看房间','rooms',{species})]};
   }
   const registration=mixedOffspring(mother,father)?'杂交':BREEDS[mother.breedKey].name;
   const summary=['确认让 '+mother.name+' 和 '+father.name+' 使用一生唯一的繁育机会？','后代品种 '+registration];
@@ -176,40 +182,64 @@ function pairPage(s,a,now) {
   if(room.mutationEnabled&&mutation>0)research.push('属性提升+'+(mutation*3)+'%');
   if(research.length)summary.push('研究加成 '+research.join('，'));
   if(guide>=0){
-    const parent=GRADES.indexOf(mother.traits[guide].grade)>GRADES.indexOf(father.traits[guide].grade)?'母本':'父本';
-    summary.push('选育指导 幼体'+fields[guide]+'属性会更容易遗传自'+parent+'。');
+    const same=mother.traits[guide].grade===father.traits[guide].grade;
+    summary.push('选育指导单抽中「'+fields[guide]+'」。'+(same?'父母同档，照常遗传。':'每只幼崽有 80% 的机会从较高档起算，之后自然升降。')+'整窝显示绿色「优选」。');
   }
+  if(selection)summary.push(selectionItemNames[selection.item]+'：随机一只幼崽的'+selection.fields.map(i=>fields[i]).join('、')+
+    '保留双亲较高等级，并显示蓝色「优选」。');
+  const breedingArgs={...args,...(guide>=0&&{useGuide:true}),...(selection&&{selection})};
   if(mother.retained||father.retained)summary.push('幼体出生时，双亲自动取消留种。');
   return {title:'确认配对',subtitle:mother.name+' × '+father.name,art:cfg.art,animals:[petArt(mother),petArt(father)],animalStages:[stageOf(mother,now),stageOf(father,now)],
     presentation:{kind:'pairConfirm',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>specimen(s,p,now)),
       guide:{count:room.items.guide,index:guide},mutationPreview:preview,
-      parentTraits:fields.map((name,i)=>({name,mother:mother.traits[i],father:father.traits[i]}))},
+      parentTraits:fields.map((name,i)=>({name,...Object.fromEntries([['mother',mother],['father',father]].map(([side,pet])=>
+        [side,{...pet.traits[i],label:i===5?defectDisplayLabel(pet.traits[i].grade):(pet.traits[i].label||'—')}]))}))},
     rows:[{title:'一生仅一次繁育',text:'开始后不可取消或换亲本。等待 '+cfg.wait+' 分钟，预计 '+cfg.min+'–'+(cfg.min+cfg.litter.length-1)+' 只。'}],
-    actions:[act('开始繁育','care.breed',{...args,guide},summary.join('\n'),'breed',{species}),
-      go('取消繁育','breed',{...args,guide,picking:true}),act(room.mutationEnabled?'关闭五维加成':'启用五维加成','care.toggle',{species,enabled:!room.mutationEnabled},undefined,'breed',{...args,guide}),
-      ...[-1,...(room.items.guide>0?allowed:[])].map(i=>({
-        ...go(i===-1?'不使用指导单':'指导'+fields[i],'breed',{...args,guide:i}),active:i===guide,replace:true}))]};
+    actions:[act('开始繁育','care.breed',breedingArgs,summary.join('\n'),'breed',{species}),
+      go('取消繁育','breed',{...args,picking:true}),
+      act(room.mutationEnabled?'关闭五维加成':'启用五维加成','care.toggle',{species,enabled:!room.mutationEnabled},undefined,'breed',breedingArgs),
+      go(guide>=0||selection?'已添加道具':'添加道具','breedItems',breedingArgs)]};
 }
-function litterParents(s,litter,children,now) {
-  // Older litters store names. A remaining child's parent IDs can still identify
-  // the adults without guessing from names shared by unrelated animals.
-  const child=children[0];
-  const parents=litter.parents??[
-    {id:child?.motherId,name:litter.mother,sex:'母'},
-    {id:child?.fatherId,name:litter.father,sex:'公'},
-  ];
-  return parents.map(parent=>{
-    const resident=parent.id&&s.pets.find(p=>p.id===parent.id);
-    const record=resident||(Number.isFinite(parent.bornAt)?parent:null);
-    const whenBorn=record?(stageOf(record,litter.bornAt)==='已故'?'本窝出生时已自然寿终。':'本窝出生时仍在世，已完成一生唯一的一窝。'):'旧记录未保存出生当刻的生命状态。';
-    let current='';
-    if(resident)current=stageOf(resident,now)==='已故'?'自然寿终于 '+beijingTime(lifeDates(resident).deathAt)+'（北京）。':'目前仍在房内，已繁育。';
-    else if(parent.id){
-      const sale=s.sales?.find(entry=>entry.lines.some(line=>line.id===parent.id));
-      if(sale)current=beijingTime(sale.at)+(sale.channel==='recycle'?' 已回收。':' 已出售离店。');
+
+function breedingItems(s,a,now) {
+  const pairing=pairPage(s,{...a,picking:false},now);
+  const title='添加道具',back={type:'ui.back',label:'取消'};
+  const start=pairing.actions?.find(choice=>choice.type==='care.breed');
+  if(!start)return {title,rows:[{title:'亲本已变动，请返回重新选择。'}],actions:[back]};
+  const species=start.args.species,room=s.rooms[species];
+  const useGuide=start.args.useGuide===true;
+  const item=a.selection?.item,count=selectionFieldCount(item);
+  const picked=count>0&&serviceItemStock(room,item)>0;
+  const chosen=picked&&Array.isArray(a.selection.fields)
+    ? [...new Set(a.selection.fields.filter(i=>Number.isInteger(i)&&i>=0&&i<5))].slice(0,count) : [];
+  const selection=picked?{item,fields:chosen}:null;
+  const initial={species,mother:start.args.mother,father:start.args.father};
+  const current={...initial,useGuide,selection};
+  const guideTitle=(useGuide?'✓ ':'')+'选育指导单 · 持有 '+room.items.guide+' 张';
+  const rows=[{
+    title:guideTitle,
+    text:useGuide?'系统抽中「'+fields[pairing.presentation.guide.index]+'」。整窝幼崽显示绿色「优选」。':
+      '系统随机选 1 项属性。父母等级不同时，80% 从较高档起算，后续照常升降。',
+    ...(room.items.guide>0&&{link:go('切换指导单','breedItems',{...current,useGuide:!useGuide})}),
+  }];
+  for(const [key,label] of Object.entries(selectionItemNames)){
+    const stock=serviceItemStock(room,key);
+    rows.push({
+      title:(item===key?'✓ ':'')+label+' · 持有 '+stock+' 张',
+      text:'手动选择 '+selectionFieldCount(key)+' 项，随机一只幼崽保留较高等级。',
+      ...(stock>0&&{link:go(label,'breedItems',{...current,selection:item===key?null:{item:key,fields:[]}})}),
+    });
+  }
+  if(selection){
+    for(const [i,name] of fields.slice(0,5).entries()){
+      const active=chosen.includes(i),next=active?chosen.filter(index=>index!==i):[...chosen,i];
+      const row={title:(active?'✓ ':'')+name};
+      if(next.length<=count)row.link=go(name,'breedItems',{...current,selection:{item,fields:next}});
+      rows.push(row);
     }
-    return {title:(parent.sex==='母'?'母本':'父本')+' · '+parent.name,text:whenBorn+current};
-  });
+  }
+  return {title,rows,actions:[{...go('完成','breed',{...initial,...(useGuide&&{useGuide:true}),...(selection&&{selection})}),
+    disabled:!!selection&&!validSelection(room,selection)},back]};
 }
 function litter(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],first=species==='rabbit'&&s.onboarding?.firstLitter;
@@ -232,15 +262,15 @@ function litter(s,a,now) {
     if(current)return {...petRow(s,current,now),litterMember:true};
     const p=birthRecords.get(id),tag='#'+number({id});
     if(!p)return {litterMember:true,title:(historicalNames.get(id)||'同窝幼体')+' · '+tag,text:'已离店 · 早期记录未保存外观'};
-    const animal={id,number:number(p),name:p.name,sex:p.sex,breed:breedName(p),coat:coatName(p),stage:'幼年',status:'已离店',art:petArt(p),departed:true};
+    const animal={id,number:number(p),name:p.name,sex:p.sex,breed:breedName(p),coat:coatName(p),stage:'幼年',status:'已离店',art:petArt(p),departed:true,
+      ...(Number.isFinite(p.score)&&{score:p.score})};
     return {litterMember:true,title:p.name+' · '+p.sex,text:[animal.breed,animal.coat,tag,'已离店 · 出生时外观'].join(' · '),animal,art:animal.art,stage:animal.stage};
   });
   const portraits=children.filter(row=>row.art);
-  return {title:'这一窝出生了',subtitle:l.mother+' × '+l.father+' · 共 '+l.ids.length+' 只',
-    presentation:{kind:'litter',species:SPECIES[species].name,count:l.ids.length,bornAt:l.bornAt},
+  return {title:'这一窝出生了',subtitle:'父本·'+l.father+'  母本·'+l.mother+' | 共'+l.ids.length+'只宝宝',
+    presentation:{kind:'litter',species:SPECIES[species].name,speciesKey:species,count:l.ids.length,bornAt:l.bornAt},
     art:SPECIES[species].art,animals:portraits.map(row=>row.art),animalStages:portraits.map(row=>row.stage),
-    rows:[{title:'本窝出生',text:beijingTime(l.bornAt)+'（北京时间） · 共 '+l.ids.length+' 只'},
-      ...litterParents(s,l,l.ids.map(id=>residents.get(id)).filter(Boolean),now),...children],
+    rows:[{title:'本窝出生',text:beijingTime(l.bornAt)+'（北京时间）'},...children],
     actions:[go('挑选留种','litterKeep',{species,bornAt:l.bornAt}),go('前往动物房间','rooms',{species})]};
 }
 function litterSelection(s,page,a,now) {
@@ -288,27 +318,9 @@ function litterSelection(s,page,a,now) {
   if(page==='openingLitterSale'||page==='openingLitterQuote'){
     return {title:'出生记录已更新',rows:[{title:'请重新查看出生记录。'}],actions:[go('查看出生记录','litter',{species})]};
   }
-  if(page==='litterKeep') {
-    return {title:'挑选留种',subtitle:'已有种源自动保留。勾选本次留种的动物，其余进入出售核价。',selectionLabel:'留养',
-      rows:members.map(p=>({...petRow(s,p,now),...(!p.retained&&{select:p.id})})),empty:'这一窝当前没有可挑选的未繁育动物。',
-      actions:eligible.length?[{...go('核对其余动物售价','litterSale',{...identity,offered:eligible.map(p=>p.id)}),
-        useSelection:true,allowEmptySelection:true}]:[go('查看出生记录','litter',{species})]};
-  }
-  const candidates=new Set(eligible.map(p=>p.id));
-  if(!Array.isArray(a.offered)||a.offered.length!==candidates.size||new Set(a.offered).size!==candidates.size||
-      !a.offered.every(id=>candidates.has(id))||!Array.isArray(a.ids)||new Set(a.ids).size!==a.ids.length||
-      !a.ids.every(id=>candidates.has(id))){
-    return {title:'本窝名册已变化',rows:[{title:'请重新勾选要留养的动物。'}],actions:[go('重新挑选','litterKeep',identity)]};
-  }
-  const keep=new Set(a.ids);
-  const sell=eligible.filter(p=>!keep.has(p.id)).map(p=>p.id);
-  const decision={...identity,keepIds:a.ids}, keptCount=members.length-sell.length;
-  if(!sell.length) return {title:'整窝留种',subtitle:'本次出售 0 只',rows:[{title:'留下 '+keptCount+' 只动物',text:'确认后显示「种源」标签。'}],
-    actions:[...(keep.size?[{label:'确认留种',type:'care.keepLitter',args:decision}]:[]),{label:'修改选择',type:'ui.editSelection'}]};
-  const quote=businessPage(s,'saleQuote',{channel:'market',ids:sell},now);
-  quote.subtitle='留养 '+keptCount+' 只 · '+quote.subtitle;
-  quote.actions=quote.actions.map(action=>action.type==='sale.commit'?{...action,args:{...action.args,litterRetention:decision}}:action);
-  return quote;
+  return {title:'挑选留种',subtitle:'勾选要留作种源的动物。',selectionLabel:'留种',
+    rows:members.map(p=>({...petRow(s,p,now),...(!p.retained&&{select:p.id})})),empty:'这一窝当前没有可挑选的未繁育动物。',
+    actions:[{...act('留作种源','care.keepLitter',identity,undefined,'litter',identity),useSelection:true,disabled:!eligible.length}]};
 }
 function shelves(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
@@ -318,7 +330,7 @@ function shelves(s,a,now) {
     tabs:options(s,'shelf',species)};
 }
 function shelfRow(s,p,species,now) {
-  const animal=specimen(s,{...p,bornAt:now},now),price=purchasePrice(s,youngPurchaseBase(p));
+  const animal=specimen(s,{...p,bornAt:now},now,{inShop:false}),price=purchasePrice(s,youngPurchaseBase(p));
   return link(p.name+' · '+p.sex,animal.breed+' · '+animal.coat+' · '+price+' 金币',
     'offer',{species,id:p.id},{animal,art:animal.art,stage:animal.stage,visual:{price}});
 }
@@ -334,7 +346,7 @@ function labCatalog(s,args,now) {
     return {...page,rows:Object.keys(itemName).flatMap((item,i)=>menus.map(menu=>{
       const {label,type,args,confirm}=menu.actions[i];
       return {...menu.rows[i],title:SPECIES[args.species].name+'用'+menu.rows[i].title,
-        art:'shop-modules/'+(item==='review'?'research-review':'breeding-guide'),
+        ...(serviceItemUnit(item)==='张'&&{art:'shop-modules/'+(item==='review'?'research-review':'breeding-guide')}),
         action:{label,type,args,confirm,disabled:s.coins<args.price}};
     }))};
   }
@@ -353,22 +365,34 @@ function offerPage(s,a,now) {
   return {title:p.name+' · '+p.sex,subtitle:breedName(p)+' · '+coatName(p)+' · 幼年',art:petArt(p),stage:'幼年',
     rows:[{title:'采购报价',text:'基准 '+base+' · 实付 '+price+' 金币'},...offerOrderRows(s,p,now),
       {title:'估价有效条件',text:'按当前店铺评分、订单和幼体状态估算。成长、获奖或订单变化后，交付时会重新核价。'},
-      ...p.traits.map(t=>({title:t.type+' · '+t.grade,text:t.label+' · '+t.rarity}))],
+      ...p.traits.map((t,i)=>({title:t.type+' · '+t.grade,text:i===5?defectDisplayLabel(t.grade):t.label?t.label+' · '+t.rarity:'无特征标签'}))],
     actions:[act('购买幼体','care.buyPet',{species,id:p.id,batch:room.shelf.number,price},'支付 '+price+' 金币购买 '+p.name+'？','shelf',{species})]};
 }
+const serviceEffects = {
+  review:'随机改变 1 条标签的稀有度，可能降档。系统等概率选取已有标签，标签名字和属性等级不变。每只动物最多用 3 张。',
+  guide:'随机挑 1 项属性。父母等级不同时，每只幼崽有 80% 的机会从较高档起算，之后仍可能升档或降档。整窝显示绿色「优选」。',
+  single:'繁育前选 1 项属性，同窝随机一只保留双亲较高的等级，显示蓝色「优选」。',
+  double:'繁育前选 2 项不同属性，同窝随机一只的两项都保留双亲较高的等级，显示蓝色「优选」。',
+  reshape:'成年前才能用。55% 减轻一档，45% 加重一档，超过边界保留原档。每只最多用 3 份。',
+  antiAge:'每份只将老年期延长 1 天。活体可用，每只最多用 3 份。',
+};
 function services(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
   if(!room)return closedRoom(s,species,'services',now);
-  return {title:cfg.name+'用服务单',art:'shop-modules/lab',
-    rows:Object.keys(itemName).map(item=>{
-      const price=purchasePrice(s,cfg[item]);
-      const effect=item==='review'?'选一项特征重新抽标签。可能抽回原词或降稀有度，仍消耗一次，评分不变。每只动物最多用 3 张。':
-        '从前五项选一项父母评分不同的特征。每只幼体有 80% 的机会按高分起算。若比赛目标较低，可能更难匹配。';
-      return {title:itemName[item]+' · 持有 '+room.items[item]+' 张',
-        text:effect+'\n每张 '+price+' 金币'+(price===cfg[item]?'':'（原价 '+cfg[item]+' 金币）')};
-    }),
-    tabs:options(s,'services',species),actions:[...Object.keys(itemName).map(item=>{const price=purchasePrice(s,cfg[item]);return act('购买'+itemName[item],'care.buyItem',{species,item,price},
-      '购买一张'+cfg.name+'用'+itemName[item]+'？基准 '+cfg[item]+' 金币，实付 '+price+' 金币。','services',{species});}),
+  const list=Object.keys(itemName).map(item=>{
+    const price=serviceItemPrice(s,species,item),unit=serviceItemUnit(item);
+    const discounted=item==='review'&&price!==cfg.review;
+    const quote=item==='review'?'购买一张'+cfg.name+'用'+itemName[item]+'？基准 '+cfg.review+' 金币，实付 '+price+' 金币。':
+      '支付 '+price+' 金币，购买 1 '+unit+cfg.name+'用'+itemName[item]+'？';
+    return {
+      row:{title:itemName[item]+' · 持有 '+serviceItemStock(room,item)+' '+unit,
+        text:serviceEffects[item]+'\n每'+unit+' '+price+' 金币'+(discounted?'（原价 '+cfg.review+' 金币）':''),
+        visual:{unit}},
+      action:act('购买'+itemName[item],'care.buyItem',{species,item,price},quote,'services',{species}),
+    };
+  });
+  return {title:cfg.name+'用物品',art:'shop-modules/lab',rows:list.map(item=>item.row),
+    tabs:options(s,'services',species),actions:[...list.map(item=>item.action),
       go('选择动物复评','review',{species}),go('前往繁育台','breed',{species})]};
 }
 function review(s,a,now) {
@@ -377,12 +401,15 @@ function review(s,a,now) {
   const animals=s.pets.filter(p=>p.species===species&&stageOf(p,now)!=='已故'&&!isBusy(s,p)&&p.reviews<3);
   const p=animals.find(p=>p.id===a.id);
   if(!p) return {title:'选择复评动物',subtitle:SPECIES[species].name+'用复评单 '+room.items.review+' 张',
-    rows:animals.map(p=>petRow(s,p,now,'review',{species,id:p.id})),empty:'没有符合条件的动物。',actions:[go('购入服务单','lab',{tab:'services'})]};
-  return {title:p.name+' · 特征复评',art:petArt(p),stage:stageOf(p,now),subtitle:'剩余次数 '+(3-p.reviews)+' · 持有 '+room.items.review+' 张',
-    rows:[{title:'想换哪项特征？',text:'普通、少见、稀有的机会分别是 70%、20%、10%。新标签直接替换原标签，评分不变。即使同词或稀有度降低，也消耗一张单和一次额度，无法选回。'},
-      ...p.traits.slice(0,5).map((t,i)=>({title:t.type+' · '+t.label,text:t.rarity+' · '+t.grade,
-        ...(room.items.review?{action:{type:'care.review',args:{species,id:p.id,field:i},confirm:'给「'+p.name+'」重抽'+t.type+'标签「'+t.label+'」？同词或降档也消耗 1 张单和 1 次额度，无法选回。评分仍是 '+t.grade+'。',go:'pet',goArgs:{id:p.id}}}:{})}))],
-    actions:[go('购入服务单','lab',{tab:'services'}),go('查看档案','pet',{id:p.id})]};
+    rows:animals.map(p=>petRow(s,p,now,'review',{species,id:p.id})),empty:'没有符合条件的动物。',actions:[go('购买物品','lab',{tab:'services'})]};
+  const tags=getPetTags(p);
+  const warning='随机改变 1 条标签的稀有度，可能降档。';
+  return {title:'特征复评',art:petArt(p),stage:stageOf(p,now),subtitle:'剩余次数 '+(3-p.reviews)+' · 持有 '+room.items.review+' 张',
+    presentation:{kind:'review',animal:specimen(s,p,now),reviews:p.reviews,inventory:room.items.review},
+    rows:[{title:'当前特征标签',text:'由系统等概率随机选取 1 条已有标签，标签名字和属性等级不变。'},
+      {title:warning,text:'每次消耗 1 张特征复评单和 1 次额度，每只最多 3 次。'+(p.tagRulesVersion===2?'':'本只保留原有标签和已用次数，本次使用新复评规则。')}],
+    actions:[{...act('使用 1 张复评单','care.review',{species,id:p.id},'为「'+p.name+'」使用 1 张复评单？'+warning+'标签名字和属性等级不变，消耗 1 次额度，无法选回。','pet',{id:p.id}),disabled:!room.items.review||!tags.length},
+      go('购买物品','lab',{tab:'services'}),go('查看档案','pet',{id:p.id})]};
 }
 export function carePage(s,page,args={},now) {
   switch(page) {
@@ -395,6 +422,7 @@ export function carePage(s,page,args={},now) {
     case 'checkinReceipt': return checkinReceipt(s);
     case 'pet': return detail(s,args,now);
     case 'breed': return pairPage(s,args,now);
+    case 'breedItems': return breedingItems(s,args,now);
     case 'litter': return litter(s,args,now);
     case 'litterKeep': case 'litterSale': case 'openingLitterSale': case 'openingLitterQuote': return litterSelection(s,page,args,now);
     case 'shelf': return shelves(s,args,now);

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { getPetTags } from './animal-traits.mjs';
 import { initCare, careAction, carePage, stageOf } from './care.mjs';
 import { initBusiness, tickBusiness, businessHeartbeat, businessPage as view, businessAction as act,
   purchasePrice, youngPurchaseBase, salePrice, readyOrderId } from './business.mjs';
@@ -18,9 +19,10 @@ const quoted = (s, channel, ids, targetId, at = t0) =>
 test('订单区分缺项、占用及未持有的货架幼体，采购预计收入与实际成交一致', () => {
   const s = fresh(), [mother, father] = s.pets;
   const [offer] = s.rooms.rabbit.shelf.offers;
+  const offerTag=getPetTags(offer)[0];
   s.orders = [
     { order: { id:'first', species:'rabbit', breed:offer.breedKey, diff:1, rate:155 } },
-    { order: { id:'second', species:'rabbit', tag:offer.traits[0].label, diff:1, rate:155 } },
+    { order: { id:'second', species:'rabbit', tag:offerTag.label, tagId:offerTag.tagId, diff:1, rate:155 } },
     { order: null, readyAt:t0+min },
   ];
   // One matching animal is deceased, the other is reserved for breeding.
@@ -50,7 +52,7 @@ test('订单区分缺项、占用及未持有的货架幼体，采购预计收�
   assert.match(details().rows[0].title,/售出或换批/);
   s.rooms.rabbit.shelf.offers=[null,null];
   const noStock=view(s,'orderDesk',{id:'second'},t0);
-  assert.ok(noStock.rows.some(r=>r.title==='所需标签 · '+offer.traits[0].label));
+  assert.ok(noStock.rows.some(r=>r.title==='所需标签 · '+offerTag.label));
   assert.match(noStock.rows.find(r=>r.title==='本批货架').text,/没有.*下一批随机/);
 });
 
@@ -58,13 +60,15 @@ test('确认繁育显示选育方向，复评风险和采购报价仍按现行�
   const s=fresh(),[mother,father]=s.pets;
   mother.traits[0].grade='S';
   s.rooms.rabbit.items={guide:1,review:1};
-  const pair=carePage(s,'breed',{species:'rabbit',mother:mother.id,father:father.id,guide:0},t0);
-  assert.match(pair.actions.find(a=>a.type==='care.breed').confirm,/选育指导 幼体性格属性会更容易遗传自母本/);
+  const pair=carePage(s,'breed',{species:'rabbit',mother:mother.id,father:father.id,useGuide:true},t0);
+  assert.match(pair.actions.find(a=>a.type==='care.breed').confirm,/选育指导单抽中「.*」。.*整窝显示绿色/);
   const review=carePage(s,'review',{species:'rabbit',id:mother.id},t0);
   assert.equal(review.stage,'成年');
   assert.equal(carePage(s,'review',{species:'rabbit',id:mother.id},t0+3*24*60*min).stage,'老年');
-  assert.match(review.rows[0].text,/70%、20%、10%.*同词或稀有度降低.*无法选回/);
-  assert.match(review.rows[1].action.confirm,/降档也消耗.*无法选回/);
+  assert.match(review.rows[0].text,/等概率随机.*已有标签.*名字和属性等级不变/);
+  const reviewAction=review.actions.find(a=>a.type==='care.review');
+  assert.deepEqual(reviewAction.args,{species:'rabbit',id:mother.id});
+  assert.match(reviewAction.confirm,/可能降档.*消耗 1 次额度.*无法选回/);
   s.coins=6000;
   careAction(s,'care.unlock',{species:'cat',price:6000},t0);
   s.ratingBps=10000;
@@ -174,7 +178,7 @@ test('市场两个入口按物种和成长状态筛选，并保留禁售原因�
         assert.equal(row.link.page,'pet');
         assert.equal(row.visual.number,p.id.slice(0,5).toUpperCase());
         if(s.rooms[p.species]){
-          const {stageEndsAt,...roomAnimal}=carePage(s,'rooms',{species:p.species},t0).rows.find(r=>r.animal?.id===p.id).animal;
+          const roomAnimal=carePage(s,'rooms',{species:p.species},t0).rows.find(r=>r.animal?.id===p.id).animal;
           assert.deepEqual(row.animal,roomAnimal);
         }
         if(saleable.includes(p)) {
@@ -285,7 +289,7 @@ test('种源不进入任何交易，报价后留种整笔拒绝；取消留种�
     let targetId;
     if(channel==='order')targetId=s.orders[0].order.id;
     if(channel==='guest'){
-      for(const p of s.pets)p.traits[0]={...p.traits[0],label:'温顺',grade:'A'};
+      for(const p of s.pets)p.traits[0]={...p.traits[0],label:'温顺',rarity:'普通',grade:'A'};
       targetId='regular-guest';
       s.visitors.active={id:targetId,endsAt:t0+min,requirement:{species:'rabbit',breed:'angora',stage:'成年',dimension:0,tag:'温顺',rarity:'普通'}};
     }
@@ -424,7 +428,8 @@ test('来客仅计相邻前台心跳区间，多设备取并集；第三次命�
   assert.equal(s.visitors.elapsed, 30000);
   beat('a', 40_000, false); beat('b', 70_000); beat('a', 75_000);
   assert.equal(s.visitors.elapsed, 30000);
-  s.pets[0].traits[0].grade = 'A';
+  const trait = s.pets[0].traits[0];
+  Object.assign(trait, { label: '温顺', tagId: 'temperament:gentle', rarity: '普通', grade: 'A' });
   s.visitors.elapsed = 10 * min - 5000;
   s.visitors.misses = 2;
   beat('a', 80_000);

@@ -1,5 +1,6 @@
 import { readLegacyShop } from './legacy.js';
 import { bindLoginMusic } from './__PETSHOP_LOGIN_MUSIC_MODULE__';
+import { playOpening } from './__PETSHOP_OPENING_MODULE__';
 
 const byId = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -19,7 +20,11 @@ const passwordInput = byId('password');
 const submit = byId('submit');
 const codeInput = byId('setup-code');
 const proofChoice = byId('use-legacy-proof');
-const setLoginMusicActive = bindLoginMusic();
+const accountLayer = byId('account-layer');
+const ledger = accountLayer.querySelector('.ledger');
+let completeLogin;
+let setLoginMusicActive;
+let accountReady;
 const submitText = setup ? '设置密码并登录' : register ? '注册并开店' : '登录店铺';
 
 function statusError(message) {
@@ -101,22 +106,17 @@ async function refreshGameMain() {
   try { localStorage.setItem(key,mainVersion); } catch {}
 }
 
-async function launch(token) {
+async function enterShop(token) {
   const shop = await api('shop', undefined, token);
   if (shop.protocol !== 1 || !shop.profileId) throw Error('未能读取这个账号的店铺。');
   history.replaceState(null, '', entry);
-  await refreshGameMain();
   connectGame(token);
-  for (const tag of document.querySelectorAll('[data-game-script]')) await loadScript(tag.dataset.gameScript);
   setLoginMusicActive(false);
-  document.querySelector('.ledger').hidden = true;
-  byId('GameDiv').hidden = false;
+  accountLayer.hidden = true;
   const viewport = document.querySelector('meta[name=viewport]');
   if (viewport?.dataset.gameContent) viewport.content = viewport.dataset.gameContent;
-  byId('login-style').disabled = true;
-  byId('game-style').media = 'all';
-  document.title = '麦穗宠物店 · 外网试玩';
-  await window.System.import(gameEntry);
+  document.title = '麦穗宠物店';
+  completeLogin();
 }
 
 async function showAccountForm() {
@@ -147,6 +147,34 @@ async function showAccountForm() {
     } catch { statusError('暂时无法读取浏览器里的旧店，请刷新重试。'); }
   }
   byId('anonymous').hidden = false;
+}
+
+window.petshopBeforeShop = showEntry => {
+  if (accountReady) return accountReady;
+  accountReady = new Promise(resolve => { completeLogin = resolve; });
+  accountLayer.hidden = false;
+  setLoginMusicActive = bindLoginMusic({autoplay:true});
+  if (!setup && !register && !params.has('login')) {
+    playOpening(byId('login-opening').content.firstElementChild.cloneNode(true), ledger);
+  }
+  void showAccountForm().catch(error => statusError(error.message)).finally(() => { byId('loading').hidden = true; });
+  showEntry();
+  return accountReady;
+};
+
+async function bootGame() {
+  await refreshGameMain();
+  for (const tag of document.querySelectorAll('[data-game-script]')) await loadScript(tag.dataset.gameScript);
+  await window.System.import(gameEntry);
+}
+
+function bootFailed() {
+  byId('GameDiv').hidden = true;
+  accountLayer.hidden = false;
+  byId('loading').hidden = true;
+  statusError('加载失败，请重试。');
+  byId('retry').textContent = '重新载入';
+  byId('retry').hidden = false;
 }
 
 function legacyProof(snapshot) {
@@ -211,18 +239,13 @@ form.addEventListener('submit', async event => {
     if (!account.token || !account.username) throw Error('未能取得该店主的登录信息。');
     try { localStorage.setItem(nameKey, account.username); } catch {}
     submit.textContent = '正在打开店铺…';
-    await launch(account.token);
+    await enterShop(account.token);
     passwordInput.value = '';
     codeInput.value = '';
   } catch (error) {
     statusError(error instanceof TypeError || error instanceof SyntaxError ? '暂时连不上店铺，请稍后再试。' : error.message);
     if (account?.token) {
       passwordInput.value = '';
-      byId('game-style').media = 'not all';
-      byId('login-style').disabled = false;
-      byId('GameDiv').hidden = true;
-      document.querySelector('.ledger').hidden = false;
-      setLoginMusicActive(true);
       byId('anonymous').hidden = true;
       byId('heading').textContent = '重新打开店铺';
       byId('retry').textContent = '返回登录';
@@ -238,4 +261,4 @@ form.addEventListener('submit', async event => {
 
 byId('retry').addEventListener('click', () => location.replace(entry));
 window.addEventListener('pageshow', event => { if (event.persisted) location.replace(entry); });
-showAccountForm().catch(error => statusError(error.message)).finally(() => { byId('loading').hidden = true; });
+bootGame().catch(bootFailed);

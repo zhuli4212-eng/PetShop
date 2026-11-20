@@ -120,7 +120,7 @@ def rise(mother, father, guided, level):
     weight = (0.8 if m>f else 0.2) if guided else 0.5
 
     def chance(base, reference):
-        result = [18,18,18,18,10,6,0][base]
+        result = [18,18,18,18,7,3,0][base]
         if reference < base-1:
             result = min(result,3)
         return result*(1+0.03*level)
@@ -140,6 +140,9 @@ class Touch:
         target = {"node":node,"text":text,"scope":scope}
         self.wait("t=>!!pairQA.measure(t)",target)
         for _ in range(12):
+            # Record the position at a settled tap, after any drag inertia.
+            self.wait("""()=> (pairQA.find('DeskPage')?.getComponentsInChildren('cc.ScrollView')||[])
+                .every(s=>!s.isScrolling()&&!s.isAutoScrolling())""")
             v = self.page.evaluate("t=>pairQA.measure(t)",target)
             x,y,clip = v["x"],v["y"],v["clip"]
             assert clip["left"]<=x<=clip["right"],(target,v)
@@ -163,15 +166,20 @@ class Touch:
     def kind(self, kind):
         self.wait("k=>pairQA.ready() && pairQA.visit().data.presentation?.kind===k",kind)
 
-    def guide_options(self):
-        self.tap("ChooseGuide")
-        self.wait("()=>!!pairQA.find('FilterMenu')")
-        return self.page.evaluate("""()=>pairQA.find('Options',pairQA.find('FilterMenu')).children.map(n=>({
-            name:n.getChildByName('Caption').getComponent(cc.Label).string,selected:!!n.getChildByName('Mark')}))""")
-
-    def choose_guide(self, index):
-        self.tap("Option"+str(index),scope="FilterMenu")
-        self.wait("()=>!pairQA.find('FilterMenu') && pairQA.ready()")
+    def choose_guide(self, enabled, available):
+        self.tap("AddItems",scope="DeskPage")
+        self.wait("()=>pairQA.ready()&&pairQA.visit().key==='breedItems'")
+        row=self.page.evaluate("pairQA.visit().data.rows[0]")
+        assert "选育指导单" in row["title"] and bool(row.get("link")) == available,row
+        assert len(self.page.evaluate("pairQA.visit().data.rows"))==3
+        if row["title"].startswith("✓ ") != enabled:
+            self.tap(text=row["title"],scope="DeskPage")
+            self.wait("on=>pairQA.ready()&&pairQA.visit().data.rows[0].title.startsWith('✓ ')===on",enabled)
+        self.tap(text="完成",scope="DeskPage")
+        self.kind("pairConfirm")
+        index=self.page.evaluate("pairQA.visit().data.presentation.guide.index")
+        assert (0<=index<5) if enabled else index==-1,index
+        return index
 
 
 def check_dialog(page, settings, selected, enabled):
@@ -336,30 +344,15 @@ def verify(browser, web, width, output, motion=False):
                 if width==390 and species=="rabbit" and output:
                     touch.wait("()=>!pairQA.find('Feedback')")
                     page.screenshot(path=str(output/"核对亲本双栏-390.png"))
-                different = [i for i,(m,f) in enumerate(zip(*sample["grades"])) if i<len(FIELDS) and m!=f] if initial else []
-                labels = ["不使用指导单",*["指导"+FIELDS[i] for i in different]]
-                def options(active):
-                    shown=touch.guide_options()
-                    assert [r["name"] for r in shown]==labels,shown
-                    assert [r["name"] for r in shown if r["selected"]]==[active],shown
-
-                def choose(item):
-                    touch.choose_guide(item)
-                    value = different[item-1] if item else -1
-                    touch.wait("i=>pairQA.ready() && pairQA.visit().data.presentation?.guide?.index===i",value)
+                selected = touch.choose_guide(False, bool(initial))
+                if initial:
+                    first_draw=touch.choose_guide(True,True)
+                    check_birth_rates(page,sample["expected"])
                     assert room_state(species)["items"]["guide"]==initial
-                    return value
-
-                options(labels[0])
-                selected = choose(0)
-                if different:
-                    current = 0
-                    for item in (1,len(different),0,1):
-                        options(labels[current])
-                        selected = choose(item)
-                        check_birth_rates(page,sample["expected"])
-                        current = item
-                assert "撤下指导单" not in page.evaluate("()=>pairQA.texts(pairQA.find('DeskPage'))")
+                    assert touch.choose_guide(False,True)==-1
+                    selected=touch.choose_guide(True,True)
+                    assert selected==first_draw
+                assert room_state(species)["items"]["guide"]==initial
                 enabled=True
                 if species=="dog":
                     if page.evaluate("()=>!!pairQA.find('Next',pairQA.find('DeskPage'))"):
@@ -402,7 +395,7 @@ def verify(browser, web, width, output, motion=False):
                 touch.tap(text="开始繁育",scope="DeskPage")
                 touch.wait("()=>!!pairQA.find('Confirm')")
                 question=page.evaluate("()=>pairQA.texts(pairQA.find('Confirm')).join(' ')")
-                assert ("选育指导 幼体" in question)==(selected>=0),question
+                assert ("选育指导单抽中" in question)==(selected>=0),question
                 assert "后代品种" in question,question
                 touch.tap("Cancel",scope="Confirm")
                 touch.wait("()=>!pairQA.find('Confirm')")
@@ -427,11 +420,14 @@ def verify(browser, web, width, output, motion=False):
             touch.kind("litter")
             litter=room_state("rabbit")["lastLitter"]
             assert len(litter["ids"])==5,litter
+            subtitle=page.evaluate("pairQA.visit().data.subtitle")
+            assert subtitle==f"父本·{litter['father']}  母本·{litter['mother']} | 共5只宝宝",subtitle
+            assert page.evaluate("pairQA.visit().data.rows.filter(r=>!r.litterMember&&!r.animal).length")==1
             for from_room in [False,True]:
                 if from_room:
-                    touch.tap(text="查看最近一窝",scope="DeskPage")
-                    touch.kind("litter")
-                    touch.tap(text="前往动物房间",scope="DeskPage")
+                    assert not page.evaluate("pairQA.visit().data.actions.some(a=>a.page==='litter')")
+                    page.evaluate("""()=>cc.director.getScene().getChildByName('Canvas')
+                        .getComponent('ShopMain').session.open('rooms',{species:'rabbit'})""")
                     touch.kind("rooms")
                     touch.tap(text="最近出生的一窝",scope="DeskPage")
                     touch.kind("litter")
@@ -465,6 +461,20 @@ def verify(browser, web, width, output, motion=False):
                 touch.tap("Back",scope="DeskPage")
                 touch.kind("rooms" if from_room else "pair")
                 assert page.evaluate("(pairQA.visit().args.species||'rabbit')")=="rabbit"
+            touch.tap(text="最近出生的一窝",scope="DeskPage")
+            touch.kind("litter")
+            touch.tap(text="挑选留种",scope="DeskPage")
+            touch.wait("()=>pairQA.ready()&&pairQA.visit().key==='litterKeep'")
+            before=json.loads((Path(directory)/"shop.json").read_text(encoding="utf-8"))
+            touch.tap("Animal4",scope="DeskPage")
+            touch.tap(text="留作种源",scope="DeskPage")
+            touch.kind("litter")
+            after=json.loads((Path(directory)/"shop.json").read_text(encoding="utf-8"))
+            assert after["coins"]==before["coins"] and after["sales"]==before["sales"]
+            assert [p["id"] for p in after["pets"]]==[p["id"] for p in before["pets"]]
+            assert next(p for p in after["pets"] if p["id"]==litter["ids"][4])["retained"]
+            touch.tap("Back",scope="DeskPage")
+            touch.kind("rooms")
             # Create a genuine departure in this disposable shop, leaving the fifth kit in residence.
             sold=litter["ids"][2]
             response=page.request.post(url+"/api/page",data={"page":"saleQuote",
@@ -491,7 +501,7 @@ def verify(browser, web, width, output, motion=False):
             touch.kind("litter")
             assert abs(page.evaluate("pairQA.offset()")-offset)<2
             assert not errors,errors
-            print(f"{width}px: three rooms, guide options, five mutation chances, defect and perfect rates, settlement and both litter return routes passed.",flush=True)
+            print(f"{width}px: three rooms, add-items modal, fixed system draw, five mutation chances, defect and perfect rates, settlement and both litter return routes passed.",flush=True)
         finally:
             page.close()
             process.terminate()

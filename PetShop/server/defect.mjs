@@ -1,6 +1,6 @@
 export const GRADES = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'];
 
-const defectLabels = ['明显缺陷', '轻微缺陷', '轻微缺陷', '无明显缺陷', '无明显缺陷', '完美无缺', '完美无缺'];
+const defectLabels = ['严重缺陷', '明显缺陷', '轻微缺陷', '基本健全', '状态良好', '接近完美', '完美无缺'];
 const traitWeights = [15, 20, 15, 25, 25]; // 性格、品相、毛发、体态、体型
 const perfectByGrade = [1, 2, 3, 5, 10, 18, 30];
 const gapTable = [
@@ -9,8 +9,9 @@ const gapTable = [
   {gap: 6, e: 24, d: 27, c: 29, a: 2, match: 0.2},
 ];
 
+export const defectDisplayLabel = grade => defectLabels[GRADES.indexOf(grade)];
 export function defectTrait(grade) {
-  return {type: '缺陷', label: defectLabels[GRADES.indexOf(grade)], rarity: '普通', grade};
+  return {type: '缺陷', label: defectDisplayLabel(grade), rarity: '普通', grade};
 }
 
 // All rates are percentages. Both preview and litter settlement read the same distribution.
