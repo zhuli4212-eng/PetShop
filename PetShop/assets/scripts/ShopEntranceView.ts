@@ -1,7 +1,7 @@
 import { setTextStyle, setTextWeight } from './ShopTypography';
-import { BlockInputEvents, Color, Graphics, Mask, Node, ScrollView, UITransform, Vec2 } from 'cc';
+import { BlockInputEvents, Color, Mask, Node, ScrollView, Sprite, UITransform, Vec2 } from 'cc';
 import type { Args, Choice, GuideCue, LedgerPage, LedgerRow } from './ShopConnection';
-import { animalCardWidth, animalDetails, animalSummary, animalSummaryHeight, box, caption, frame, heading, lines, paper, picture, press, rect, tap, type LedgerUI, type PageCanvas } from './LedgerCanvas';
+import { animalCardWidth, animalDetails, animalSummary, animalSummaryHeight, box, caption, flatSpriteFrame, frame, heading, lines, paper, paperGrain, picture, press, solidDisc, solidRect, tap, type LedgerUI, type PageCanvas } from './LedgerCanvas';
 import { drawRoom } from './RoomPresentation';
 import { drawBusiness, nutritionStore } from './BusinessPresentation';
 import { guideDialog, guideEntrance, guideNote, guideTarget, revealGuideTarget, showGuideSpotlight } from './TutorialPresentation';
@@ -13,12 +13,11 @@ export const ledgerModal = (key: string): boolean =>
 function drawHeader(parent: Node, width: number, height: number, title: string, coins: number, back: () => void, modal: boolean, toTasks=false, fixed=false): void {
     const h = modal ? 54 : 64;
     const n = box(parent,'Header',0,(height-h)/2,width,h,modal ? '#34594C' : paper.green);
-    const g = n.getComponent(Graphics)!;
     if (!modal) {
-        rect(g,-width/2,h/2-2,width,2,'#6F8E6C');
-        rect(g,-width/2,-h/2+3,width,2,'#88A075');
+        solidRect(n,-width/2,h/2-2,width,2,'#6F8E6C');
+        solidRect(n,-width/2,-h/2+3,width,2,'#88A075');
     }
-    rect(g,-width/2,-h/2,width,modal ? 2 : 3,'#6D4C32');
+    solidRect(n,-width/2,-h/2,width,modal ? 2 : 3,'#6D4C32');
     if (modal) {
         const inset = 14;
         setTextStyle(heading(n,'Title',title,fixed?0:-width/2+inset+(width-90)/2,1,fixed?width-30:width-90,h-8,20,paper.cream),'contentTitle').color=new Color().fromHEX('#FFE3A1');
@@ -28,10 +27,9 @@ function drawHeader(parent: Node, width: number, height: number, title: string, 
         const hit=box(close,'Touch',0,0,50,48);tap(hit,back);
     } else {
         const backNode=box(n,'Back',-width/2+35,3,60,48);
-        const arrow=backNode.addComponent(Graphics);
         for (let i=0;i<5;i++) {
-            rect(arrow,-20+i*1.4,-1+i*1.4,3,2.5,'#FFF0BD');
-            rect(arrow,-20+i*1.4,-1-i*1.4,3,2.5,'#FFF0BD');
+            solidRect(backNode,-20+i*1.4,-1+i*1.4,3,2.5,'#FFF0BD');
+            solidRect(backNode,-20+i*1.4,-1-i*1.4,3,2.5,'#FFF0BD');
         }
         setTextWeight(caption(backNode,'Caption',toTasks?'回任务':'返回',toTasks?9:5,0,toTasks?43:34,40,toTasks?13:14,'#FFF0BD',true),true);
         tap(backNode,back);
@@ -40,14 +38,6 @@ function drawHeader(parent: Node, width: number, height: number, title: string, 
         setTextWeight(caption(wallet,'Value','金币 '+coins,0,0,balanceWidth-6,25,14,'#FFE4A4',true),true);
         setTextStyle(heading(n,'Title',title,0,3,Math.max(92,width-2*(balanceWidth+13)),50,22,paper.cream,true),'pageTitle');
     }
-}
-
-function paperGrain(parent: Node, width: number, height: number): void {
-    const n=box(parent,'Paper',0,0,width,height,paper.page);
-    const g=n.getComponent(Graphics)!;
-    g.fillColor=new Color(117,75,34,5);
-    for(let y=-height/2; y<height/2; y+=4)g.rect(-width/2,y,width,1);
-    g.fill();
 }
 
 function canvas(content: Node, width: number, key: string, args: Args, p: LedgerPage, ui: LedgerUI, modal: boolean) {
@@ -201,9 +191,8 @@ function taskList(c:PageCanvas):boolean {
         if(item.art)picture(rewards,'RewardArt'+i,item.art,x,0,27,35);
         else {
             const coin=box(rewards,'RewardCoin',x,0,23,23);
-            const g=coin.addComponent(Graphics);
-            rect(g,-12,-8,24,16,'#865528');rect(g,-8,-12,16,24,'#865528');
-            rect(g,-10,-7,20,14,'#D5A447');rect(g,-7,-10,14,20,'#D5A447');
+            solidRect(coin,-12,-8,24,16,'#865528');solidRect(coin,-8,-12,16,24,'#865528');
+            solidRect(coin,-10,-7,20,14,'#D5A447');solidRect(coin,-7,-10,14,20,'#D5A447');
             setTextWeight(caption(coin,'Glyph','金',0,0,19,18,12,'#57351C',true),true);
         }
         const contentW=width-49;
@@ -233,12 +222,10 @@ function nutrition(c:PageCanvas):boolean {
             const entry=frame(c.body,'NutritionRow'+i,0,c.slot(h,7),w,h,
                 v.selected?'#E0E8CE':paper.card,v.selected?'#75916A':paper.brass,false);
             tap(entry,()=>c.ui.choose(v.pick));
-            const radio=box(entry,'Radio',-w/2+15,0,15,15).addComponent(Graphics);
-            radio.fillColor=new Color().fromHEX(v.selected?'#436952':'#FFF9E9');
-            radio.circle(0,0,6);radio.fill();
-            radio.strokeColor=new Color().fromHEX(v.selected?'#234D3C':'#AA9470');
-            radio.lineWidth=1.4;radio.circle(0,0,6);radio.stroke();
-            if(v.selected){radio.fillColor=new Color().fromHEX('#F8EBC8');radio.circle(0,0,2.1);radio.fill();}
+            const radio=box(entry,'Radio',-w/2+15,0,15,15);
+            solidDisc(radio,13.4,v.selected?'#234D3C':'#AA9470');
+            solidDisc(radio,10.6,v.selected?'#436952':'#FFF9E9');
+            if(v.selected)solidDisc(radio,4.2,'#F8EBC8');
             if(r.art)picture(entry,'MealArt',r.art,-w/2+43,0,29,39);
             const left=-w/2+65, labelWidth=w-138;
             heading(entry,'MealName',r.title,left+labelWidth/2,11,labelWidth,21,15,paper.green);
@@ -306,7 +293,7 @@ function generic(ctx:PageCanvas):void {
     }
 }
 
-interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;backToTasks?:boolean;playEntrance?:boolean;suppressGuide?:boolean;guideMode?:boolean;}
+interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;slowRead?:boolean;backdrop?:boolean;backToTasks?:boolean;playEntrance?:boolean;suppressGuide?:boolean;guideMode?:boolean;}
 
 // Keep explanatory cards whole when they do not fit, while animal and transaction lists can scroll.
 function paginateDetails(content:Node,sheet:Node,ui:LedgerUI,width:number,top:number,height:number):boolean {
@@ -364,7 +351,10 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     veil?.addComponent(BlockInputEvents);
     const sheet=box(parent,opts.backdrop?'UnderlyingPage':'DeskPage',0,0,width,maxHeight);
     const viewport=box(sheet,'Viewport',0,0,width,1);
-    viewport.addComponent(Mask);
+    const mask=viewport.addComponent(Mask);
+    mask.type=Mask.Type.SPRITE_STENCIL;
+    viewport.getComponent(Sprite)!.sizeMode=Sprite.SizeMode.CUSTOM;
+    mask.spriteFrame=flatSpriteFrame();
     const scroll=viewport.addComponent(ScrollView);
     scroll.horizontal=false;scroll.vertical=true;scroll.elastic=false;
     const content=box(viewport,'Content',0,0,width,1);
@@ -372,7 +362,8 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     area.setAnchorPoint(.5,1);scroll.content=content;
     const layout=canvas(content,width,key,args,p,ui,modal);
     const ctx=layout.ctx;
-    if(opts.offline)press(content,'Retry','离线 · 重新连接',0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
+    if(opts.offline||opts.slowRead)press(content,'Retry',opts.offline?'离线 · 重新连接':'连接较慢 · 重新连接',
+        0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
     if(opts.pending)ctx.row({title:'有一笔操作等待确认',text:'查询原请求回执',action:{type:'ui.receipt'}},-1);
     if(opts.ready===false || !(openingBooklet(ctx,maxHeight-headerHeight)||guideDialog(ctx)||taskList(ctx)||nutrition(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
     if(p.guide?.next){
@@ -419,8 +410,9 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
         vh-=48;listHeight=vh;
     }
     sheet.getComponent(UITransform)!.setContentSize(width,actualHeight);
-    paperGrain(sheet,width,actualHeight);
-    sheet.getChildByName('Paper')!.setSiblingIndex(0);
+    const background=box(sheet,'Paper',0,0,width,actualHeight,paper.page);
+    paperGrain(box(background,'Grain',0,0,width,actualHeight));
+    background.setSiblingIndex(0);
     viewport.getComponent(UITransform)!.setContentSize(width,vh);
     viewport.setPosition(0,top-fixedHeight-vh/2);
     content.setPosition(0,vh/2);
@@ -431,8 +423,11 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     const title=(opts.ready!==false&&titles[key])||(key==='breed'&&p.title==='繁育台'?'繁育':p.title);
     drawHeader(sheet,width,actualHeight,title,coins,ui.back,modal,opts.backToTasks,p.visual?.guideDialog!==undefined);
     if(modal) {
-        const g=sheet.addComponent(Graphics);g.lineWidth=3;g.strokeColor=new Color().fromHEX('#745437');
-        g.rect(-width/2+1.5,-actualHeight/2+1.5,width-3,actualHeight-3);g.stroke();
+        const edge='#745437',halfW=width/2,halfH=actualHeight/2;
+        solidRect(sheet,-halfW,-halfH,width,3,edge);
+        solidRect(sheet,-halfW,halfH-3,width,3,edge);
+        solidRect(sheet,-halfW,-halfH+3,3,actualHeight-6,edge);
+        solidRect(sheet,halfW-3,-halfH+3,3,actualHeight-6,edge);
     }
     scroll.scrollToOffset(new Vec2(0,Math.max(0,Math.min(ui.offset,listHeight-vh))),0);
     const canGuide=!opts.backdrop&&!opts.suppressGuide;
@@ -446,8 +441,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
         revealGuideTarget(target,scroll);
         showGuideSpotlight(parent,target,selected?guide.selectedText:guide.text,modal,guideTarget(sheet,'OpenedLetter'));
     }else if(veil){
-        const g=veil.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);
-        g.rect(-bounds.width/2,-height/2,bounds.width,height);g.fill();
+        box(veil,'Dim',0,0,bounds.width,height,'#1A2B23A4');
     }
     if(opts.playEntrance)guideEntrance(sheet);
     return scroll;
@@ -460,7 +454,7 @@ export function drawConnection(parent:Node,height:number,failed:boolean,retry:()
     const width=Math.min(340,w-26);
     const sign=frame(sheet,'Sign',0,10,width,failed?192:105,paper.page);
     heading(sign,'Title','宠物店',0,failed?53:17,width-24,39,23,paper.green,true);
-    caption(sign,'Status',failed?'店铺服务器未连接，请检查服务后重试。':'正在打开经营账簿…',0,failed?8:-20,width-24,40,15,paper.ink,true);
+    caption(sign,'Status',failed?'店铺连接中断，网络恢复后会自动重连。':'正在打开经营账簿…',0,failed?8:-20,width-24,40,15,paper.ink,true);
     if(failed){
         const button=press(sign,'Retry','重新连接',0,-52,150,retry,true);
         if(guide)showGuideSpotlight(parent,button,'重新连接后，继续当前引导。');
@@ -471,10 +465,7 @@ export function confirmBox(parent:Node,title:string,onYes:()=>void,onNo:()=>void
     const bounds=parent.getComponent(UITransform)!;
     const overlay=box(parent,'Confirm',0,0,bounds.width,bounds.height);
     overlay.addComponent(BlockInputEvents);
-    if(!guide){
-        const g=overlay.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);
-        g.rect(-bounds.width/2,-bounds.height/2,bounds.width,bounds.height);g.fill();
-    }
+    if(!guide)box(overlay,'Dim',0,0,bounds.width,bounds.height,'#1A2B23A4');
     const w=Math.min(356,bounds.width-24), inner=w-28;
     const h=Math.max(152,Math.min(bounds.height-24,lines(title,inner,15)*22+105));
     const panel=frame(overlay,'ConfirmPanel',0,0,w,h,paper.card,'#866846',true);
@@ -488,10 +479,8 @@ export function confirmBox(parent:Node,title:string,onYes:()=>void,onNo:()=>void
 
 export function guestArrival(parent:Node,open:()=>void,later:()=>void):Node {
     const {width,height}=parent.getComponent(UITransform)!;
-    const overlay=box(parent,'GuestArrival',0,0,width,height);
+    const overlay=box(parent,'GuestArrival',0,0,width,height,'#1A2B23A4');
     overlay.addComponent(BlockInputEvents);
-    const g=overlay.addComponent(Graphics);g.fillColor=new Color(26,43,35,164);
-    g.rect(-width/2,-height/2,width,height);g.fill();
     const w=Math.min(356,width-24);
     const panel=frame(overlay,'GuestPanel',0,0,w,162,paper.card,'#866846',true);
     heading(panel,'Title','特殊来客',0,48,w-28,34,21,paper.green);

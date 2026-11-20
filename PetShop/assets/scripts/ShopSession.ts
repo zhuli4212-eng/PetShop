@@ -1,5 +1,5 @@
 import { Label, Node, ScrollView, sys, UITransform, Vec2 } from 'cc';
-import { api, connectShop, requestId, ServerError, type Args, type Choice, type Command, type LedgerPage, type ShopSnapshot, type ShopLetter } from './ShopConnection';
+import { api, connectShop, requestId, ServerError, startShopRead, type Args, type Choice, type Command, type LedgerPage, type ShopSnapshot, type ShopLetter, type ShopRead } from './ShopConnection';
 import { drawLedger, confirmBox, ledgerModal } from './ShopEntranceView';
 import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
 import { accessFeature, featureFor, GameBrowserBack } from './ShopNavigation';
@@ -9,6 +9,7 @@ import type { AudioSetting, ShopAudio } from './ShopAudio';
 
 interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; expandedAnimal?:string; roomAnchor?:{id:string;delta:number}; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
+interface PageRead extends ShopRead<PageResponse> { retryAt:number; slow:boolean; }
 interface ResponseReceipt { message:string; requestId:string; }
 interface StageClock {label:Label;endsAt:number;shown:string;prefix?:string;progress?:(seconds:number)=>void;}
 interface Host {
@@ -74,8 +75,10 @@ export class ShopSession {
     private dropdown:Node|null=null;
     private serial=0;
     private busy=false;
+    private recovery?:Promise<string>;
     private receiptRoute?:{id:string;apply:()=>void|Promise<void>};
     private reading=false;
+    private pageRead?:PageRead;
     private online=true;
     private paymentStage='start';
     private closed=false;
@@ -119,7 +122,23 @@ export class ShopSession {
         this.dropdown=filterMenu(this.host.layer,fields,index,()=>this.closeFilter(),
             next=>this.showFilter(fields,next),option=>this.choose(option));
     }
-    dispose():void{this.browser.dispose();this.closeFilter();this.closed=true;this.serial++;}
+    dispose():void{this.browser.dispose();this.closeFilter();this.closed=true;this.cancelRead();}
+    private cancelRead():void {
+        this.serial++;
+        this.reading=false;
+        this.pageRead?.stop();
+        this.pageRead=undefined;
+    }
+    checkPageRead():void {
+        const read=this.pageRead;
+        if(!read)return;
+        const now=Date.now();
+        if(now>=read.expiresAt){read.stop();return;}
+        if(!read.slow&&now>=read.retryAt){
+            read.slow=true;
+            this.render();
+        }
+    }
     async open(key:string,args:Args={}):Promise<void>{
         if(this.closed||this.confirm)return;
         const rule=this.host.wallet().featureAccess?.[accessFeature(key,args)];
@@ -205,7 +224,7 @@ export class ShopSession {
     }
     private toHome():void {
         this.closeFilter();
-        this.navigation++;this.serial++;this.reading=false;
+        this.navigation++;this.cancelRead();
         this.closePanel();
         this.feature=undefined;this.taskReturn=undefined;this.bonusVisit=undefined;
         this.renderedVisit=undefined;this.scroll=null;
@@ -221,7 +240,7 @@ export class ShopSession {
             this.confirm=undefined;this.render(false);return;
         }
         if(!this.feature)return;
-        this.remember();this.navigation++;this.serial++;this.reading=false;
+        this.remember();this.navigation++;this.cancelRead();
         if(!this.confirm&&this.panel?.returnPanel){
             this.panel=this.panel.returnPanel;this.editDraft=undefined;
         }else if(this.confirm||this.panel)this.closePanel();
@@ -290,12 +309,35 @@ export class ShopSession {
     }
     private async read(quiet=false):Promise<void>{
         const visit=this.current;if(!visit||this.closed)return;
-        const serial=++this.serial;this.reading=true;
-        if(!quiet) {if(!visit.data)visit.data={title:'店铺',rows:[{title:'正在翻开账簿…'}]};this.render();}
+        const firstRead=visit.version===undefined;
+        const section=accessFeature(visit.key,visit.args);
+        const featureName=this.host.wallet().featureAccess?.[section]?.name;
+        const title=firstRead?featureName||'店铺':visit.data?.title||featureName||'店铺';
+        this.cancelRead();
+        const serial=this.serial;this.reading=true;
         try {
+            if(!quiet) {
+                if(firstRead&&!visit.data)visit.data={title,rows:[{title:'正在打开'+(featureName||'页面')+'…'}]};
+                this.render();
+            }
             if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
             if(visit.key==='audioSettings'){this.showAudioSettings(visit);return;}
-            const result=await api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
+            const retryAt=firstRead&&!quiet?Date.now()+4000:Infinity;
+            const fetchPage=()=>{
+                const request=startShopRead(signal=>api<PageResponse>(this.host.origin,'page',{
+                    page:visit.key,args:visit.args,
+                },signal));
+                return this.pageRead={...request,retryAt,slow:this.pageRead?.slow??false};
+            };
+            let request=fetchPage();
+            let result:PageResponse;
+            try{result=await request.result;}
+            catch(error){
+                if(!firstRead||quiet||!(error instanceof ServerError)||![0,502,503,504].includes(error.status))throw error;
+                if(this.closed||serial!==this.serial)return;
+                request=fetchPage();
+                result=await request.result;
+            }
             if(this.closed||serial!==this.serial)return;
             // The server holds only the latest litter. A dossier opened from an older
             // one returns to that litter's cached birth record until the player leaves.
@@ -308,7 +350,9 @@ export class ShopSession {
             // A delayed response gives an older lower bound for the server clock.
             const offset=result.shop.now-clockMs();
             visit.serverClockOffset=Math.max(visit.serverClockOffset??offset,offset);
-            if(!quiet)await prepareIllustration(visit.key,visit.args,result.page);
+            if(!quiet&&visit.key!=='rooms'){
+                await Promise.race([request.deadline,prepareIllustration(visit.key,visit.args,result.page)]).catch(()=>{});
+            }
             if(this.closed||serial!==this.serial||(quiet&&this.dropdown))return;
             updateSaleNotice(visit,result.page);
             const redraw=!quiet||!this.online||JSON.stringify(renderState(visit.data))!==JSON.stringify(renderState(result.page))||result.shop.coins!==this.host.wallet().coins;
@@ -337,9 +381,20 @@ export class ShopSession {
                 this.render();
             } else {
                 const wasOnline=this.online;this.online=false;
-                if(wasOnline||!quiet){this.render();this.host.notice((err as Error).message);}
+                if(firstRead||!(err instanceof ServerError)){
+                    visit.version=undefined;
+                    visit.data={title,rows:[{title:section==='collection'?'暂时无法打开荣誉':'暂时无法打开页面',
+                        text:'请重新连接，或返回店铺。'}]};
+                }
+                if(!(err instanceof ServerError))console.error('无法显示页面',visit.key,err);
+                if(wasOnline||!quiet){
+                    this.render();
+                    if(!firstRead)this.host.notice((err as Error).message);
+                }
             }
-        } finally {if(serial===this.serial){this.reading=false;this.lastRead=Date.now();}}
+        } finally {
+            if(serial===this.serial){this.pageRead=undefined;this.reading=false;this.lastRead=Date.now();}
+        }
     }
     private keepRoomPosition(v:Visit,next:LedgerPage):void {
         if(v.key!=='rooms'||this.renderedVisit!==v||!this.scroll?.content||!v.offset)return;
@@ -423,7 +478,8 @@ export class ShopSession {
                 suppressGuide:!!this.confirm||this.bonusVisit===v,
                 backToTasks:!backdrop&&!this.panel&&!!this.taskReturn,
                 ready:view.version!==undefined||view.key==='payment',
-                pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
+                pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment',
+                slowRead:!backdrop&&view.version===undefined&&this.pageRead?.slow
             });
             this.restoreRoomPosition(view,scroll);
             if(stageClocks.length||Number.isFinite(view.data.presentation?.nextStageAt))this.bindStageClocks(view,scroll,stageClocks);
@@ -466,7 +522,10 @@ export class ShopSession {
     }
     private choose(a:Choice):void {
         const v=this.current;if(!v||this.confirm)return;
-        if(a.type==='ui.retry'){void this.read();return;}
+        if(a.type==='ui.retry'){
+            if(!this.busy&&(!this.reading||!this.online||this.pageRead?.slow))void this.read();
+            return;
+        }
         if(a.type==='ui.back'){this.back();return;}
         if(a.type==='ui.home'){this.toHome();return;}
         if(a.type==='ui.editSelection'){this.editSelection();return;}
@@ -516,7 +575,11 @@ export class ShopSession {
         finally{this.busy=false;}
         if(!this.closed){await this.read();this.host.notice(msg||'已核对经营账簿。');}
     }
-    async recover():Promise<string>{
+    recover():Promise<string>{
+        if(!this.recovery)this.recovery=this.recoverPending().finally(()=>{this.recovery=undefined;});
+        return this.recovery;
+    }
+    private async recoverPending():Promise<string>{
         const storage=sys.localStorage,keys=this.pending();
         let message='';
         for(const k of keys){
@@ -545,7 +608,7 @@ export class ShopSession {
     private async commit(a:Choice,args:Args,version:number):Promise<void>{
         if(this.busy)return;
         const origin=this.navigation;
-        this.busy=true;this.serial++;this.reading=false;
+        this.busy=true;this.cancelRead();
         const command={requestId:requestId(),profileId:this.host.wallet().profileId,version,type:a.type!,args};
         let feedback='';
         try {

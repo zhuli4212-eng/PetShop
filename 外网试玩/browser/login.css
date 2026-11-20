@@ -6,22 +6,38 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+#petshop-loading-panel {
+  position: fixed; z-index: 10001; bottom: max(24px, env(safe-area-inset-bottom));
+  left: 50%; transform: translateX(-50%); width: min(340px, calc(100% - 32px));
+  padding: 14px 18px; border: 1px solid #ac925f;
+  background: #202c26; color: #fff0d0; text-align: center;
+  font: 16px/1.5 "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+#petshop-loading-panel p { margin: 0; }
+#petshop-loading-progress { display: block; width: 100%; height: 14px; margin: 9px 0 6px; accent-color: #e6c990; }
+#petshop-loading-detail { font-size: 14px; font-variant-numeric: tabular-nums; }
+#petshop-loading-retry {
+  margin-top: 9px; min-height: 44px; padding: 0 20px; border: 1px solid #ac925f;
+  background: #fff0d0; color: #202c26; font: inherit; font-weight: 700; cursor: pointer;
+}
+#petshop-loading-retry:focus-visible { outline: 2px solid #fff0d0; outline-offset: 3px; }
 #account-layer {
   position: fixed; inset: 0; z-index: 2; overflow-y: auto;
   display: grid; place-items: center;
   background: #202c26; color: #392f1f; text-align: left;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
   user-select: text; -webkit-user-select: text;
 }
 .ledger {
   width: 100%; min-height: 100vh; min-height: 100dvh;
   position: relative; isolation: isolate;
-  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  display: flex; flex-direction: column; justify-content: flex-end;
   padding: 22px max(20px, env(safe-area-inset-right)) max(26px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   background: #805032;
 }
 .shopfront {
-  display: block;
-  width: 100%; height: auto; max-height: min(31dvh, 360px); object-fit: contain;
+  position: absolute; inset: 0; z-index: -1; display: block;
+  width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%;
   image-rendering: pixelated;
 }
 .sheet {

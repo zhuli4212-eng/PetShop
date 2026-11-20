@@ -1,14 +1,14 @@
 import { setTextWeight } from './ShopTypography';
-import { _decorator, Color, Component, Graphics, Mask, Node, ScrollView, tween, UIOpacity, UITransform, Vec2, Vec3 } from 'cc';
-import { box, caption, frame, lines, paper, picture, press, type PageCanvas } from './LedgerCanvas';
+import { _decorator, Component, Mask, Node, ScrollView, tween, UIOpacity, UITransform, Vec2, Vec3 } from 'cc';
+import { box, caption, frame, guidePointer, lines, paper, picture, press, setSolidRect, type PageCanvas } from './LedgerCanvas';
 import { claimGuideTarget, releaseGuideTarget } from './ShopNavigation';
 
 const still=():boolean=>typeof window!=='undefined'&&!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 interface Area {left:number;right:number;bottom:number;top:number;}
 const clamp=(n:number,lo:number,hi:number):number=>Math.min(Math.max(n,lo),hi);
-const shade=new Color(17,29,26,168);
-const gold=new Color(255,225,155,255);
+const shade='#111D1AA8';
+const gold='#FFE19B';
 
 function bounds(node:Node,space:UITransform,pad=0):Area {
     const ui=node.getComponent(UITransform)!;
@@ -36,7 +36,9 @@ class GuideSpotlight extends Component {
     copy='';
     private reading?:Node;
     private preferBelow=false;
-    private paint!:Graphics;
+    private shades!:Node[];
+    private border!:Node[];
+    private pointer!:Node;
     private prompt?:Node;
     private promptWidth=0;
     private promptHeight=0;
@@ -49,7 +51,10 @@ class GuideSpotlight extends Component {
         this.copy=copy;
         this.preferBelow=preferBelow;
         this.reading=reading;
-        this.paint=this.node.addComponent(Graphics);
+        const sides=['Top','Bottom','Left','Right'];
+        this.shades=sides.map(side=>box(this.node,'Shade'+side,0,0,0,0,shade));
+        this.border=sides.map(side=>box(this.node,'Border'+side,0,0,0,0,gold));
+        this.pointer=guidePointer(this.node,gold);
         claimGuideTarget(this.node,target);
         this.lateUpdate();
     }
@@ -84,23 +89,23 @@ class GuideSpotlight extends Component {
             Math.abs(bottom-prior.bottom)<.5&&Math.abs(top-prior.top)<.5)return;
         this.prior={left,right,bottom,top};
         this.priorWidth=width;this.priorHeight=height;
-        const g=this.paint;
-        g.clear();
-        g.fillColor=shade;
-        if(right>left&&top>bottom){
-            g.rect(-width/2,top,width,height/2-top);
-            g.rect(-width/2,-height/2,width,bottom+height/2);
-            g.rect(-width/2,bottom,left+width/2,top-bottom);
-            g.rect(right,bottom,width/2-right,top-bottom);
-            g.fill();
-            g.strokeColor=gold;
-            g.lineWidth=3;
-            const x=Math.max(left,emphasis.left),y=Math.max(bottom,emphasis.bottom);
-            g.rect(x,y,Math.min(right,emphasis.right)-x,Math.min(top,emphasis.top)-y);
-            g.stroke();
+        const focus=right>left&&top>bottom,halfW=width/2,halfH=height/2;
+        const [topShade,bottomShade,leftShade,rightShade]=this.shades;
+        const [topEdge,bottomEdge,leftEdge,rightEdge]=this.border;
+        if(focus){
+            setSolidRect(topShade,-halfW,top,width,halfH-top);
+            setSolidRect(bottomShade,-halfW,-halfH,width,bottom+halfH);
+            setSolidRect(leftShade,-halfW,bottom,left+halfW,top-bottom);
+            setSolidRect(rightShade,right,bottom,halfW-right,top-bottom);
+            const x=Math.max(left,emphasis.left)-1.5,y=Math.max(bottom,emphasis.bottom)-1.5;
+            const w=Math.min(right,emphasis.right)-x+1.5,h=Math.min(top,emphasis.top)-y+1.5;
+            setSolidRect(topEdge,x,y+h-3,w,3);
+            setSolidRect(bottomEdge,x,y,w,3);
+            setSolidRect(leftEdge,x,y+3,3,h-6);
+            setSolidRect(rightEdge,x+w-3,y+3,3,h-6);
         }else{
-            g.rect(-width/2,-height/2,width,height);
-            g.fill();
+            setSolidRect(topShade,-halfW,-halfH,width,height);
+            for(const node of [bottomShade,leftShade,rightShade,...this.border])node.active=false;
         }
         this.placePrompt(width,height);
     }
@@ -124,16 +129,12 @@ class GuideSpotlight extends Component {
         const x=clamp(targetX,-width/2+w/2+12,width/2-w/2-12);
         const y=clamp(putAbove?top+gap+h/2:bottom-gap-h/2,-height/2+10+h/2,height/2-10-h/2);
         this.prompt.setPosition(x,y);
-        if(right>left&&top>bottom){
+        this.pointer.active=right>left&&top>bottom;
+        if(this.pointer.active){
             const arrowX=clamp(targetX,x-w/2+14,x+w/2-14);
             const edge=y+(putAbove?-h/2:h/2);
-            const g=this.paint;
-            g.fillColor=gold;
-            g.moveTo(arrowX-7,edge);
-            g.lineTo(arrowX+7,edge);
-            g.lineTo(arrowX,edge+(putAbove?-9:9));
-            g.close();
-            g.fill();
+            this.pointer.setPosition(arrowX,edge+(putAbove?-4.5:4.5));
+            this.pointer.setScale(1,putAbove?1:-1,1);
         }
     }
 }

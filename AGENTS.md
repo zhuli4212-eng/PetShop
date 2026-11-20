@@ -16,12 +16,12 @@
 
 ## 香港正式版基准
 
-当前正式版已于 2026-11-21 回退为 `2026.11.20.1`，游戏代码为 `b4d806b`。使用 `petshop-v2026.11.20.1` 或 `production-baseline-2026-11-20.1` 查找原始正式部署包。当前实际部署以[本次回退记录](output/aliyun/rollback-20261121-to-20261120.1-hk.json)为准。
+当前正式版为 `2026.11.21.2`，游戏代码为 `b5b8ae3`。使用 `petshop-v2026.11.21.2` 或 `production-baseline-2026-11-21.2` 查找含部署包和回执的归档提交。
 
-- 部署包为 `output/aliyun/petshop-production-20261120.1-hk.tar.gz`，SHA-256 为 `d576c599508119a279d129347e7ae038fc69ac4824b74ea25374381e861cbb89`。
-- 保留现有正式数据库、账号服务及阿里云香港直连。主入口为 `https://play.zhu-li-4212.xyz/petshop/`，备用 Pages 网关继续访问同一阿里云服务器。
-- 回退前版本为 `2026.11.21.1`，对应程序目录和当时数据库快照已保留，见本次回退记录。
-- 后续从 20.1 重做启动加载，并按 2026.11.19.2 恢复店面铺底、表单靠下的原登录样式；不增加失败后二次载入，不纳入页面卡住和断线恢复。本地候选需单独确认后才可发布。
+- 部署包为 `output/aliyun/petshop-production-20261121.2-hk.tar.gz`，SHA-256 为 `9ec951c3dc8eadb433282db66063f5d13e3d0c093aed8386dcb422d74ce06255`。
+- 阿里云香港直连和备用 Pages 网关均已核对版本、客户端及 API。切换前生成了 SQLite 一致备份，继续使用同一生产库。详见[正式发布记录](output/aliyun/deployment-20261121.2-hk.json)。
+- 切换前的线上版本为 `2026.11.20.1`，程序目录和归档均已保留。[回退到 20.1 的记录](output/aliyun/rollback-20261121-to-20261120.1-hk.json)
+- 本次客户端以 `2026.11.21.1` 为开发基线。[21.1 发布记录](output/aliyun/deployment-20261121.1-hk.json)
 - 上一版 `2026.11.20.7` 可由 `petshop-v2026.11.20.7` 或 `production-baseline-2026-11-20.7` 定位。[发布记录](output/aliyun/deployment-20261120.7-hk.json)
 
 - 上一版 `2026.11.20.6` 可由 `petshop-v2026.11.20.6` 或 `production-baseline-2026-11-20.6` 定位。[发布记录](output/aliyun/deployment-20261120.6-hk.json)

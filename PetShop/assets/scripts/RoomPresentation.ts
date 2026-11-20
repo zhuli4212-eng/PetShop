@@ -1,6 +1,6 @@
-import { BlockInputEvents, Color, Graphics, Label, Node, UITransform } from 'cc';
+import { BlockInputEvents, Color, Label, Node, UITransform } from 'cc';
 import type { Animal, AnimalTag, Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
-import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, heading, paper, picture, press, rect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
+import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, heading, paper, picture, press, setSolidRect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
 import { litterPositions } from './RoomFloor';
 import { guideNote, growthSpark } from './TutorialPresentation';
@@ -92,11 +92,10 @@ function feedingStation(c:PageCanvas,scene:Node,h:number,effect?:NutritionEffect
     setTextWeight(countdown,true);
     const width=panelWidth-10,bar=4;
     const track=box(panel,'Track',0,-16,width,bar,'#CCB07A');
-    const fill=box(track,'Fill',0,0,width,bar).addComponent(Graphics);
+    const fill=box(track,'Fill',0,0,width,bar,paper.primary);
     const duration=(effect.endsAt-effect.startsAt)/1000;
     c.ui.bindStageCountdown(countdown,effect.endsAt,seconds=>{
-        fill.clear();
-        rect(fill,-width/2,-bar/2,width*Math.min(1,seconds/duration),bar,paper.primary);
+        setSolidRect(fill,-width/2,-bar/2,width*Math.min(1,seconds/duration),bar);
     });
 }
 function roomScene(c:PageCanvas,path:string,animals:Animal[],name:string,plaque:boolean,edgeTop=false,
@@ -175,14 +174,11 @@ function rosterLine(c:PageCanvas,a:Animal,i:number):void {
     rule(card,rowWidth,top-animalSummaryHeight);
     const toggle=box(card,'ExpandTraits',0,top-animalSummaryHeight-13,rowWidth,26);
     setTextStyle(caption(toggle,'Caption',expanded?'收起':'展开',-11,0,rowWidth-22,20,13,'#365848'),'expand');
-    const arrow=box(toggle,'Chevron',rowWidth/2-8,0,12,12).addComponent(Graphics);
+    const arrow=box(toggle,'Chevron',rowWidth/2-8,0,12,12);
     const direction=expanded?-1:1;
-    arrow.strokeColor=new Color().fromHEX('#365848');
-    arrow.lineWidth=1.8;
-    arrow.moveTo(-4,2*direction);
-    arrow.lineTo(0,-2*direction);
-    arrow.lineTo(4,2*direction);
-    arrow.stroke();
+    const strokeLength=Math.hypot(4,4);
+    box(arrow,'LeftStroke',-2,0,strokeLength,1.8,'#365848').setRotationFromEuler(0,0,-45*direction);
+    box(arrow,'RightStroke',2,0,strokeLength,1.8,'#365848').setRotationFromEuler(0,0,45*direction);
     if(!expanded)return;
     const columns=(a.traits||[]).slice(0,5),cw=rowWidth/5;
     columns.forEach((t,index)=>{
@@ -232,8 +228,7 @@ function locked(c:PageCanvas,m:RoomPage):void {
     const scene=roomScene(c,c.p.art!,[],m.species!,!!c.p.visual?.openingRoom);
     c.startList();
     if(c.p.visual?.openingRoom){
-        const shade=box(scene,'Unopened',0,0,c.width,c.width*9/16).addComponent(Graphics);
-        rect(shade,-c.width/2,-c.width*9/32,c.width,c.width*9/16,'#433E3180');
+        box(scene,'Unopened',0,0,c.width,c.width*9/16,'#433E3180');
         section(c,'兔房待开放','免费');
         guideNote(c);
         section(c,'开房可获得','原色幼兔 × 2');
@@ -455,10 +450,7 @@ function breeding(c:PageCanvas,m:RoomPage):void {
 export function drawBreedingBonus(parent:Node,preview:MutationPreview|undefined,enabled:boolean,
                                  pending:boolean,setEnabled:(value:boolean)=>void,close:()=>void):void {
     const bounds=parent.getComponent(UITransform)!;
-    const overlay=box(parent,'BonusDialog',0,0,bounds.width,bounds.height);
-    const shade=overlay.addComponent(Graphics);
-    shade.fillColor=new Color(26,43,35,164);
-    shade.rect(-bounds.width/2,-bounds.height/2,bounds.width,bounds.height);shade.fill();
+    const overlay=box(parent,'BonusDialog',0,0,bounds.width,bounds.height,'#1A2B23A4');
     tap(overlay,close);overlay.addComponent(BlockInputEvents);
     const w=Math.min(360,bounds.width-20),inner=w-28;
     const fields=preview?.fields||[],h=fields.length?258+fields.length*29:258;
