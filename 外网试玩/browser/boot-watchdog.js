@@ -28,6 +28,7 @@
     clearTimeout(timeout);
     if (!failed) return;
     document.getElementById('GameDiv').hidden = false;
+    document.getElementById('account-layer').hidden = true;
     document.getElementById('error').hidden = true;
     document.getElementById('retry').hidden = true;
   }, {once:true});

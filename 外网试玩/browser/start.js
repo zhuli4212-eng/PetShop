@@ -162,7 +162,6 @@ async function showAccountForm() {
 window.petshopBeforeShop = showEntry => {
   if (accountReady) return accountReady;
   accountReady = new Promise(resolve => { completeLogin = resolve; });
-  window.dispatchEvent(new Event('petshop:startup-ready'));
   accountLayer.hidden = false;
   setLoginMusicActive = bindLoginMusic({autoplay:true});
   if (!setup && !register && !params.has('login')) {
