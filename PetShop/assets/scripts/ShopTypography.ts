@@ -1,4 +1,4 @@
-import { assetManager, Color, Font, isValid, Label, Node, resources } from 'cc';
+import { Color, Font, isValid, Label, Node, resources } from 'cc';
 
 type FontKey = 'sans' | 'bold' | 'serif';
 const paths:Record<FontKey,string> = {
@@ -67,83 +67,29 @@ export function bindSceneFonts(root:Node):void {
     }
 }
 
-function webFontFamily(url:string):string {
-    const name=url.slice(url.lastIndexOf('/')+1).replace(/\.(ttf|woff2)$/,'');
-    // Cocos puts the family into Canvas font shorthand without quotes.
-    const family=url.endsWith('.woff2')?'PetShop_'+name.replace(/[^\w-]/g,'_'):name;
-    return family+'_LABEL';
-}
-
-async function downloadFont(url:string,signal:AbortSignal|undefined,activity:()=>void):Promise<ArrayBuffer> {
-    const response=await fetch(url,{signal});
-    if(!response.ok)throw new Error('店铺资源下载失败。');
-    activity();
-    const reader=response.body?.getReader();
-    if(!reader){
-        const buffer=await response.arrayBuffer();
-        activity();
-        return buffer;
-    }
-    const chunks:Uint8Array[]=[];
-    let received=0;
-    try {
-        for(;;){
-            const {done,value}=await reader.read();
-            if(done)break;
-            chunks.push(value);
-            received+=value.byteLength;
-            activity();
-        }
-    } finally {reader.releaseLock();}
-    const bytes=new Uint8Array(received);
-    let offset=0;
-    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
-    return bytes.buffer;
-}
-
-function registerWebFontDownloader(signal:AbortSignal|undefined,packedUrl:((url:string)=>string)|undefined,activity:()=>void):void {
-    const readFont=(url:string,_options:unknown,done:(error:Error|null,family?:string)=>void)=>{
-        const family=webFontFamily(url);
-        void downloadFont(packedUrl?.(url)??url,signal,activity).then(buffer=>{
-            document.fonts.add(new FontFace(family,buffer));
-        }).then(()=>done(null,family),error=>done(error as Error));
-    };
-    // Keep the original URL for the font family while reading the packed bytes.
-    assetManager.downloader.register('.woff2',readFont);
-    if(packedUrl)assetManager.downloader.register('.ttf',readFont);
-}
-
 async function waitForWebFont(font:Font):Promise<void> {
     if(typeof document==='undefined')return;
     // Creator 3.8.8 can return a TTF asset after its own three-second timeout,
     // including on a failed download. Match its versioned TTF family convention
     // using the public nativeUrl (TTFFont's family field is engine-private).
-    const url=font.nativeUrl;
-    if(!document.fonts||!/\.(ttf|woff2)$/.test(url))
+    const url=font.nativeUrl,extension=url.lastIndexOf('.ttf');
+    const family=extension<0?'':url.slice(url.lastIndexOf('/')+1,extension)+'_LABEL';
+    if(!document.fonts||!family)
         throw new Error('浏览器无法验证店铺字体。');
-    const family=webFontFamily(url);
-    const faces=await document.fonts.load('16px '+JSON.stringify(family),'麦穗宠物店芋头臻选绒光𠮷S+#%0123');
-    if(!faces.length||faces.some(face=>face.status!=='loaded'))
-        throw new Error('店铺字体尚未加载完成。');
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    try {
+        const faces=await Promise.race([
+            document.fonts.load('16px '+JSON.stringify(family),'麦穗宠物店芋头臻选绒光𠮷S+#%0123'),
+            new Promise<FontFace[]>((_,reject)=>{timer=setTimeout(()=>reject(new Error('店铺字体加载超时。')),90000);}),
+        ]);
+        if(!faces.length||faces.some(face=>face.status!=='loaded'))
+            throw new Error('店铺字体尚未加载完成。');
+    } finally {if(timer!==undefined)clearTimeout(timer);}
 }
 
 export function loadShopFonts():Promise<void> {
     if(loading)return loading;
-    const browser=typeof document==='undefined'?undefined:window as Window & {petshopAssetUrl?:(url:string)=>string};
-    const controller=browser&&typeof AbortController==='function'?new AbortController():undefined;
-    let deadline:ReturnType<typeof setTimeout>;
-    let rejectIdle:(error:Error)=>void;
-    const timeout=new Promise<never>((_,reject)=>{rejectIdle=reject;});
-    const reportActivity=()=>{
-        clearTimeout(deadline);
-        deadline=setTimeout(()=>{
-            rejectIdle(new Error('店铺资源加载超时。'));
-            controller?.abort();
-        },90000);
-    };
-    reportActivity();
-    if(browser)registerWebFontDownloader(controller?.signal,browser.petshopAssetUrl,reportActivity);
-    const fontsReady=Promise.all((Object.keys(paths) as FontKey[]).map(key=>new Promise<void>((resolve,reject)=>{
+    loading=Promise.all((Object.keys(paths) as FontKey[]).map(key=>new Promise<void>((resolve,reject)=>{
         resources.load(paths[key],Font,(error,font)=>{
             if(error||!font){reject(error||new Error('字体资源缺失：'+paths[key]));return;}
             void waitForWebFont(font).then(()=>{
@@ -152,12 +98,9 @@ export function loadShopFonts():Promise<void> {
                     if(!isValid(label,true)){pending.delete(label);continue;}
                     if(roles.get(label)===key)bind(label,key);
                 }
-                reportActivity();
                 resolve();
             },reject);
         });
-    })));
-    loading=Promise.race([fontsReady,timeout]).then(()=>undefined)
-        .catch(error=>{controller?.abort();loading=undefined;throw error;}).finally(()=>clearTimeout(deadline));
+    }))).then(()=>undefined).catch(error=>{loading=undefined;throw error;});
     return loading;
 }

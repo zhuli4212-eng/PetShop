@@ -36,9 +36,6 @@ export class ShopAudio {
         this.effects=this.source(parent,'ShopEffects');
         this.effects.volume=.72;
         current=this;
-    }
-
-    load():void {
         resources.load('audio/wheatlight',AudioClip,(error,clip)=>{
             if(error||!clip||this.disposed)return;
             this.music.clip=clip;

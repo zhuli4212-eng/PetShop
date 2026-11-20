@@ -1,7 +1,7 @@
 import { bindSceneFonts, loadShopFonts, setTextWeight } from './ShopTypography';
 import { _decorator, Component, game, Game, EventKeyboard, input, Input, isValid, KeyCode,
     Graphics, Label, Node, screen, sys, UITransform, view } from 'cc';
-import { api, connectShop, requestId, sendDeparture, startShopRead, type ShopRead, type ShopSnapshot, type ShopLetter } from './ShopConnection';
+import { api, connectShop, requestId, sendDeparture, type ShopSnapshot, type ShopLetter } from './ShopConnection';
 import { box, caption, picture, drawConnection, guestArrival } from './ShopEntranceView';
 import { ShopHomeFeatures } from './ShopHomeFeatures';
 import { ShopSession } from './ShopSession';
@@ -16,19 +16,10 @@ interface WeChatMenu {
     getMenuButtonBoundingClientRect?: () => { bottom: number };
     getWindowInfo?: () => { windowHeight: number };
 }
-type PreviewWindow = Window & {
-    petshopBeforeShop?: (showEntry:()=>void)=>Promise<void>;
-    petshopLoading?: { connect:()=>void; hide:()=>void; fail:()=>void };
-};
+type PreviewWindow = Window & { petshopBeforeShop?: (showEntry:()=>void)=>Promise<void> };
 
-function startupNotice(failed=false,connecting=false):void {
+function startupNotice(failed=false):void {
     if(typeof document==='undefined')return;
-    const loading=(window as PreviewWindow).petshopLoading;
-    if(loading){
-        if(failed)loading.fail();
-        else if(connecting)loading.connect();
-        return;
-    }
     let notice=document.getElementById('petshop-startup-status');
     if(!notice){
         notice=document.createElement('div');
@@ -48,9 +39,7 @@ function startupNotice(failed=false,connecting=false):void {
 }
 
 function dismissStartupNotice():void {
-    if(typeof document==='undefined')return;
-    (window as PreviewWindow).petshopLoading?.hide();
-    document.getElementById('petshop-startup-status')?.remove();
+    if(typeof document!=='undefined')document.getElementById('petshop-startup-status')?.remove();
 }
 
 @ccclass('ShopMain')
@@ -85,7 +74,6 @@ export class ShopMain extends Component {
     private decorKey='';
     private lastHintAt=0;
     private pulseBusy=false;
-    private shopRead?:ShopRead<ShopSnapshot>;
     private pageHeight = 844;
     private features!:ShopHomeFeatures;
     private levelProgress!:Label;
@@ -131,7 +119,6 @@ export class ShopMain extends Component {
         this.layout();
         this.schedule(this.poll,5);
         this.schedule(this.pulse,20);
-        this.schedule(()=>this.checkReads(),.25);
         void this.openStore();
     }
 
@@ -140,10 +127,7 @@ export class ShopMain extends Component {
         view.on('canvas-resize', this.layout, this);
         game.on(Game.EVENT_HIDE,this.hideGame,this);
         game.on(Game.EVENT_SHOW,this.showGame,this);
-        if(typeof window!=='undefined'){
-            window.addEventListener('pagehide',this.pageExit);
-            window.addEventListener('online',this.networkRestored);
-        }
+        if(typeof window!=='undefined')window.addEventListener('pagehide',this.pageExit);
         input.on(Input.EventType.KEY_DOWN, this.onKey, this);
     }
 
@@ -152,10 +136,7 @@ export class ShopMain extends Component {
         view.off('canvas-resize', this.layout, this);
         game.off(Game.EVENT_HIDE,this.hideGame,this);
         game.off(Game.EVENT_SHOW,this.showGame,this);
-        if(typeof window!=='undefined'){
-            window.removeEventListener('pagehide',this.pageExit);
-            window.removeEventListener('online',this.networkRestored);
-        }
+        if(typeof window!=='undefined')window.removeEventListener('pagehide',this.pageExit);
         input.off(Input.EventType.KEY_DOWN, this.onKey, this);
     }
 
@@ -163,64 +144,39 @@ export class ShopMain extends Component {
         this.state = 'connecting';
         startupNotice();
         try {
-            const browser=typeof window==='undefined'?undefined:window as PreviewWindow;
-            if(browser?.petshopBeforeShop)browser.dispatchEvent(new Event('petshop:startup-ready'));
             await loadShopFonts();
             if(!isValid(this,true))return;
-            await browser?.petshopBeforeShop?.(dismissStartupNotice);
-            if(!isValid(this,true))return;
-            startupNotice(false,true);
-            this.audio.load();
+            if(typeof window!=='undefined'){
+                await (window as PreviewWindow).petshopBeforeShop?.(dismissStartupNotice);
+            }
         } catch {
             if(isValid(this,true))startupNotice(true);
             return;
         }
         if(!isValid(this,true))return;
+        startupNotice();
         this.showPage();
-        await this.syncShop();
-    }
-
-    private checkReads():void {
-        this.session.checkPageRead();
-        if(this.shopRead&&Date.now()>=this.shopRead.expiresAt)this.shopRead.stop();
-    }
-
-    private async syncShop():Promise<void> {
-        if(this.shopRead)return;
-        const request=startShopRead(signal=>connectShop(this.serverOrigin,signal));
-        this.shopRead=request;
-        let reopened=false;
+        let shop: ShopSnapshot;
         try {
-            const shop=await request.result;
-            if(!isValid(this,true))return;
-            this.applyShop(shop);
-            reopened=this.state!=='open';
-            this.state='open';
-            if(reopened){this.showPage();dismissStartupNotice();}
+            shop = await connectShop(this.serverOrigin);
         } catch {
-            if(isValid(this,true)&&!this.session.active&&this.state!=='offline'){
-                this.state='offline';
-                this.showPage();
-                dismissStartupNotice();
-            }
+            if (!isValid(this, true)) return;
+            this.state = 'offline';
+            this.showPage();
+            dismissStartupNotice();
             return;
-        } finally {
-            this.shopRead=undefined;
         }
-        if(reopened){
-            try {
-                const msg=await this.session.recover();
-                if(msg&&isValid(this,true)){this.notify(msg);void this.poll();}
-            } catch {
-                if(isValid(this,true))this.notify('上次请求尚待确认，重连后会核对原回执。');
-            }
-        }
-        if(!isValid(this,true))return;
+        if (!isValid(this, true)) return;
+        this.applyShop(shop);
+        this.state = 'open';this.showPage();
+        dismissStartupNotice();
+        try {const msg=await this.session.recover();if(msg){this.applyShop(await connectShop(this.serverOrigin));this.notify(msg);}}
+        catch {this.notify('上次请求尚待确认，重连后会核对原回执。');}
         this.showHomeNotes();
-        if(reopened)void this.pulse();
+        void this.pulse();
     }
 
-    onDestroy():void {this.shopRead?.stop();dismissStartupNotice();this.session?.dispose();this.audio?.dispose();}
+    onDestroy():void {dismissStartupNotice();this.session?.dispose();this.audio?.dispose();}
     private notify(message:string):void {
         if(!message||!this.node.isValid)return;
         if(this.toast){this.toast.removeFromParent();this.toast.destroy();}
@@ -299,9 +255,13 @@ export class ShopMain extends Component {
     }
 
     private poll=async ():Promise<void>=>{
-        if(this.state==='connecting'||!this.foreground)return;
+        if(this.state!=='open'||!this.foreground)return;
         if(this.session.active){await this.session.refresh();return;}
-        await this.syncShop();
+        try {
+            const shop=await connectShop(this.serverOrigin);
+            if(this.isValid){this.applyShop(shop);this.showHomeNotes();}
+        }
+        catch{if(this.isValid&&!this.session.active){this.state='offline';this.showPage();}}
     };
     private pulse=async ():Promise<void>=>{
         if(this.state!=='open'||this.pulseBusy||!this.foreground)return;
@@ -380,14 +340,9 @@ export class ShopMain extends Component {
     private showGame():void {
         this.audio?.setForeground(true);
         this.foreground=true;void this.pulse();
-        this.networkRestored();
+        if(this.session?.active&&this.state==='open')void this.session.refresh(true);
+        else void this.poll();
     }
-    private networkRestored=():void=>{
-        if(!this.foreground||this.state==='connecting')return;
-        this.checkReads();
-        if(this.session.active)void this.session.refresh(true);
-        else void this.syncShop();
-    };
 
     private layout(): void {
         const visible = view.getVisibleSize();
@@ -519,6 +474,6 @@ export class ShopMain extends Component {
         if(!ready){this.closeGuestPopup();this.closeKeeperNote();}
         else this.fitBubble();
         for(const child of [...this.layer.children]){child.removeFromParent();child.destroy();}
-        if(!ready)drawConnection(this.layer,this.pageHeight,this.state==='offline',()=>{if(this.state==='offline')void this.syncShop();});
+        if(!ready)drawConnection(this.layer,this.pageHeight,this.state==='offline',()=>{if(this.state==='offline')void this.openStore();});
     }
 }

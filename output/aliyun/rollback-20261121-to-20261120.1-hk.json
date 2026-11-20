@@ -1,0 +1,571 @@
+{
+  "operation": "rollback",
+  "version": "2026.11.20.1",
+  "previousVersion": "2026.11.21.1",
+  "gameSourceCommit": "b4d806baf3c2decfcb6047c95d4703532abe0fb5",
+  "releaseDirectory": "/opt/petshop/release.YZee7nMG",
+  "previousReleaseDirectory": "/opt/petshop/release.3QC238CZ",
+  "deploymentSha256": "d576c599508119a279d129347e7ae038fc69ac4824b74ea25374381e861cbb89",
+  "publicFilesVerified": 2110,
+  "accountServiceUnchanged": true,
+  "database": "/var/lib/petshop/shop.sqlite",
+  "databaseIdentity": [
+    64515,
+    270135
+  ],
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/rollback-to-2026.11.20.1.cm2p5_3p/shop-before-rollback.sqlite",
+  "backupSha256": "ca043fdd06f36d304ed1a254ff97dcb462398e09174f6a5b624f4ae77a1c7085",
+  "backupQuickCheckPassed": true,
+  "backupForeignKeyCheckPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 81,
+    "trial_auth_limits": 2
+  },
+  "processesBefore": {
+    "petshop.service": "32268",
+    "petshop-web.service": "32803"
+  },
+  "configurationChanged": false,
+  "rolledBackAt": "2026-11-21T00:29:43.571345+08:00",
+  "servicesActive": [
+    "petshop.service",
+    "petshop-web.service"
+  ],
+  "accountProcessPreserved": true,
+  "health": 200,
+  "receipt": "/var/lib/petshop/rollback/rollback-to-2026.11.20.1.cm2p5_3p/rollback.json",
+  "activationScriptSha256": "fa88aa12cd495e99594e62b4fe8e72c84fee33be8c4ed9ad149d6e0fdb20d8c1",
+  "userRequest": "回退到20.1；在20.1基础上重做启动加载，不做失败后二次载入；服务器流量接阿里云；登录样式修回原版。",
+  "deploymentArchive": "output/aliyun/petshop-production-20261120.1-hk.tar.gz",
+  "targetVersionTag": "petshop-v2026.11.20.1",
+  "targetBaselineTag": "production-baseline-2026-11-20.1",
+  "previousVersionTag": "petshop-v2026.11.21.1",
+  "liveChecks": {
+    "verifiedAt": "2026-11-21T00:31:04.839175+08:00",
+    "version": "2026.11.20.1",
+    "sourceCommit": "b4d806baf3c2decfcb6047c95d4703532abe0fb5",
+    "entrances": [
+      {
+        "url": "https://play.zhu-li-4212.xyz/petshop/",
+        "checks": [
+          {
+            "path": "index.html",
+            "status": 200,
+            "peer": "47.243.58.106",
+            "bytes": 5970,
+            "sha256": "c7bf05a148357d2ad9e3e5ba8c108d3192835b9d497bfc3b279404c556dabc6e"
+          },
+          {
+            "path": "release.json",
+            "status": 200,
+            "peer": "47.243.58.106",
+            "bytes": 289,
+            "sha256": "65bc8f1230f447c73e8ecb592db90116efbca4192db60bf184dd924697b8bd96"
+          },
+          {
+            "path": "trial-start.js",
+            "status": 200,
+            "peer": "47.243.58.106",
+            "bytes": 11062,
+            "sha256": "71a45a2932cd759154c472fb5cb02ad147786c3a97b5887cebd92d0f2d9772b8"
+          },
+          {
+            "path": "trial-login.css",
+            "status": 200,
+            "peer": "47.243.58.106",
+            "bytes": 8079,
+            "sha256": "abd4c55d7d6363deb1200b7c379369ed3a8448bd28d7ac6b2a6dd3065bed837b"
+          },
+          {
+            "path": "src/entry.3d69306e4c87bcb0.js",
+            "status": 200,
+            "peer": "47.243.58.106",
+            "bytes": 835,
+            "sha256": "3d69306e4c87bcb0d8a0f0b7038d29ee2a45211d1f156a3c95e5b202e5040c81"
+          },
+          {
+            "path": "assets/main/index.302090859b061df0.js",
+            "status": 200,
+            "peer": "47.243.58.106",
+            "bytes": 148977,
+            "sha256": "483da19c82e8c5981c16fb5efe30546f5d73bd8097439d12c84c01673868f40e"
+          },
+          {
+            "path": "/petshop-api/v1/health",
+            "status": 200,
+            "peer": "47.243.58.106",
+            "bytes": 88,
+            "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72"
+          },
+          {
+            "path": "/petshop-api/v1/shop",
+            "status": 401,
+            "peer": "47.243.58.106",
+            "bytes": 39,
+            "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b"
+          },
+          {
+            "path": "local-opening/wallet.mjs",
+            "status": 404,
+            "peer": "47.243.58.106",
+            "bytes": 162,
+            "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87"
+          }
+        ]
+      },
+      {
+        "url": "https://petshop-trial.pages.dev/",
+        "checks": [
+          {
+            "path": "index.html",
+            "status": 200,
+            "peer": "172.66.44.231",
+            "bytes": 5970,
+            "sha256": "c7bf05a148357d2ad9e3e5ba8c108d3192835b9d497bfc3b279404c556dabc6e"
+          },
+          {
+            "path": "release.json",
+            "status": 200,
+            "peer": "172.66.44.231",
+            "bytes": 289,
+            "sha256": "65bc8f1230f447c73e8ecb592db90116efbca4192db60bf184dd924697b8bd96"
+          },
+          {
+            "path": "trial-start.js",
+            "status": 200,
+            "peer": "172.66.44.231",
+            "bytes": 11062,
+            "sha256": "71a45a2932cd759154c472fb5cb02ad147786c3a97b5887cebd92d0f2d9772b8"
+          },
+          {
+            "path": "trial-login.css",
+            "status": 200,
+            "peer": "172.66.44.231",
+            "bytes": 8079,
+            "sha256": "abd4c55d7d6363deb1200b7c379369ed3a8448bd28d7ac6b2a6dd3065bed837b"
+          },
+          {
+            "path": "src/entry.3d69306e4c87bcb0.js",
+            "status": 200,
+            "peer": "172.66.44.231",
+            "bytes": 835,
+            "sha256": "3d69306e4c87bcb0d8a0f0b7038d29ee2a45211d1f156a3c95e5b202e5040c81"
+          },
+          {
+            "path": "assets/main/index.302090859b061df0.js",
+            "status": 200,
+            "peer": "172.66.44.231",
+            "bytes": 148977,
+            "sha256": "483da19c82e8c5981c16fb5efe30546f5d73bd8097439d12c84c01673868f40e"
+          },
+          {
+            "path": "/petshop-api/v1/health",
+            "status": 200,
+            "peer": "172.66.44.231",
+            "bytes": 88,
+            "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72"
+          },
+          {
+            "path": "/petshop-api/v1/shop",
+            "status": 401,
+            "peer": "172.66.44.231",
+            "bytes": 39,
+            "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b"
+          },
+          {
+            "path": "local-opening/wallet.mjs",
+            "status": 404,
+            "peer": "172.66.44.231",
+            "bytes": 162,
+            "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87"
+          }
+        ]
+      }
+    ]
+  },
+  "routing": {
+    "primary": "https://play.zhu-li-4212.xyz/petshop/",
+    "primaryPeer": "47.243.58.106",
+    "primaryMode": "Alibaba Cloud Hong Kong direct HTTPS for static assets and same-origin API",
+    "backup": "https://petshop-trial.pages.dev/",
+    "backupMode": "Existing Cloudflare gateway to the same Alibaba Cloud server",
+    "dnsChangedDuringRollback": false,
+    "existingDirectConfigurationPreserved": true
+  },
+  "startupRebuild": {
+    "baseVersion": "2026.11.20.1",
+    "scope": "startup resource loading and original 2026.11.19.2 login layout",
+    "automaticSecondLoad": false,
+    "productionDeploymentApproved": false
+  },
+  "physicalPhoneTested": false,
+  "isolatedLocalChecks": {
+    "packageDigest": {
+      "files": 2127,
+      "sha256": "92f5e9a47c3e344902444ed4927cf2c9ad2348661423cc1027b26c02e1b64e73"
+    },
+    "sourceCommit": "b4d806baf3c2decfcb6047c95d4703532abe0fb5",
+    "browsers": [
+      {
+        "engine": "edge",
+        "version": "2026.11.20.1",
+        "origin": "http://127.0.0.1:58323",
+        "api": "http://127.0.0.1:58324",
+        "database": "D:\\work\\宠物店\\output\\aliyun\\rollback-to-20261120.1-20261121\\qa\\edge-d5abd281.sqlite",
+        "saveDirectory": "D:\\work\\宠物店\\output\\aliyun\\rollback-to-20261120.1-20261121\\qa\\edge-save",
+        "viewport": [
+          390,
+          844
+        ],
+        "loginReadySeconds": 10.52,
+        "roomReadySeconds": 6.62,
+        "animalRows": 18,
+        "profilePreserved": true,
+        "coinsPreserved": true,
+        "fontFaces": [
+          {
+            "family": "NotoSansCJKsc-Regular_LABEL",
+            "status": "loaded"
+          },
+          {
+            "family": "NotoSansCJKsc-Bold_LABEL",
+            "status": "loaded"
+          },
+          {
+            "family": "NotoSerifCJKsc-Bold_LABEL",
+            "status": "loaded"
+          }
+        ],
+        "loginRequests": 1,
+        "pageErrors": [],
+        "externalRequests": [],
+        "passed": true,
+        "sqliteQuickCheck": "ok",
+        "packageUnchanged": true
+      },
+      {
+        "engine": "webkit",
+        "version": "2026.11.20.1",
+        "origin": "http://127.0.0.1:61364",
+        "api": "http://127.0.0.1:61365",
+        "database": "D:\\work\\宠物店\\output\\aliyun\\rollback-to-20261120.1-20261121\\qa\\webkit-26458df9.sqlite",
+        "saveDirectory": "D:\\work\\宠物店\\output\\aliyun\\rollback-to-20261120.1-20261121\\qa\\webkit-save",
+        "viewport": [
+          390,
+          844
+        ],
+        "loginReadySeconds": 9.23,
+        "roomReadySeconds": 3.91,
+        "animalRows": 18,
+        "profilePreserved": true,
+        "coinsPreserved": true,
+        "fontFaces": [
+          {
+            "family": "NotoSansCJKsc-Regular_LABEL",
+            "status": "loaded"
+          },
+          {
+            "family": "NotoSansCJKsc-Bold_LABEL",
+            "status": "loaded"
+          },
+          {
+            "family": "NotoSerifCJKsc-Bold_LABEL",
+            "status": "loaded"
+          }
+        ],
+        "loginRequests": 1,
+        "pageErrors": [],
+        "externalRequests": [],
+        "passed": true,
+        "sqliteQuickCheck": "ok",
+        "packageUnchanged": true
+      }
+    ],
+    "productionApiAccessed": false,
+    "realDeviceTested": false,
+    "visualVerification": {
+      "initialRoomPortraitsStillLoading": true,
+      "webkitAfterAdditional10SecondsAllPortraitsLoaded": true,
+      "loadedPortraitSprites": 28,
+      "failedResourceRequests": 0,
+      "verifiedScreenshot": "webkit-diagnostic-05-rooms.png",
+      "diagnosticReport": "diagnostic-result.json",
+      "sourceModified": false
+    }
+  },
+  "isolatedVisualChecks": {
+    "packageDigest": {
+      "files": 2127,
+      "sha256": "92f5e9a47c3e344902444ed4927cf2c9ad2348661423cc1027b26c02e1b64e73"
+    },
+    "sourceCommit": "b4d806baf3c2decfcb6047c95d4703532abe0fb5",
+    "browsers": [
+      {
+        "engine": "webkit",
+        "version": "2026.11.20.1",
+        "origin": "http://127.0.0.1:64420",
+        "api": "http://127.0.0.1:64421",
+        "database": "D:\\work\\宠物店\\output\\aliyun\\rollback-to-20261120.1-20261121\\qa\\webkit-07f27a18.sqlite",
+        "saveDirectory": "D:\\work\\宠物店\\output\\aliyun\\rollback-to-20261120.1-20261121\\qa\\webkit-save",
+        "viewport": [
+          390,
+          844
+        ],
+        "loginReadySeconds": 17.53,
+        "roomSpritesAfter10Seconds": [
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/42/4203599c-51c5-58ba-8018-d0a785dc62ad.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/fd/fd01ea3e-09c3-5696-b4f0-bc09c6f5d1ce.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/bd/bdc63fb7-6c0f-5f48-9a29-7ec1abb23da8.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/fd/fd01ea3e-09c3-5696-b4f0-bc09c6f5d1ce.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          },
+          {
+            "name": "Lock",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/7d/7d161c03-d923-52c7-a7e9-06ea4c7a79da.png"
+          },
+          {
+            "name": "Lock",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/7d/7d161c03-d923-52c7-a7e9-06ea4c7a79da.png"
+          },
+          {
+            "name": "Room",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/36/368c75c7-f57c-5314-81af-ed1b8852eafe.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/21/2177e71e-827b-54b1-a5c8-cbe8121cea2b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/42/4203599c-51c5-58ba-8018-d0a785dc62ad.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/fd/fd01ea3e-09c3-5696-b4f0-bc09c6f5d1ce.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/bd/bdc63fb7-6c0f-5f48-9a29-7ec1abb23da8.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/fd/fd01ea3e-09c3-5696-b4f0-bc09c6f5d1ce.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/e1/e125920a-d92d-5ba6-a826-e0b1c026231b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/21/2177e71e-827b-54b1-a5c8-cbe8121cea2b.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/1c/1c92d306-f434-59cb-91a5-68e49c303936.png"
+          },
+          {
+            "name": "Portrait",
+            "active": true,
+            "frame": true,
+            "texture": true,
+            "url": "assets/resources/native/d4/d42314b5-3f80-59aa-b4d9-dea6a0c9373a.png"
+          }
+        ],
+        "consoleErrors": [
+          "Viewport argument key \"interactive-widget\" not recognized and ignored.",
+          "Viewport argument key \"minimal-ui\" not recognized and ignored."
+        ],
+        "failedRequests": [],
+        "roomReadySeconds": 14.25,
+        "animalRows": 18,
+        "profilePreserved": true,
+        "coinsPreserved": true,
+        "fontFaces": [
+          {
+            "family": "NotoSansCJKsc-Regular_LABEL",
+            "status": "loaded"
+          },
+          {
+            "family": "NotoSansCJKsc-Bold_LABEL",
+            "status": "loaded"
+          },
+          {
+            "family": "NotoSerifCJKsc-Bold_LABEL",
+            "status": "loaded"
+          }
+        ],
+        "loginRequests": 1,
+        "pageErrors": [],
+        "externalRequests": [],
+        "passed": true,
+        "sqliteQuickCheck": "ok",
+        "packageUnchanged": true
+      }
+    ],
+    "productionApiAccessed": false,
+    "realDeviceTested": false
+  }
+}

@@ -59,26 +59,6 @@ export function requestId():string {
 function serviceBase(origin:string):string {
     return origin.trim().replace(/\/+$/,'') || (PREVIEW || WECHAT ? 'http://127.0.0.1:17888' : '');
 }
-const requestTimeout=9000;
-export interface ShopRead<T> {
-    result:Promise<T>;
-    deadline:Promise<never>;
-    expiresAt:number;
-    stop:()=>void;
-}
-export function startShopRead<T>(request:(signal?:AbortSignal)=>Promise<T>):ShopRead<T> {
-    const controller=typeof AbortController==='function'?new AbortController():undefined;
-    const expiresAt=Date.now()+requestTimeout;
-    let stop!:()=>void;
-    const deadline=new Promise<never>((_,reject)=>{
-        stop=()=>{
-            reject(new ServerError('读取超时，请重新连接。',0));
-            controller?.abort();
-        };
-    });
-    const result=Promise.race([deadline,request(controller?.signal)]);
-    return {result,deadline,expiresAt,stop};
-}
 export function sendDeparture(origin:string,data:Args):void {
     const body=JSON.stringify(data);
     if(typeof navigator!=='undefined'&&typeof navigator.sendBeacon==='function'){
@@ -87,41 +67,26 @@ export function sendDeparture(origin:string,data:Args):void {
     }
     void api(origin,'heartbeat',data).catch(()=>{});
 }
-export function api<T>(origin:string, path:string, data?:Args, signal?:AbortSignal):Promise<T> {
+export function api<T>(origin:string, path:string, data?:Args):Promise<T> {
     const base=serviceBase(origin);
     return new Promise((resolve,reject)=>{
         const r=new XMLHttpRequest();
         r.open(data===undefined?'GET':'POST',base+'/api/'+path);
         if(data!==undefined)r.setRequestHeader('Content-Type','application/json');
-        r.timeout=requestTimeout;
-        const cleanup=()=>{
-            clearTimeout(deadline);
-            signal?.removeEventListener('abort',abort);
-        };
-        const interrupted=()=>{
-            cleanup();
-            reject(new ServerError('连接中断，请重连后查询本次操作。',0));
-        };
-        const abort=()=>{interrupted();r.abort();};
-        // A stalled response may never deliver the native XHR timeout event.
-        const deadline=setTimeout(abort,requestTimeout);
+        r.timeout=9000;
         r.onload=()=>{
-            cleanup();
             try {
                 const value=JSON.parse(r.responseText);
                 if(r.status!==200) {reject(new ServerError(value.error||'店铺请求失败。',r.status));return;}
                 resolve(value as T);
             } catch {reject(new ServerError('未能读取服务器回执。',0));}
         };
-        r.onerror=r.ontimeout=r.onabort=interrupted;
-        if(signal?.aborted){interrupted();return;}
-        signal?.addEventListener('abort',abort,{once:true});
-        try {r.send(data===undefined?null:JSON.stringify(data));}
-        catch(error){cleanup();reject(error);}
+        r.onerror=r.ontimeout=r.onabort=()=>reject(new ServerError('连接中断，请重连后查询本次操作。',0));
+        r.send(data===undefined?null:JSON.stringify(data));
     });
 }
-export async function connectShop(origin='',signal?:AbortSignal):Promise<ShopSnapshot> {
-    const shop=await api<ShopSnapshot>(origin,'shop',undefined,signal);
+export async function connectShop(origin=''):Promise<ShopSnapshot> {
+    const shop=await api<ShopSnapshot>(origin,'shop');
     if(shop.protocol!==1 || !shop.profileId || !Number.isSafeInteger(shop.version) || !Array.isArray(shop.entrances))
         throw new Error('请先启动经营版店铺服务器。');
     return shop;

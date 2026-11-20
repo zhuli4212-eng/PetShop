@@ -267,8 +267,8 @@ export function picture(parent: Node, name: string, art: string, x: number, y: n
     return n;
 }
 
-// Give cached or fast artwork time to appear with its controls. The renderer
-// can attach slow images later, so their requests must not hold up the ledger.
+// Bring the illustrated counter into view together with its controls on the first visit.
+// A prefetched sprite frame can also be assigned synchronously when revisiting the page.
 export async function prepareIllustration(key:string, args:Args, page:LedgerPage):Promise<void> {
     const counters:Record<string,string>={
         lab:'lab',research:'lab',market:'market',orders:'orders',credits:'orders',orderDesk:'orders',
@@ -289,20 +289,11 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
         paths.add('pet-young/domestic-coat01_male');
     }
     if(page.visual?.grownIds)paths.add('onboarding/growth-spark');
-    const missing=Array.from(paths,art=>art+'/spriteFrame')
-        .filter(path=>!resources.get(path,SpriteFrame));
-    if(!missing.length)return;
-    let deadline:ReturnType<typeof setTimeout>|undefined;
-    try {
-        await Promise.race([
-            Promise.all(missing.map(path=>new Promise<void>(resolve=>{
-                resources.load(path,SpriteFrame,()=>resolve());
-            }))).catch(()=>{}),
-            new Promise<void>(resolve=>{deadline=setTimeout(resolve,400);}),
-        ]);
-    } finally {
-        if(deadline!==undefined)clearTimeout(deadline);
-    }
+    await Promise.all(Array.from(paths,art=>{
+        const path=art+'/spriteFrame';
+        if(resources.get(path,SpriteFrame))return;
+        return new Promise<void>(resolve=>resources.load(path,SpriteFrame,()=>resolve()));
+    }));
 }
 
 export function lines(value: string, width: number, size: number): number {

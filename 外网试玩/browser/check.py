@@ -141,13 +141,10 @@ def form_only(browser,url,screenshot=None):
                 assert abs(stage['x']+stage['width']/2-width/2)<3 and stage['width']<stage['height'],stage
                 if width>=1000:assert stage['width']<width/2,stage
                 backdrop=page.locator('.shopfront').bounding_box()
-                sheet=page.locator('.sheet').bounding_box()
-                bottom=stage['y']+stage['height']-sheet['y']-sheet['height']
-                assert all(abs(backdrop[side]-stage[side])<1 for side in stage),(backdrop,stage)
-                padding=page.locator('.ledger').evaluate(
-                    'node=>parseFloat(getComputedStyle(node).paddingBottom)')
-                assert abs(bottom-padding)<1,bottom
-                assert page.locator('.shopfront').evaluate('img=>getComputedStyle(img).objectFit')=='cover'
+                form=page.locator('#account-form').bounding_box()
+                assert abs(backdrop['x']+backdrop['width']/2-width/2)<3
+                assert backdrop['y']+backdrop['height']<=form['y']
+                assert page.locator(".shopfront").evaluate("img=>getComputedStyle(img).objectFit")=='contain'
                 if screenshot and width in [390,1280]:
                     screenshot.parent.mkdir(parents=True,exist_ok=True)
                     label=('-desktop' if width==1280 else '')+('-register' if registering else '')
@@ -155,10 +152,6 @@ def form_only(browser,url,screenshot=None):
             page.locator("#login-tab").tap()
             visible_form(page)
             assert not any(method=='POST' and '/petshop-api/' in path for method,path in requests)
-            font_paths={urlsplit(path).path for _,path in requests if urlsplit(path).path.endswith(('.ttf','.woff2'))}
-            assert len(font_paths)==3,font_paths
-            font_states=page.evaluate("[...document.fonts].filter(face=>face.family.endsWith('_LABEL')).map(face=>face.status)")
-            assert font_states==['loaded']*3,font_states
             print(f"{width}px login/register forms visible at {url}; no account requests submitted.",flush=True)
 
 
@@ -167,28 +160,10 @@ def fill_credentials(page,name,password):
     page.locator("#password").fill(password)
 
 
-def assert_game_font_rendering(page):
-    fonts=page.evaluate("""()=>{
-        const ctx=document.createElement('canvas').getContext('2d');
-        const results={};
-        for(const label of game().node.getComponentsInChildren(cc.Label)){
-            const family=label.font?._nativeAsset;
-            if(label.useSystemFont||!family||family in results)continue;
-            ctx.font='7px monospace';
-            ctx.font=label.fontSize+'px '+family;
-            results[family]={requested:label.fontSize,applied:parseFloat(ctx.font)};
-        }
-        return results;
-    }""")
-    assert len(fonts)==3,fonts
-    assert all(entry["requested"]==entry["applied"] for entry in fonts.values()),fonts
-
-
 def submit(page,name,password):
     fill_credentials(page,name,password)
     page.locator("#submit").tap()
     page.wait_for_function("game()?.shop?.profileId && game()?.state === 'open'",timeout=90000)
-    assert_game_font_rendering(page)
     return page.evaluate("game().shop.profileId")
 
 
@@ -225,33 +200,6 @@ def read_only_game_page(page,key,args):
     page.evaluate("([key,args])=>game().session.open(key,args)",[key,args])
     page.wait_for_function("key=>game().session.current?.key===key&&!game().session.reading",arg=key)
     return page.evaluate("game().session.current.data")
-
-
-def open_account_while_art_is_pending(page):
-    page.evaluate("""()=>{
-        const art='shop-modules/opening/spriteFrame';
-        const bundle=cc.resources,load=bundle.load,get=bundle.get;
-        const waiting=[];
-        bundle.get=function(path,...args){
-            return path===art?null:get.call(this,path,...args);
-        };
-        bundle.load=function(path,...args){
-            if(path===art){waiting.push(args);return;}
-            return load.call(this,path,...args);
-        };
-        window.resumeLedgerArt=()=>{
-            bundle.load=load;
-            bundle.get=get;
-            for(const args of waiting)load.call(bundle,art,...args);
-            return waiting.length;
-        };
-    }""")
-    try:
-        tap_game(page,'Hotspot_login',by_name=True)
-        page.wait_for_function("""()=>game().session.current?.data?.title==='店主登记簿'
-            && !game().session.reading""",timeout=10000)
-    finally:
-        assert page.evaluate("window.resumeLedgerArt()")>0
 
 
 def play_tutorial(page):
@@ -392,7 +340,7 @@ def verify_accounts(browser,url):
         assert submit(two,a,pw_a)==id_a and two.evaluate("game().shop.dayClaimed")
 
         # Switch using the account entry a player sees inside Cocos.
-        open_account_while_art_is_pending(two)
+        tap_game(two,"Hotspot_login",by_name=True)
         label=two.wait_for_function("game().session.current?.data?.actions?.find(x=>x.label.includes('切换'))?.label").json_value()
         tap_game(two,label)
         visible_form(two)
