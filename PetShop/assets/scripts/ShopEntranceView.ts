@@ -306,7 +306,7 @@ function generic(ctx:PageCanvas):void {
     }
 }
 
-interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;backdrop?:boolean;backToTasks?:boolean;playEntrance?:boolean;suppressGuide?:boolean;guideMode?:boolean;}
+interface LedgerOptions {modal?:boolean;ready?:boolean;pending?:boolean;offline?:boolean;slowRead?:boolean;backdrop?:boolean;backToTasks?:boolean;playEntrance?:boolean;suppressGuide?:boolean;guideMode?:boolean;}
 
 // Keep explanatory cards whole when they do not fit, while animal and transaction lists can scroll.
 function paginateDetails(content:Node,sheet:Node,ui:LedgerUI,width:number,top:number,height:number):boolean {
@@ -372,7 +372,8 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     area.setAnchorPoint(.5,1);scroll.content=content;
     const layout=canvas(content,width,key,args,p,ui,modal);
     const ctx=layout.ctx;
-    if(opts.offline)press(content,'Retry','离线 · 重新连接',0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
+    if(opts.offline||opts.slowRead)press(content,'Retry',opts.offline?'离线 · 重新连接':'连接较慢 · 重新连接',
+        0,ctx.slot(48),ctx.inner,()=>ui.choose({type:'ui.retry'}));
     if(opts.pending)ctx.row({title:'有一笔操作等待确认',text:'查询原请求回执',action:{type:'ui.receipt'}},-1);
     if(opts.ready===false || !(openingBooklet(ctx,maxHeight-headerHeight)||guideDialog(ctx)||taskList(ctx)||nutrition(ctx)||drawRoom(ctx)||drawBusiness(ctx)||account(ctx)))generic(ctx);
     if(p.guide?.next){
@@ -460,7 +461,7 @@ export function drawConnection(parent:Node,height:number,failed:boolean,retry:()
     const width=Math.min(340,w-26);
     const sign=frame(sheet,'Sign',0,10,width,failed?192:105,paper.page);
     heading(sign,'Title','宠物店',0,failed?53:17,width-24,39,23,paper.green,true);
-    caption(sign,'Status',failed?'店铺服务器未连接，请检查服务后重试。':'正在打开经营账簿…',0,failed?8:-20,width-24,40,15,paper.ink,true);
+    caption(sign,'Status',failed?'店铺连接中断，网络恢复后会自动重连。':'正在打开经营账簿…',0,failed?8:-20,width-24,40,15,paper.ink,true);
     if(failed){
         const button=press(sign,'Retry','重新连接',0,-52,150,retry,true);
         if(guide)showGuideSpotlight(parent,button,'重新连接后，继续当前引导。');
