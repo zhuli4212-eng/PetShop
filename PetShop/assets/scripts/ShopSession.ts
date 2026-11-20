@@ -390,7 +390,10 @@ export class ShopSession {
                         text:'请重新连接，或返回店铺。'}]};
                 }
                 if(!(err instanceof ServerError))console.error('无法显示页面',visit.key,err);
-                if(wasOnline||!quiet){this.render();this.host.notice((err as Error).message);}
+                if(wasOnline||!quiet){
+                    this.render();
+                    if(!firstRead)this.host.notice((err as Error).message);
+                }
             }
         } finally {
             if(serial===this.serial){this.pageRead=undefined;this.reading=false;this.lastRead=Date.now();}
