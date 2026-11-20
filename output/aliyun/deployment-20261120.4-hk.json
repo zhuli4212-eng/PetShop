@@ -1,0 +1,152 @@
+{
+  "date": "2026-11-20",
+  "deployedAt": "2026-11-20T21:29:52+08:00",
+  "version": "2026.11.20.4",
+  "region": "cn-hongkong",
+  "host": "47.243.58.106",
+  "upstream": "https://petshop.zhu-li-4212.xyz",
+  "gameSourceCommit": "3e1861c8da2a6c29153646cfc06d95e928fb640a",
+  "versionTag": "petshop-v2026.11.20.4",
+  "baselineTag": "production-baseline-2026-11-20.4",
+  "deploymentArchive": "output/aliyun/petshop-production-20261120.4-hk.tar.gz",
+  "deploymentSha256": "b85d956ee35daa8938dd9855d7febe9ada537b4a990cf831f0161222874d6fdf",
+  "deploymentBytes": 50774880,
+  "stagingDirectory": "/root/petshop-release-20261120.4",
+  "activationScriptSha256": "00a540c03dbdf3885747e24c2bbeee1cc510e4b1d4324027c3d3bf2b0f0401d1",
+  "publicFiles": 2112,
+  "publicBytes": 54245771,
+  "publicAssetManifestSha256": "770b428efb868d18f5c71c2b77b3e3bbe1385a5ffd2020c0574cf36ab1113dd8",
+  "accountServiceSha256": "0574c42f004064e97b12d90bde1bf1b0befde962c1c962bcc729befaad7da074",
+  "accountServiceMatchesPrevious": true,
+  "webFontFiles": {
+    "assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2": {
+      "sha256": "70e19a1ac04ab04b3331c9826ab23401dc2a3201d4b99ce0cf1f3f428a9427c2",
+      "bytes": 10163964
+    },
+    "assets/resources/native/ab/ab8fdcc7-f3f3-4b5c-9030-84d0f6b1b276.5667fddaa41d7cb0.woff2": {
+      "sha256": "5667fddaa41d7cb012a756485b333b2f87163984be39ce34f168bdb45a9e13ac",
+      "bytes": 15387064
+    },
+    "assets/resources/native/e8/e840e2dd-b0f5-43e6-8bec-b1c446a23c45.95dac98a72e4f5b7.woff2": {
+      "sha256": "95dac98a72e4f5b7cc6554f864bcb91b1a270a949912df1d49c6c0d98552fc1b",
+      "bytes": 10343384
+    }
+  },
+  "webFontFilesMatchPrevious": true,
+  "loginStylesMatchPrevious": true,
+  "activeReleaseLink": "/opt/petshop/current",
+  "releaseDirectory": "/opt/petshop/release.HXuuStKs",
+  "previousReleaseDirectory": "/opt/petshop/release.vykgn7SO",
+  "previousBaseline": "petshop-v2026.11.20.3",
+  "productionDatabase": "/var/lib/petshop/shop.sqlite",
+  "databasePreservation": {
+    "resetPerformed": false,
+    "sameDatabaseFile": true,
+    "exactRowsMatched": true,
+    "sqliteQuickCheckPassed": true,
+    "counts": {
+      "trial_accounts": 17,
+      "trial_sessions": 63,
+      "trial_auth_limits": 2
+    },
+    "rollbackSnapshot": "/var/lib/petshop/rollback/2026.11.20.4.icORSaK8/shop-before-deploy.sqlite",
+    "rollbackSnapshotSha256": "9d87b65297aaa9046e926aef86058796d08086b8b77e2282a54c13afd0adef43",
+    "verifiedAt": "2026-11-20T21:29:52+08:00"
+  },
+  "servicesActive": [
+    "petshop.service",
+    "petshop-web.service"
+  ],
+  "pagesGatewayDeploymentsReused": true,
+  "localTestCodeExcluded": true,
+  "localChecks": {
+    "serverTestsPassed": 141,
+    "engines": [
+      "Edge",
+      "WebKit"
+    ],
+    "isolatedDatabase": true,
+    "passedCases": [
+      "ledger renders while optional artwork is pending and fills it after recovery",
+      "first transient read is retried and persistent errors expose same-page recovery",
+      "failed or hung startup script exposes reload and late success restores the normal entry",
+      "login request, legacy database read, and font asset loading time out and recover"
+    ],
+    "iphoneHardwareTested": false
+  },
+  "liveChecks": {
+    "verifiedAt": "2026-11-20T13:31:26.655Z",
+    "version": "2026.11.20.4",
+    "sourceCommit": "3e1861c8da2a6c29153646cfc06d95e928fb640a",
+    "entrances": [
+      {
+        "url": "https://petshop-trial.pages.dev/",
+        "health": 200,
+        "anonymousShop": 401,
+        "localTestAsset": 404,
+        "publishedAssetHashes": {
+          "index.html": "a8d9bc14b079cef8bf910dc2cdac60069d8a260aa807a28fa4598e725189b58e",
+          "release.json": "b86e63e94b6d8e1eda922095591688181de6aafcd7fb834d80cafccaa90b3ef1",
+          "trial-start.js?v=ca8f5dc8c46c5f62": "ca8f5dc8c46c5f6216c8113c68fe33bf93c0c5e964591d399980f1d388be435b",
+          "trial-login.css?v=c93f4cff4536f729": "c93f4cff4536f72908a3af93bc4efe35729530c20fbc40afaf8757ec5f62b9e1",
+          "legacy.js?v=5893be908abb7a8f": "5893be908abb7a8ff2309ff3adc3c4d186777e869fd10d722c04f256f2058aa9",
+          "src/entry.38170558d5353968.js": "38170558d535396865e3a60cc42a1c1832fd9c6b9bf71aa4776d6ed94fc636bc",
+          "assets/main/index.f8f95424869f2c84.js": "11ff3115823a829afa38bfa548f78a16c699791a245956a4c0c60f2c8cf52bdb",
+          "src/settings.e6023de469053446.json": "e6023de469053446988cd52f4b65bd2234ddb775be803b6da0871aeaacd55eed",
+          "assets/resources/config.e526518145d11683.json": "e526518145d11683994ebd5706860df534b428d19784e827e56818acf014df67",
+          "assets/resources/index.e526518145d11683.js": "51a07ab61ee49561d29734ff6ee095b0d8a47998bbe30a6f1973bf3c8b7faa25"
+        },
+        "webFonts": {
+          "assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2": 10163964,
+          "assets/resources/native/ab/ab8fdcc7-f3f3-4b5c-9030-84d0f6b1b276.5667fddaa41d7cb0.woff2": 15387064,
+          "assets/resources/native/e8/e840e2dd-b0f5-43e6-8bec-b1c446a23c45.95dac98a72e4f5b7.woff2": 10343384
+        }
+      },
+      {
+        "url": "https://play.zhu-li-4212.xyz/petshop/",
+        "health": 200,
+        "anonymousShop": 401,
+        "localTestAsset": 404,
+        "publishedAssetHashes": {
+          "index.html": "a8d9bc14b079cef8bf910dc2cdac60069d8a260aa807a28fa4598e725189b58e",
+          "release.json": "b86e63e94b6d8e1eda922095591688181de6aafcd7fb834d80cafccaa90b3ef1",
+          "trial-start.js?v=ca8f5dc8c46c5f62": "ca8f5dc8c46c5f6216c8113c68fe33bf93c0c5e964591d399980f1d388be435b",
+          "trial-login.css?v=c93f4cff4536f729": "c93f4cff4536f72908a3af93bc4efe35729530c20fbc40afaf8757ec5f62b9e1",
+          "legacy.js?v=5893be908abb7a8f": "5893be908abb7a8ff2309ff3adc3c4d186777e869fd10d722c04f256f2058aa9",
+          "src/entry.38170558d5353968.js": "38170558d535396865e3a60cc42a1c1832fd9c6b9bf71aa4776d6ed94fc636bc",
+          "assets/main/index.f8f95424869f2c84.js": "11ff3115823a829afa38bfa548f78a16c699791a245956a4c0c60f2c8cf52bdb",
+          "src/settings.e6023de469053446.json": "e6023de469053446988cd52f4b65bd2234ddb775be803b6da0871aeaacd55eed",
+          "assets/resources/config.e526518145d11683.json": "e526518145d11683994ebd5706860df534b428d19784e827e56818acf014df67",
+          "assets/resources/index.e526518145d11683.js": "51a07ab61ee49561d29734ff6ee095b0d8a47998bbe30a6f1973bf3c8b7faa25"
+        },
+        "webFonts": {
+          "assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2": 10163964,
+          "assets/resources/native/ab/ab8fdcc7-f3f3-4b5c-9030-84d0f6b1b276.5667fddaa41d7cb0.woff2": 15387064,
+          "assets/resources/native/e8/e840e2dd-b0f5-43e6-8bec-b1c446a23c45.95dac98a72e4f5b7.woff2": 10343384
+        }
+      }
+    ],
+    "browserWithIsolatedSaves": [
+      {
+        "url": "https://petshop-trial.pages.dev/",
+        "engine": "Edge",
+        "width": 390,
+        "openingAndLoginPassed": true,
+        "preloginFontRequests": 0,
+        "api": "isolated-local-sqlite",
+        "ledgerUsableWhileArtworkPending": true,
+        "artworkAppearedOnRecovery": true
+      },
+      {
+        "url": "https://play.zhu-li-4212.xyz/petshop/",
+        "engine": "Edge",
+        "width": 390,
+        "openingAndLoginPassed": true,
+        "preloginFontRequests": 0,
+        "api": "isolated-local-sqlite",
+        "ledgerUsableWhileArtworkPending": true,
+        "artworkAppearedOnRecovery": true
+      }
+    ]
+  }
+}
