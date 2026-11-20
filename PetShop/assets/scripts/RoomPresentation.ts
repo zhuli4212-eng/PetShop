@@ -1,6 +1,6 @@
 import { BlockInputEvents, Color, Label, Node, UITransform } from 'cc';
 import type { Animal, AnimalTag, Choice, LedgerRow, MutationPreview, NutritionEffect } from './ShopConnection';
-import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, heading, paper, picture, press, setSolidRect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
+import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, frameContents, heading, paper, picture, press, setSolidRect, stockBadge, tap, type PageCanvas } from './LedgerCanvas';
 import { RoomAnimalWalk } from './RoomAnimalWalk';
 import { litterPositions } from './RoomFloor';
 import { guideNote, growthSpark } from './TutorialPresentation';
@@ -164,9 +164,12 @@ function traitTags(parent:Node,tags:AnimalTag[],left:number,top:number,width:num
 }
 function rosterLine(c:PageCanvas,a:Animal,i:number):void {
     const expanded=c.ui.expandedAnimal===a.id;
-    const h=animalSummaryHeight+30+(expanded?132:0),top=h/2;
+    const h=animalSummaryHeight+30+(expanded?132:0);
+    c.visibleRow('Animal'+i,animalCardWidth(c),h,8,card=>drawRosterCard(c,card,a,expanded,h/2));
+}
+function drawRosterCard(c:PageCanvas,card:Node,a:Animal,expanded:boolean,top:number):void {
     const width=animalCardWidth(c),left=-width/2;
-    const card=frame(c.body,'Animal'+i,0,c.slot(h,8),width,h,paper.card,'#C7AD7A');
+    frameContents(card,paper.card,'#C7AD7A');
     tap(card,()=>c.ui.toggleAnimal(a.id));
     animalSummary(c,card,a,width,top);
     animalDetails(c,card,'ViewDetails',{page:'pet',args:{id:a.id}},width,top);

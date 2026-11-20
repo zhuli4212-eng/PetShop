@@ -207,7 +207,17 @@ def seconds(text):
     return ((days*24+hours)*60+minutes)*60+seconds
 
 
+def reveal_row(page,id):
+    page.evaluate("""id=>{
+      const q=roomQA,r=q.row(id),s=q.scroll();
+      if(r.getChildByName('Name'))return;
+      s.stopAutoScroll();
+      s.scrollToOffset(new cc.Vec2(0,Math.max(0,Math.min(s.getMaxScrollOffset().y,-r.position.y-q.ui(r).height/2))),0);
+    }""",id)
+
+
 def row_controls(page,id):
+    reveal_row(page,id)
     return page.evaluate("""id=>{
       const q=roomQA,r=q.row(id);
       const fields=Object.fromEntries(['Name','Number','ScoreLabel','Score','Stage','Identity','StockBadge','StageCountdown','ViewDetails','ExpandTraits']
@@ -223,6 +233,7 @@ def row_controls(page,id):
 
 
 def tap_row_control(page,id,name):
+    reveal_row(page,id)
     page.evaluate("""([id,name])=>{
       const q=roomQA,n=q.row(id).getChildByName(name),s=q.scroll(),content=s.content;
       const p=q.ui(content).convertToNodeSpaceAR(n.worldPosition);
@@ -517,14 +528,17 @@ def verify(browser, url, pets, width, growth_screenshot=None, countdown_server=N
           return {rows:p.rows.filter(r=>r.animal).map(r=>r.animal.id),
             scores:p.rows.filter(r=>r.animal).map(r=>r.animal.score),
             residents:p.presentation.residents.map(r=>r.id),n:q.residents().length,matched:p.presentation.matchedCount,
+            anchors:q.scroll().content.children.filter(n=>/^Animal\d+$/.test(n.name)).length,
             cards:desk.getComponentsInChildren(cc.Label).filter(l=>l.node.name==='Name'&&/^Animal\d+$/.test(l.node.parent.name))
               .sort((a,b)=>Number(a.node.parent.name.slice(6))-Number(b.node.parent.name.slice(6)))
-              .map(l=>[l.string,q.label(l.node.parent,'ScoreLabel')+' '+q.label(l.node.parent,'Score'),!!l.node.parent.getChildByName('Number')]),
+              .map(l=>[Number(l.node.parent.name.slice(6)),l.string,q.label(l.node.parent,'ScoreLabel')+' '+q.label(l.node.parent,'Score'),!!l.node.parent.getChildByName('Number')]),
             empty:desk.getComponentsInChildren(cc.Label).some(l=>l.string.includes('没有动物'))};
         }""")
         assert snapshot["rows"] == ids and snapshot["residents"] == ids[:10], (status,stage,snapshot,ids)
         assert all(isinstance(score,int) and 0<=score<=960 for score in snapshot["scores"]),snapshot
-        assert snapshot["cards"] == [[p["name"],f"评分 {score}",False] for p,score in zip(want,snapshot["scores"])],snapshot
+        assert snapshot["anchors"] == len(want) and bool(snapshot["cards"]) == bool(want),snapshot
+        for index,name,score,old_number in snapshot["cards"]:
+            assert [name,score,old_number] == [want[index]["name"],f"评分 {snapshot['scores'][index]}",False],snapshot
         assert snapshot["n"] == min(10,len(want)) and snapshot["matched"] == len(want), snapshot
         assert want or snapshot["empty"], snapshot
         shown = [artwork(p) for p in want[:10]]

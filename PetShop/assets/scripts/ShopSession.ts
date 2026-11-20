@@ -1,7 +1,7 @@
-import { Label, Node, ScrollView, sys, UITransform, Vec2 } from 'cc';
+import { isValid, Label, Node, ScrollView, sys, UITransform, Vec2 } from 'cc';
 import { api, connectShop, requestId, ServerError, startShopRead, type Args, type Choice, type Command, type LedgerPage, type ShopSnapshot, type ShopLetter, type ShopRead } from './ShopConnection';
 import { drawLedger, confirmBox, ledgerModal } from './ShopEntranceView';
-import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
+import { animalStageDeadline, filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
 import { accessFeature, featureFor, GameBrowserBack } from './ShopNavigation';
 import { RoomFloor } from './RoomFloor';
 import { drawBreedingBonus } from './RoomPresentation';
@@ -286,12 +286,17 @@ export class ShopSession {
     private bindStageClocks(visit:Visit,scroll:ScrollView,clocks:StageClock[]):void {
         const roomEnd=visit.data?.presentation?.nextStageAt;
         let next=Number.isFinite(roomEnd)?roomEnd!:Infinity;
+        if(visit.key==='rooms'||visit.key==='market'||visit.key==='sale'&&visit.args.channel==='market'){
+            for(const row of visit.data?.rows||[])if(row.animal)next=Math.min(next,animalStageDeadline(row.animal));
+        }
         for(const clock of clocks)next=Math.min(next,clock.endsAt);
         if(!Number.isFinite(next)||visit.serverClockOffset===undefined)return;
         let requested=false;
         const tick=()=>{
             const now=visitNow(visit);
-            for(const clock of clocks){
+            for(let i=clocks.length-1;i>=0;i--){
+                const clock=clocks[i];
+                if(!isValid(clock.label,true)){clocks.splice(i,1);continue;}
                 const seconds=Math.max(0,(clock.endsAt-now)/1000),value=(clock.prefix||'')+stageTime(seconds);
                 if(value!==clock.shown){
                     clock.label.string=value;
@@ -482,7 +487,7 @@ export class ShopSession {
                 slowRead:!backdrop&&view.version===undefined&&this.pageRead?.slow
             });
             this.restoreRoomPosition(view,scroll);
-            if(stageClocks.length||Number.isFinite(view.data.presentation?.nextStageAt))this.bindStageClocks(view,scroll,stageClocks);
+            this.bindStageClocks(view,scroll,stageClocks);
             if(!backdrop){this.scroll=scroll;this.renderedVisit=view;}
         }
         const confirm=this.confirm;

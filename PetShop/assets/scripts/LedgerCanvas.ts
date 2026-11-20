@@ -33,6 +33,7 @@ export interface FilterField { anchor: Node; options: Choice[]; }
 export interface PageCanvas {
     key: string; args: Args; p: LedgerPage; body: Node; width: number; inner: number; ui: LedgerUI; modal: boolean;
     slot(height: number, gap?: number): number;
+    visibleRow(name: string, width: number, height: number, gap: number, draw: (row:Node)=>void): void;
     /** Everything drawn so far may stay above the scrolling list. Short screens use an earlier boundary. */
     startList(): void;
     /** Keep all subsequent controls below the list viewport. */
@@ -126,10 +127,15 @@ export function guidePointer(parent: Node, color: string): Node {
 export function frame(parent: Node, name: string, x: number, y: number, w: number, h: number, fill: string,
                       edge = paper.brass, shadow = true): Node {
     const n = box(parent, name, x, y, w, h);
+    frameContents(n,fill,edge,shadow);
+    return n;
+}
+
+export function frameContents(n:Node,fill:string,edge=paper.brass,shadow=true):void {
+    const {width:w,height:h}=n.getComponent(UITransform)!;
     if (shadow) solidRect(n, -w/2, -h/2-2, w, h, '#C5A872');
     solidRect(n, -w/2, -h/2, w, h, edge);
     solidRect(n, -w/2+1, -h/2+1, w-2, h-2, fill);
-    return n;
 }
 
 export function caption(parent: Node, name: string, value: string, x: number, y: number, w: number, h: number,
@@ -169,6 +175,7 @@ export const animalSummaryHeight=84;
 export const animalCardWidth=(c:PageCanvas):number=>c.inner-12;
 const animalDetailsWidth=54;
 const nextStage:Record<string,string>={幼年:'成长',成长:'成年',成年:'老年',老年:'寿终'};
+export const animalStageDeadline=(a:Animal):number=>nextStage[a.stage]&&Number.isFinite(a.stageEndsAt)?a.stageEndsAt!:Infinity;
 
 export function animalSummary(c:PageCanvas,parent:Node,a:Animal,width:number,top:number,checkWidth=0,disabled=false):void {
     const left=-width/2+checkWidth,textLeft=left+69;
@@ -181,7 +188,7 @@ export function animalSummary(c:PageCanvas,parent:Node,a:Animal,width:number,top
     const score=setTextStyle(caption(parent,'Score',a.score===undefined?'—':String(a.score),left+49,top-69,26,18,13,paper.green),'number');
     score.fontSize=13;score.lineHeight=18;score.enableWrapText=false;
 
-    const target=nextStage[a.stage],timed=!!target&&Number.isFinite(a.stageEndsAt);
+    const deadline=animalStageDeadline(a),timed=Number.isFinite(deadline);
     const nameWidth=timed?Math.min(textWidth-67,Math.max(36,Array.from(a.name).length*17+4)):textWidth;
     const name=setTextStyle(caption(parent,'Name',a.name,textLeft+nameWidth/2,top-24,nameWidth,24,17,paper.ink),'entry');
     name.enableWrapText=false;
@@ -197,7 +204,7 @@ export function animalSummary(c:PageCanvas,parent:Node,a:Animal,width:number,top
         const clockWidth=textWidth-nameWidth-6,clockX=textLeft+nameWidth+6+clockWidth/2;
         const clock=setTextStyle(caption(parent,'StageCountdown','',clockX,top-24,clockWidth,30,12,paper.ink),'countdown');
         clock.fontSize=12;clock.lineHeight=15;clock.enableWrapText=clockWidth<100;
-        c.ui.bindStageCountdown(clock,a.stageEndsAt!,undefined,'距'+target+' ');
+        c.ui.bindStageCountdown(clock,deadline,undefined,'距'+nextStage[a.stage]+' ');
     }
 }
 
