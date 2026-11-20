@@ -164,10 +164,28 @@ def fill_credentials(page,name,password):
     page.locator("#password").fill(password)
 
 
+def assert_game_font_rendering(page):
+    fonts=page.evaluate("""()=>{
+        const ctx=document.createElement('canvas').getContext('2d');
+        const results={};
+        for(const label of game().node.getComponentsInChildren(cc.Label)){
+            const family=label.font?._nativeAsset;
+            if(label.useSystemFont||!family||family in results)continue;
+            ctx.font='7px monospace';
+            ctx.font=label.fontSize+'px '+family;
+            results[family]={requested:label.fontSize,applied:parseFloat(ctx.font)};
+        }
+        return results;
+    }""")
+    assert len(fonts)==3,fonts
+    assert all(entry["requested"]==entry["applied"] for entry in fonts.values()),fonts
+
+
 def submit(page,name,password):
     fill_credentials(page,name,password)
     page.locator("#submit").tap()
     page.wait_for_function("game()?.shop?.profileId && game()?.state === 'open'",timeout=90000)
+    assert_game_font_rendering(page)
     return page.evaluate("game().shop.profileId")
 
 

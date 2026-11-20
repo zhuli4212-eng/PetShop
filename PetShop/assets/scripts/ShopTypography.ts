@@ -68,7 +68,10 @@ export function bindSceneFonts(root:Node):void {
 }
 
 function webFontFamily(url:string):string {
-    return url.slice(url.lastIndexOf('/')+1).replace(/\.(ttf|woff2)$/,'')+'_LABEL';
+    const name=url.slice(url.lastIndexOf('/')+1).replace(/\.(ttf|woff2)$/,'');
+    // Cocos puts the family into Canvas font shorthand without quotes.
+    const family=url.endsWith('.woff2')?'PetShop_'+name.replace(/[^\w-]/g,'_'):name;
+    return family+'_LABEL';
 }
 
 function registerWebFontDownloader():void {
