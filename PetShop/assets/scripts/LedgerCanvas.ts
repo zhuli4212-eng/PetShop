@@ -1,4 +1,4 @@
-import { BlockInputEvents, Color, EventTouch, Graphics, isValid, Label, Node, resources, Sprite, SpriteFrame, UITransform, Vec3 } from 'cc';
+import { BlockInputEvents, builtinResMgr, Color, EventTouch, isValid, Label, Node, resources, Sprite, SpriteFrame, Texture2D, UITransform, Vec3 } from 'cc';
 import type { Animal, Args, Choice, LedgerPage, LedgerRow } from './ShopConnection';
 import type { RoomFloor } from './RoomFloor';
 import { playTap } from './ShopAudio';
@@ -45,32 +45,90 @@ export interface PageCanvas {
     empty(): void;
 }
 
+let solidFrame: SpriteFrame | undefined;
+
+export function flatSpriteFrame(): SpriteFrame {
+    if (!solidFrame) {
+        solidFrame = new SpriteFrame();
+        solidFrame.texture = builtinResMgr.get<Texture2D>('white-texture');
+        solidFrame.packable = false;
+    }
+    return solidFrame;
+}
+
+function paintSprite(node: Node, spriteFrame: SpriteFrame, color: string): Sprite {
+    const sprite = node.addComponent(Sprite);
+    sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    sprite.spriteFrame = spriteFrame;
+    sprite.color = new Color().fromHEX(color);
+    return sprite;
+}
+
 export function box(parent: Node, name: string, x: number, y: number, w: number, h: number, fill?: string): Node {
     const n = new Node(name);
     n.layer = parent.layer;
     parent.addChild(n);
     n.setPosition(x, y);
     n.addComponent(UITransform).setContentSize(w, h);
-    if (fill) {
-        const g = n.addComponent(Graphics);
-        rect(g, -w/2, -h/2, w, h, fill);
-    }
+    if (fill) paintSprite(n, flatSpriteFrame(), fill);
     return n;
 }
 
-export function rect(g: Graphics, x: number, y: number, w: number, h: number, fill: string): void {
-    g.fillColor = new Color().fromHEX(fill);
-    g.rect(x, y, w, h);
-    g.fill();
+export function solidRect(parent: Node, x: number, y: number, w: number, h: number, fill: string): void {
+    if (w > 0 && h > 0) box(parent, 'Solid', x+w/2, y+h/2, w, h, fill);
+}
+
+export function setSolidRect(node: Node, x: number, y: number, w: number, h: number): void {
+    node.active = w > 0 && h > 0;
+    if (!node.active) return;
+    node.setPosition(x+w/2, y+h/2);
+    node.getComponent(UITransform)!.setContentSize(w, h);
+}
+
+function alphaSpriteFrame(width: number, height: number, coverage: (x:number,y:number)=>number, smooth: boolean): SpriteFrame {
+    const pixels = new Uint8Array(width * height * 4);
+    pixels.fill(255);
+    for (let y=0;y<height;y++) for (let x=0;x<width;x++) {
+        pixels[(y*width+x)*4+3] = Math.round(255 * coverage(x+.5,y+.5));
+    }
+    const texture = new Texture2D();
+    texture.reset({width,height,format:Texture2D.PixelFormat.RGBA8888,mipmapLevel:1});
+    const filter = smooth ? Texture2D.Filter.LINEAR : Texture2D.Filter.NEAREST;
+    texture.setFilters(filter,filter);
+    texture.uploadData(pixels);
+    const frame = new SpriteFrame();
+    frame.texture=texture;
+    frame.packable=false;
+    return frame;
+}
+
+let paperLines: SpriteFrame | undefined;
+let circleFrame: SpriteFrame | undefined;
+let triangleFrame: SpriteFrame | undefined;
+
+export function paperGrain(node: Node): void {
+    paperLines ??= alphaSpriteFrame(512,4,(_,y)=>y>=3?5/255:0,false);
+    paintSprite(node,paperLines,'#754B22').type=Sprite.Type.TILED;
+}
+
+export function solidDisc(parent: Node, diameter: number, color: string): void {
+    circleFrame ??= alphaSpriteFrame(64,64,(x,y)=>Math.max(0,Math.min(1,32.5-Math.hypot(x-32,y-32))),true);
+    paintSprite(box(parent,'Disc',0,0,diameter,diameter),circleFrame,color);
+}
+
+export function guidePointer(parent: Node, color: string): Node {
+    triangleFrame ??= alphaSpriteFrame(56,36,(x,y)=>Math.max(0,Math.min(1,28.5-Math.abs(x-28)-y*28/36)),true);
+    const arrow=box(parent,'Pointer',0,0,14,9);
+    paintSprite(arrow,triangleFrame,color);
+    return arrow;
 }
 
 export function frame(parent: Node, name: string, x: number, y: number, w: number, h: number, fill: string,
                       edge = paper.brass, shadow = true): Node {
     const n = box(parent, name, x, y, w, h);
-    const g = n.addComponent(Graphics);
-    if (shadow) rect(g, -w/2, -h/2-2, w, h, '#C5A872');
-    rect(g, -w/2, -h/2, w, h, edge);
-    rect(g, -w/2+1, -h/2+1, w-2, h-2, fill);
+    if (shadow) solidRect(n, -w/2, -h/2-2, w, h, '#C5A872');
+    solidRect(n, -w/2, -h/2, w, h, edge);
+    solidRect(n, -w/2+1, -h/2+1, w-2, h-2, fill);
     return n;
 }
 
@@ -164,10 +222,9 @@ export function press(parent: Node, name: string, title: string, x: number, y: n
     const edge = disabled ? '#ABA58F' : primary ? '#254536' : '#A38252';
     const fill = disabled ? '#F0E5CC' : primary ? '#345B48' : secondaryFill==='#F0D6A3'?'#EDD3A0':secondaryFill;
     const n = frame(parent, name, x, y, w, h, fill, edge, false);
-    const g = n.getComponent(Graphics)!;
     if (!disabled) {
-        rect(g, -w/2+1, h/2-2, w-2, 1, primary ? '#77936C' : '#FFF0D0');
-        rect(g, -w/2, -h/2-1, w, 1, edge);
+        solidRect(n, -w/2+1, h/2-2, w-2, 1, primary ? '#77936C' : '#FFF0D0');
+        solidRect(n, -w/2, -h/2-1, w, 1, edge);
     }
     const l = caption(n, 'Caption', title, 0, 0, w-8, h-4, 14, disabled ? '#706E5F' : primary ? '#FFF0C8' : paper.ink, true);
     setTextStyle(l,primary?'primaryButton':'secondaryButton');
@@ -186,8 +243,8 @@ export function animalFilters(c:PageCanvas,field:'品种'|'物种'):void {
         const anchor=frame(c.body,i?'GrowthStageFilter':field==='品种'?'BreedFilter':'SpeciesFilter',x,y,w,h,'#FFF1D2','#B39665',false);
         const label=(i?'成长状态':field)+'　'+current.label;
         setTextWeight(caption(anchor,'Caption',label,-5,0,w-28,h-2,14,'#29483E'),true);
-        const arrow=box(anchor,'Arrow',w/2-16,-1,10,8).addComponent(Graphics);
-        for(let j=0;j<3;j++)rect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');
+        const arrow=box(anchor,'Arrow',w/2-16,-1,10,8);
+        for(let j=0;j<3;j++)solidRect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');
         tap(anchor,()=>c.ui.openFilter(fields,i));
         return {anchor,options};
     });

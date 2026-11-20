@@ -1,12 +1,12 @@
 import { bindSceneFonts, loadShopFonts, setTextWeight } from './ShopTypography';
 import { _decorator, Component, game, Game, EventKeyboard, input, Input, isValid, KeyCode,
-    Graphics, Label, Node, screen, sys, UITransform, view } from 'cc';
+    Label, Node, screen, sys, UITransform, view } from 'cc';
 import { api, connectShop, requestId, sendDeparture, startShopRead, type ShopRead, type ShopSnapshot, type ShopLetter } from './ShopConnection';
 import { box, caption, picture, drawConnection, guestArrival } from './ShopEntranceView';
 import { ShopHomeFeatures } from './ShopHomeFeatures';
 import { ShopSession } from './ShopSession';
 import { ShopkeeperWalk } from './ShopkeeperWalk';
-import { frame, rect, tap } from './LedgerCanvas';
+import { frame, tap } from './LedgerCanvas';
 import { ShopAudio } from './ShopAudio';
 
 const { ccclass, property } = _decorator;
@@ -224,8 +224,7 @@ export class ShopMain extends Component {
     private notify(message:string):void {
         if(!message||!this.node.isValid)return;
         if(this.toast){this.toast.removeFromParent();this.toast.destroy();}
-        const toast=box(this.node,'Feedback',0,0,0,57);
-        toast.addComponent(Graphics);
+        const toast=box(this.node,'Feedback',0,0,0,57,'#2B4D42');
         caption(toast,'Message',message,0,0,1,51,15,'#FFF0C8',true);
         this.toast=toast;
         this.layoutToast();
@@ -238,9 +237,6 @@ export class ShopMain extends Component {
         const width=Math.min(350,this.layer.getComponent(UITransform)!.width-24);
         if(ui.width!==width){
             ui.setContentSize(width,ui.height);
-            const g=toast.getComponent(Graphics)!;
-            g.clear();
-            rect(g,-width/2,-ui.height/2,width,ui.height,'#2B4D42');
             toast.getChildByName('Message')!.getComponent(UITransform)!.setContentSize(width-20,51);
         }
         const headerHeight=this.header.getComponent(UITransform)!.height;
@@ -472,8 +468,6 @@ export class ShopMain extends Component {
         const face=bubble.getChildByName('Paper')!;
         for(const [part,width,height] of [[bubble,w,49],[face,w-4,45]] as const){
             part.getComponent(UITransform)!.setContentSize(width,height);
-            const g=part.getComponent(Graphics)!;
-            g.clear();g.rect(-width/2,-height/2,width,height);g.fill();
         }
         face.getChildByName('Message')!.getComponent(UITransform)!.setContentSize(w-8,39);
         const edge=(roomWidth-w-16)/(2*scale);
