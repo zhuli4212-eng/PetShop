@@ -1,6 +1,7 @@
 import { readLegacyShop } from './legacy.js';
 import { bindLoginMusic } from './__PETSHOP_LOGIN_MUSIC_MODULE__';
 import { playOpening } from './__PETSHOP_OPENING_MODULE__';
+import { preloadGameResources } from './__PETSHOP_RESOURCE_PRELOAD__';
 
 const byId = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -161,6 +162,7 @@ async function showAccountForm() {
 
 window.petshopBeforeShop = showEntry => {
   if (accountReady) return accountReady;
+  window.petshopLoading.ready();
   accountReady = new Promise(resolve => { completeLogin = resolve; });
   accountLayer.hidden = false;
   setLoginMusicActive = bindLoginMusic({autoplay:true});
@@ -180,6 +182,7 @@ async function bootGame() {
     await loadScript(tag.dataset.gameScript);
     window.petshopLoading.step(++completed);
   }
+  await preloadGameResources('./__PETSHOP_RESOURCE_MANIFEST__', window.petshopLoading);
   await window.System.import(gameEntry);
 }
 
