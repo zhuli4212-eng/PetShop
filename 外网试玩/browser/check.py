@@ -155,7 +155,10 @@ def form_only(browser,url,screenshot=None):
             page.locator("#login-tab").tap()
             visible_form(page)
             assert not any(method=='POST' and '/petshop-api/' in path for method,path in requests)
-            assert not any(urlsplit(path).path.endswith(('.ttf','.woff2')) for _,path in requests)
+            font_paths={urlsplit(path).path for _,path in requests if urlsplit(path).path.endswith(('.ttf','.woff2'))}
+            assert len(font_paths)==3,font_paths
+            font_states=page.evaluate("[...document.fonts].filter(face=>face.family.endsWith('_LABEL')).map(face=>face.status)")
+            assert font_states==['loaded']*3,font_states
             print(f"{width}px login/register forms visible at {url}; no account requests submitted.",flush=True)
 
 

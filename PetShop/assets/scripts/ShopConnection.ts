@@ -73,16 +73,25 @@ export function api<T>(origin:string, path:string, data?:Args):Promise<T> {
         const r=new XMLHttpRequest();
         r.open(data===undefined?'GET':'POST',base+'/api/'+path);
         if(data!==undefined)r.setRequestHeader('Content-Type','application/json');
-        r.timeout=9000;
+        const timeout=9000;
+        r.timeout=timeout;
+        const interrupted=()=>{
+            clearTimeout(deadline);
+            reject(new ServerError('连接中断，请重连后查询本次操作。',0));
+        };
+        // A stalled response may never deliver the native XHR timeout event.
+        const deadline=setTimeout(()=>{interrupted();r.abort();},timeout);
         r.onload=()=>{
+            clearTimeout(deadline);
             try {
                 const value=JSON.parse(r.responseText);
                 if(r.status!==200) {reject(new ServerError(value.error||'店铺请求失败。',r.status));return;}
                 resolve(value as T);
             } catch {reject(new ServerError('未能读取服务器回执。',0));}
         };
-        r.onerror=r.ontimeout=r.onabort=()=>reject(new ServerError('连接中断，请重连后查询本次操作。',0));
-        r.send(data===undefined?null:JSON.stringify(data));
+        r.onerror=r.ontimeout=r.onabort=interrupted;
+        try {r.send(data===undefined?null:JSON.stringify(data));}
+        catch(error){clearTimeout(deadline);reject(error);}
     });
 }
 export async function connectShop(origin=''):Promise<ShopSnapshot> {
