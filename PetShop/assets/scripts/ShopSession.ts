@@ -290,12 +290,25 @@ export class ShopSession {
     }
     private async read(quiet=false):Promise<void>{
         const visit=this.current;if(!visit||this.closed)return;
+        const openingHonor=visit.version===undefined&&featureFor(visit.key,visit.args)==='collection';
         const serial=++this.serial;this.reading=true;
-        if(!quiet) {if(!visit.data)visit.data={title:'店铺',rows:[{title:'正在翻开账簿…'}]};this.render();}
+        if(!quiet) {
+            if(!visit.data)visit.data=openingHonor
+                ?{title:'荣誉',rows:[{title:'正在打开荣誉…'}]}
+                :{title:'店铺',rows:[{title:'正在翻开账簿…'}]};
+            this.render();
+        }
         try {
             if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
             if(visit.key==='audioSettings'){this.showAudioSettings(visit);return;}
-            const result=await api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
+            const fetchPage=()=>api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
+            let result:PageResponse;
+            try{result=await fetchPage();}
+            catch(error){
+                if(!openingHonor||!(error instanceof ServerError)||![0,502,503,504].includes(error.status))throw error;
+                if(this.closed||serial!==this.serial)return;
+                result=await fetchPage();
+            }
             if(this.closed||serial!==this.serial)return;
             // The server holds only the latest litter. A dossier opened from an older
             // one returns to that litter's cached birth record until the player leaves.
@@ -337,6 +350,7 @@ export class ShopSession {
                 this.render();
             } else {
                 const wasOnline=this.online;this.online=false;
+                if(openingHonor)visit.data={title:'荣誉',rows:[{title:'暂时无法打开荣誉',text:'请重新连接，或返回店铺。'}]};
                 if(wasOnline||!quiet){this.render();this.host.notice((err as Error).message);}
             }
         } finally {if(serial===this.serial){this.reading=false;this.lastRead=Date.now();}}

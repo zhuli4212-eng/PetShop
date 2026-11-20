@@ -144,17 +144,18 @@ export class ShopMain extends Component {
         this.state = 'connecting';
         startupNotice();
         try {
-            await loadShopFonts();
-            if(!isValid(this,true))return;
             if(typeof window!=='undefined'){
                 await (window as PreviewWindow).petshopBeforeShop?.(dismissStartupNotice);
             }
+            if(!isValid(this,true))return;
+            startupNotice();
+            this.audio.load();
+            await loadShopFonts();
         } catch {
             if(isValid(this,true))startupNotice(true);
             return;
         }
         if(!isValid(this,true))return;
-        startupNotice();
         this.showPage();
         let shop: ShopSnapshot;
         try {

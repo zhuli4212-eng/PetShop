@@ -141,10 +141,13 @@ def form_only(browser,url,screenshot=None):
                 assert abs(stage['x']+stage['width']/2-width/2)<3 and stage['width']<stage['height'],stage
                 if width>=1000:assert stage['width']<width/2,stage
                 backdrop=page.locator('.shopfront').bounding_box()
-                form=page.locator('#account-form').bounding_box()
-                assert abs(backdrop['x']+backdrop['width']/2-width/2)<3
-                assert backdrop['y']+backdrop['height']<=form['y']
-                assert page.locator(".shopfront").evaluate("img=>getComputedStyle(img).objectFit")=='contain'
+                sheet=page.locator('.sheet').bounding_box()
+                bottom=stage['y']+stage['height']-sheet['y']-sheet['height']
+                assert all(abs(backdrop[side]-stage[side])<1 for side in stage),(backdrop,stage)
+                padding=page.locator('.ledger').evaluate(
+                    'node=>parseFloat(getComputedStyle(node).paddingBottom)')
+                assert abs(bottom-padding)<1,bottom
+                assert page.locator('.shopfront').evaluate('img=>getComputedStyle(img).objectFit')=='cover'
                 if screenshot and width in [390,1280]:
                     screenshot.parent.mkdir(parents=True,exist_ok=True)
                     label=('-desktop' if width==1280 else '')+('-register' if registering else '')
@@ -152,6 +155,7 @@ def form_only(browser,url,screenshot=None):
             page.locator("#login-tab").tap()
             visible_form(page)
             assert not any(method=='POST' and '/petshop-api/' in path for method,path in requests)
+            assert not any(urlsplit(path).path.endswith(('.ttf','.woff2')) for _,path in requests)
             print(f"{width}px login/register forms visible at {url}; no account requests submitted.",flush=True)
 
 

@@ -1,4 +1,4 @@
-import { Color, Font, isValid, Label, Node, resources } from 'cc';
+import { assetManager, Color, Font, isValid, Label, Node, resources } from 'cc';
 
 type FontKey = 'sans' | 'bold' | 'serif';
 const paths:Record<FontKey,string> = {
@@ -67,15 +67,33 @@ export function bindSceneFonts(root:Node):void {
     }
 }
 
+function webFontFamily(url:string):string {
+    return url.slice(url.lastIndexOf('/')+1).replace(/\.(ttf|woff2)$/,'')+'_LABEL';
+}
+
+function registerWebFontDownloader():void {
+    // Creator 3.8 can deserialize TTFFont assets but has no WOFF2 downloader.
+    assetManager.downloader.register('.woff2',(url,_options,done)=>{
+        const family=webFontFamily(url);
+        try {
+            document.fonts.add(new FontFace(family,`url(${JSON.stringify(url)}) format("woff2")`));
+        } catch(error) {
+            done(error as Error);
+            return;
+        }
+        done(null,family);
+    });
+}
+
 async function waitForWebFont(font:Font):Promise<void> {
     if(typeof document==='undefined')return;
     // Creator 3.8.8 can return a TTF asset after its own three-second timeout,
     // including on a failed download. Match its versioned TTF family convention
     // using the public nativeUrl (TTFFont's family field is engine-private).
-    const url=font.nativeUrl,extension=url.lastIndexOf('.ttf');
-    const family=extension<0?'':url.slice(url.lastIndexOf('/')+1,extension)+'_LABEL';
-    if(!document.fonts||!family)
+    const url=font.nativeUrl;
+    if(!document.fonts||!/\.(ttf|woff2)$/.test(url))
         throw new Error('浏览器无法验证店铺字体。');
+    const family=webFontFamily(url);
     let timer:ReturnType<typeof setTimeout>|undefined;
     try {
         const faces=await Promise.race([
@@ -89,6 +107,7 @@ async function waitForWebFont(font:Font):Promise<void> {
 
 export function loadShopFonts():Promise<void> {
     if(loading)return loading;
+    if(typeof document!=='undefined')registerWebFontDownloader();
     loading=Promise.all((Object.keys(paths) as FontKey[]).map(key=>new Promise<void>((resolve,reject)=>{
         resources.load(paths[key],Font,(error,font)=>{
             if(error||!font){reject(error||new Error('字体资源缺失：'+paths[key]));return;}

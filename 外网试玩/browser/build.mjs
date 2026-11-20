@@ -1,15 +1,16 @@
+import { execFile } from 'node:child_process';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { parseArgs } from 'node:util';
+import { parseArgs, promisify } from 'node:util';
 import { loginArtFile, loginMusicFile } from '../../PetShop/server/multiplayer-login.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cloud = path.resolve(here, '../../云端经营版');
 const { build } = createRequire(path.join(cloud, 'package.json'))('esbuild');
-const {values} = parseArgs({options:{client:{type:'string'},out:{type:'string'},version:{type:'string'},source:{type:'string'},demo:{type:'boolean'}}});
+const {values} = parseArgs({options:{client:{type:'string'},out:{type:'string'},version:{type:'string'},source:{type:'string'},demo:{type:'boolean'},'compress-fonts':{type:'boolean'}}});
 if(values.version&&(!/^\d{4}\.\d{2}\.\d{2}\.[1-9]\d*$/.test(values.version)||!/^\p{ASCII_Hex_Digit}{40}$/u.test(values.source??''))) {
   throw Error('A release version (YYYY.MM.DD.N) and a full --source commit are required together.');
 }
@@ -45,6 +46,19 @@ const version = fingerprint(Buffer.concat([main,config]));
 const mainScript = `assets/main/index.${version}.js`;
 const settings = JSON.parse(await readFile(path.join(client,'src/settings.json'),'utf8'));
 settings.assets.bundleVers.main = version;
+if (!values.demo && (values.version || values['compress-fonts'])) {
+  const resources = path.join(dist, 'assets/resources');
+  const { stdout } = await promisify(execFile)(process.env.PETSHOP_FONT_PYTHON || 'python',
+    [path.join(here, 'compress-fonts.py'), resources], { windowsHide: true });
+  process.stdout.write(stdout);
+  const resourceConfig = await readFile(path.join(resources, 'config.json'));
+  const resourceVersion = fingerprint(resourceConfig);
+  settings.assets.bundleVers.resources = resourceVersion;
+  await Promise.all([
+    writeFile(path.join(resources, `config.${resourceVersion}.json`), resourceConfig),
+    cp(path.join(resources, 'index.js'), path.join(resources, `index.${resourceVersion}.js`)),
+  ]);
+}
 const settingsText = JSON.stringify(settings);
 const settingsPath = `src/settings.${fingerprint(settingsText)}.json`;
 const application = (await readFile(path.join(client,'application.js'),'utf8')).replace('src/settings.json',settingsPath);
