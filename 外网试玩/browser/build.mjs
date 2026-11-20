@@ -10,7 +10,13 @@ import { loginArtFile, loginMusicFile } from '../../PetShop/server/multiplayer-l
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cloud = path.resolve(here, '../../云端经营版');
 const { build } = createRequire(path.join(cloud, 'package.json'))('esbuild');
-const {values} = parseArgs({options:{client:{type:'string'},out:{type:'string'},version:{type:'string'},source:{type:'string'},demo:{type:'boolean'},'compress-fonts':{type:'boolean'}}});
+const {values} = parseArgs({options:{client:{type:'string'},out:{type:'string'},version:{type:'string'},source:{type:'string'},demo:{type:'boolean'},'compress-fonts':{type:'boolean'},'public-origin':{type:'string'}}});
+const publicOrigin = values['public-origin'];
+if (publicOrigin && (values.demo || new URL(publicOrigin).origin !== publicOrigin || !publicOrigin.startsWith('https://')))
+  throw Error('The public account site requires an HTTPS origin with no path.');
+const accountOrigins = publicOrigin ? [publicOrigin] : [
+  'https://play.zhu-li-4212.xyz', 'https://petshop-trial.pages.dev', 'https://petshop.zhu-li-4212.xyz',
+];
 if(values.version&&(!/^\d{4}\.\d{2}\.\d{2}\.[1-9]\d*$/.test(values.version)||!/^\p{ASCII_Hex_Digit}{40}$/u.test(values.source??''))) {
   throw Error('A release version (YYYY.MM.DD.N) and a full --source commit are required together.');
 }
@@ -119,6 +125,7 @@ if (values.demo) {
   ]);
   const start = (await readFile(path.join(here,'start.js'),'utf8'))
     .replace("from './legacy.js'", `from './legacy.js?v=${fingerprint(legacy)}'`)
+    .replace('__PETSHOP_ACCOUNT_ORIGINS__',JSON.stringify(accountOrigins))
     .replace('__PETSHOP_MAIN_SHA256__',release)
     .replace('__PETSHOP_MAIN_SCRIPT__',mainScript)
     .replace('__PETSHOP_GAME_ENTRY__',entryPath)

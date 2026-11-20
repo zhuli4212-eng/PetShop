@@ -16,10 +16,19 @@ interface WeChatMenu {
     getMenuButtonBoundingClientRect?: () => { bottom: number };
     getWindowInfo?: () => { windowHeight: number };
 }
-type PreviewWindow = Window & { petshopBeforeShop?: (showEntry:()=>void)=>Promise<void> };
+type PreviewWindow = Window & {
+    petshopBeforeShop?: (showEntry:()=>void)=>Promise<void>;
+    petshopLoading?: { connect:()=>void; hide:()=>void; fail:()=>void };
+};
 
-function startupNotice(failed=false):void {
+function startupNotice(failed=false,connecting=false):void {
     if(typeof document==='undefined')return;
+    const loading=(window as PreviewWindow).petshopLoading;
+    if(loading){
+        if(failed)loading.fail();
+        else if(connecting)loading.connect();
+        return;
+    }
     let notice=document.getElementById('petshop-startup-status');
     if(!notice){
         notice=document.createElement('div');
@@ -39,7 +48,9 @@ function startupNotice(failed=false):void {
 }
 
 function dismissStartupNotice():void {
-    if(typeof document!=='undefined')document.getElementById('petshop-startup-status')?.remove();
+    if(typeof document==='undefined')return;
+    (window as PreviewWindow).petshopLoading?.hide();
+    document.getElementById('petshop-startup-status')?.remove();
 }
 
 @ccclass('ShopMain')
@@ -150,7 +161,7 @@ export class ShopMain extends Component {
             if(!isValid(this,true))return;
             await browser?.petshopBeforeShop?.(dismissStartupNotice);
             if(!isValid(this,true))return;
-            startupNotice();
+            startupNotice(false,true);
             this.audio.load();
         } catch {
             if(isValid(this,true))startupNotice(true);

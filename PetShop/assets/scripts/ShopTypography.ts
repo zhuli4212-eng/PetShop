@@ -74,17 +74,48 @@ function webFontFamily(url:string):string {
     return family+'_LABEL';
 }
 
-function registerWebFontDownloader():void {
+type LoadingCallbacks = {
+    transferred:(asset:string,received:number,total:number)=>void;
+    prepared:(count:number)=>void;
+};
+
+async function downloadFont(url:string,signal:AbortSignal|undefined,
+                            transfer:(received:number,total:number)=>void):Promise<ArrayBuffer> {
+    const response=await fetch(url,{signal});
+    if(!response.ok)throw new Error('店铺资源下载失败。');
+    const total=response.headers.has('Content-Encoding')?0:Number(response.headers.get('Content-Length'))||0;
+    transfer(0,total);
+    const reader=response.body?.getReader();
+    if(!reader){
+        const buffer=await response.arrayBuffer();
+        transfer(buffer.byteLength,total);
+        return buffer;
+    }
+    const chunks:Uint8Array[]=[];
+    let received=0;
+    try {
+        for(;;){
+            const {done,value}=await reader.read();
+            if(done)break;
+            chunks.push(value);
+            received+=value.byteLength;
+            transfer(received,total);
+        }
+    } finally {reader.releaseLock();}
+    const bytes=new Uint8Array(received);
+    let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+    return bytes.buffer;
+}
+
+function registerWebFontDownloader(signal:AbortSignal|undefined,
+                                   transfer:(asset:string,received:number,total:number)=>void):void {
     // Creator 3.8 can deserialize TTFFont assets but has no WOFF2 downloader.
     assetManager.downloader.register('.woff2',(url,_options,done)=>{
         const family=webFontFamily(url);
-        try {
-            document.fonts.add(new FontFace(family,`url(${JSON.stringify(url)}) format("woff2")`));
-        } catch(error) {
-            done(error as Error);
-            return;
-        }
-        done(null,family);
+        void downloadFont(url,signal,(received,total)=>transfer(url,received,total)).then(buffer=>{
+            document.fonts.add(new FontFace(family,buffer));
+        }).then(()=>done(null,family),error=>done(error as Error));
     });
 }
 
@@ -104,7 +135,25 @@ async function waitForWebFont(font:Font):Promise<void> {
 
 export function loadShopFonts():Promise<void> {
     if(loading)return loading;
-    if(typeof document!=='undefined')registerWebFontDownloader();
+    const browser=typeof document==='undefined'?undefined:window as Window & {petshopLoading?:LoadingCallbacks};
+    const progress=browser?.petshopLoading;
+    const controller=browser&&typeof AbortController==='function'?new AbortController():undefined;
+    let deadline:ReturnType<typeof setTimeout>;
+    let rejectIdle:(error:Error)=>void;
+    const timeout=new Promise<never>((_,reject)=>{rejectIdle=reject;});
+    const reportActivity=()=>{
+        clearTimeout(deadline);
+        deadline=setTimeout(()=>{
+            rejectIdle(new Error('店铺资源加载超时。'));
+            controller?.abort();
+        },90000);
+    };
+    reportActivity();
+    if(browser)registerWebFontDownloader(controller?.signal,(asset,received,total)=>{
+        reportActivity();
+        progress?.transferred(asset,received,total);
+    });
+    let completed=0;
     const fontsReady=Promise.all((Object.keys(paths) as FontKey[]).map(key=>new Promise<void>((resolve,reject)=>{
         resources.load(paths[key],Font,(error,font)=>{
             if(error||!font){reject(error||new Error('字体资源缺失：'+paths[key]));return;}
@@ -114,15 +163,13 @@ export function loadShopFonts():Promise<void> {
                     if(!isValid(label,true)){pending.delete(label);continue;}
                     if(roles.get(label)===key)bind(label,key);
                 }
+                reportActivity();
+                progress?.prepared(++completed);
                 resolve();
             },reject);
         });
     })));
-    let deadline:ReturnType<typeof setTimeout>;
-    const timeout=new Promise<never>((_,reject)=>{
-        deadline=setTimeout(()=>reject(new Error('店铺字体加载超时。')),90000);
-    });
     loading=Promise.race([fontsReady,timeout]).then(()=>undefined)
-        .catch(error=>{loading=undefined;throw error;}).finally(()=>clearTimeout(deadline));
+        .catch(error=>{controller?.abort();loading=undefined;throw error;}).finally(()=>clearTimeout(deadline));
     return loading;
 }

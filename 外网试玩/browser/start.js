@@ -8,7 +8,7 @@ const setup = params.has('set-password');
 const register = !setup && params.has('register');
 const nameKey = 'petshop.trial.lastUsername';
 const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-const allowedSites = ['https://play.zhu-li-4212.xyz', 'https://petshop-trial.pages.dev', 'https://petshop.zhu-li-4212.xyz'];
+const allowedSites = __PETSHOP_ACCOUNT_ORIGINS__;
 const apiBase = location.origin + '/petshop-api/v1/';
 const entry = location.pathname;
 const mainVersion = '__PETSHOP_MAIN_SHA256__';
@@ -174,7 +174,12 @@ window.petshopBeforeShop = showEntry => {
 
 async function bootGame() {
   await refreshGameMain();
-  for (const tag of document.querySelectorAll('[data-game-script]')) await loadScript(tag.dataset.gameScript);
+  let completed = 1;
+  window.petshopLoading.step(completed);
+  for (const tag of document.querySelectorAll('[data-game-script]')) {
+    await loadScript(tag.dataset.gameScript);
+    window.petshopLoading.step(++completed);
+  }
   await window.System.import(gameEntry);
 }
 
