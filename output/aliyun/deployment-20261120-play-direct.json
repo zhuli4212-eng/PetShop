@@ -1,0 +1,382 @@
+{
+  "date": "2026-11-20",
+  "confirmedAt": "2026-11-20T22:28:23+08:00",
+  "route": "https://play.zhu-li-4212.xyz/petshop/",
+  "releaseVersion": "2026.11.20.4",
+  "gameSourceCommit": "3e1861c8da2a6c29153646cfc06d95e928fb640a",
+  "activeReleaseDirectory": "/opt/petshop/release.HXuuStKs",
+  "configurationStage": "/root/petshop-play-direct.57xfBV13",
+  "dns": {
+    "type": "A",
+    "name": "play.zhu-li-4212.xyz",
+    "value": "47.243.58.106",
+    "proxied": false,
+    "ttl": "auto",
+    "authoritativeVerified": [
+      "bethany.ns.cloudflare.com",
+      "joel.ns.cloudflare.com"
+    ]
+  },
+  "previousDns": {
+    "type": "CNAME",
+    "name": "play.zhu-li-4212.xyz",
+    "value": "dream-hunter.pages.dev",
+    "proxied": true,
+    "ttl": "auto"
+  },
+  "rootRedirect": "/petshop/",
+  "databaseFile": "/var/lib/petshop/shop.sqlite",
+  "databaseAction": "reused existing account service and database, no database operation in this migration",
+  "https": {
+    "issuer": "Let's Encrypt",
+    "validUntil": "2027-02-18T13:29:47Z",
+    "tls13Verified": true,
+    "authenticator": "standalone HTTP-01",
+    "dryRunPassed": true,
+    "liveRenewalPassed": true,
+    "timerActive": true
+  },
+  "transport": {
+    "http2Negotiated": true,
+    "gzipStaticResponses": true,
+    "versionedWoff2ImmutableCache": true
+  },
+  "configurationSha256": {
+    "play-direct.conf": "f6fa9d12a9e83844a76205c0a6360ee8e334dc02e6e998d79ddc474d5ee3f606",
+    "compose-play-nginx.py": "b3316e165d2ef3a156afaa8bdf7bc5b18ce8beb3556012fb88afa8355b88e277",
+    "activate-play-direct.sh": "329af71ff35cc7446983940d26ce5eebbb8495a91ea03b5a5412f03e05eaff56",
+    "petshop-play-direct.service.conf": "5de0c2897f21c930316e8519e0a660ac4d9c567033fc396fe99eae7f7432b4f1",
+    "renew-play-certificate.sh": "fbe10b1ce3fb49f9eb2d6e507f1ca309647afee556e08ad96474a4adef346bc5"
+  },
+  "publicChecks": {
+    "testedAt": "2026-11-20T14:29:25.450Z",
+    "site": "https://play.zhu-li-4212.xyz",
+    "ip": "47.243.58.106",
+    "systemPeer": "104.21.18.207",
+    "resolverOverride": true,
+    "release": "2026.11.20.4",
+    "records": [
+      {
+        "path": "/",
+        "status": 302,
+        "peer": "47.243.58.106",
+        "firstByte": 1.263453
+      },
+      {
+        "path": "/petshop/",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.852107,
+        "sha256": "a8d9bc14b079cef8bf910dc2cdac60069d8a260aa807a28fa4598e725189b58e",
+        "cacheControl": "no-cache"
+      },
+      {
+        "path": "/petshop/release.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 1.241319,
+        "sha256": "b86e63e94b6d8e1eda922095591688181de6aafcd7fb834d80cafccaa90b3ef1",
+        "cacheControl": "no-store"
+      },
+      {
+        "path": "/petshop/trial-start.js?v=ca8f5dc8c46c5f62",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 3.446834,
+        "sha256": "ca8f5dc8c46c5f6216c8113c68fe33bf93c0c5e964591d399980f1d388be435b"
+      },
+      {
+        "path": "/petshop/src/entry.38170558d5353968.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.903551,
+        "sha256": "38170558d535396865e3a60cc42a1c1832fd9c6b9bf71aa4776d6ed94fc636bc"
+      },
+      {
+        "path": "/petshop/assets/main/index.f8f95424869f2c84.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.741848,
+        "sha256": "11ff3115823a829afa38bfa548f78a16c699791a245956a4c0c60f2c8cf52bdb"
+      },
+      {
+        "path": "/petshop/assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByte": 1.079555,
+        "sha256": "ea54b13d1272a944d962fb8ea88242e8af13d94d93c2cbb491776c933b799f65",
+        "cacheControl": "public, max-age=31536000, immutable"
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.909048,
+        "cacheControl": "no-store"
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "47.243.58.106",
+        "firstByte": 0.972447,
+        "cacheControl": "no-store"
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 403,
+        "peer": "47.243.58.106",
+        "firstByte": 0.676572,
+        "cacheControl": "no-store",
+        "origin": "https://unauthorized.example"
+      },
+      {
+        "path": "/petshop/local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "47.243.58.106",
+        "firstByte": 0.52277
+      }
+    ],
+    "pagesGatewayHealth": 200
+  },
+  "mainlandChecks": {
+    "homepage": {
+      "id": "2qKJt9MTgcim13rWx00021XUb",
+      "path": "/petshop/",
+      "probes": [
+        {
+          "city": "Wuhan",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 1558
+        },
+        {
+          "city": "Shanghai",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 203
+        },
+        {
+          "city": "Guilin",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 341
+        },
+        {
+          "city": "Xi'an",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 470
+        },
+        {
+          "city": "Chongqing",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 650
+        },
+        {
+          "city": "Yancheng",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 1058
+        },
+        {
+          "city": "Guangzhou",
+          "asn": 9808,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 62
+        },
+        {
+          "city": "Guilin",
+          "asn": 9808,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 1716
+        },
+        {
+          "city": "Zhengzhou",
+          "asn": 24445,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 509
+        }
+      ]
+    },
+    "health": {
+      "id": "2vz1VPb2daVefcp8H00021XUb",
+      "path": "/petshop-api/v1/health",
+      "probes": [
+        {
+          "city": "Wuhan",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 111
+        },
+        {
+          "city": "Shanghai",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 193
+        },
+        {
+          "city": "Guilin",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 107
+        },
+        {
+          "city": "Xi'an",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 377
+        },
+        {
+          "city": "Chongqing",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 2353
+        },
+        {
+          "city": "Yancheng",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 176
+        },
+        {
+          "city": "Guangzhou",
+          "asn": 9808,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 49
+        },
+        {
+          "city": "Guilin",
+          "asn": 9808,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 3822
+        },
+        {
+          "city": "Zhengzhou",
+          "asn": 24445,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 378
+        }
+      ]
+    },
+    "compressedEngine": {
+      "id": "2oF90kSznUFK6SNil00021XUi",
+      "path": "/petshop/cocos-js/_virtual_cc-Bp5iGE8z.js",
+      "probes": [
+        {
+          "city": "Wuhan",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 1571
+        },
+        {
+          "city": "Shanghai",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 1246
+        },
+        {
+          "city": "Guilin",
+          "asn": 4837,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 127
+        },
+        {
+          "city": "Xi'an",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 516
+        },
+        {
+          "city": "Chongqing",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 500
+        },
+        {
+          "city": "Yancheng",
+          "asn": 4134,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 697
+        },
+        {
+          "city": "Guangzhou",
+          "asn": 9808,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 67
+        },
+        {
+          "city": "Guilin",
+          "asn": 9808,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 319
+        },
+        {
+          "city": "Zhengzhou",
+          "asn": 24445,
+          "stage": "finished",
+          "code": 200,
+          "ip": "47.243.58.106",
+          "time": 439
+        }
+      ]
+    }
+  },
+  "browserChecks": {
+    "localColdOpeningReached": false,
+    "observed": "Desktop cold-start test hit the client startup watchdog; direct HTML, API and engine resource passed checks from nine mainland probes.",
+    "originalIPhoneTested": false
+  }
+}

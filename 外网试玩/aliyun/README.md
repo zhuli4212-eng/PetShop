@@ -2,6 +2,8 @@
 
 当前正式版为 `2026.11.20.4`，游戏源代码为 `3e1861c`。账簿等功能页优先显示数据和操作，插画延迟后补齐。启动、登录和字体加载超时后提供重试。两条入口已核对实际网页资源和 API 健康状态。发布时备份了正式 SQLite，继续使用同一份生产库，并逐条核对了账号、存档及会话。[正式发布记录](../../output/aliyun/deployment-20261120.4-hk.json)
 
+`play.zhu-li-4212.xyz/petshop/` 已于 2026-11-20 改由香港站点直连，原域名根路径跳转到宠物店。直连入口与 `petshop-trial.pages.dev` 共用同一目录、账号服务和存档。[直连入口与回退](PLAY_DIRECT.md)
+
 上一版 `2026.11.20.3` 的游戏源代码为 `593fb2e`，修复 WOFF2 字体渲染引起的字号和对齐问题。[正式发布记录](../../output/aliyun/deployment-20261120.3-hk.json)
 
 上一版为 `2026.11.20.2`，游戏源代码为 `3a18821`。已恢复旧登录布局，分段加载网页资源，以完整 WOFF2 字体保留字形和生僻字，并为荣誉页增加重试。切换时保留同一份生产库，逐条核对 17 个账号、58 条会话和登录限流记录。两个正式入口核对了新版登录页、客户端摘要和压缩字体。[正式发布记录](../../output/aliyun/deployment-20261120.2-hk.json)
@@ -16,7 +18,7 @@
 
 2026-11-17 已完成中国香港 ECS（Ubuntu 22.04，47.243.58.106）正式切换。游戏程序及账号数据库运行在香港；两个 Pages 入口通过 HTTPS 网关连接同一个上游。原 Cloudflare D1 已冻结，保留为迁移备份，不再承接玩家写入。
 
-- 玩家入口：<https://petshop-trial.pages.dev/>；备用入口：<https://play.zhu-li-4212.xyz/petshop/>。
+- [香港直连入口](https://play.zhu-li-4212.xyz/petshop/) · [Pages 入口](https://petshop-trial.pages.dev/)
 - 上游：`petshop.zhu-li-4212.xyz`；API：`127.0.0.1:8788`；生产数据库：`/var/lib/petshop/shop.sqlite`。
 - 切换时完整保留 11 个账号、27 条会话、5 条登录限流记录；最终快照经两次 D1 导出逐行比对，SHA-256 为 `b8012c3eacf6ac2733ae78c98b611d8ad623c8c38c287b3b23fe1442cbd52876`。
 - 两个入口通过 CN 网络出口验证：健康检查、匿名拒绝、原密码登录、同一店铺读档及退出；正式服务重启后再次通过。香港隔离测试通过注册、密码登录、并发签到去重、重启恢复、回执及兔房检查。未执行手机真机和 10 人长期负载测试。
@@ -59,7 +61,7 @@ SQLite 采用 WAL 模式。备份运行中的店铺时，使用 SQLite 在线备
 
 ## 正式上游
 
-正式地址仍使用现有的两个玩家入口。两站的 Pages 网关通过 HTTPS 请求阿里云上游 `petshop.zhu-li-4212.xyz`，使用 `X-Petshop-Origin-Secret` 认证并传递 `X-Petshop-Client-IP`。上游 nginx 在静态资源和 API 前均检查网关身份。玩家继续从各入口的同源 `/petshop-api/v1/` 登录。
+正式地址使用两个玩家入口。`petshop-trial.pages.dev` 的 Pages 网关通过 HTTPS 请求阿里云上游 `petshop.zhu-li-4212.xyz`，使用 `X-Petshop-Origin-Secret` 认证并传递 `X-Petshop-Client-IP`。上游 nginx 在静态资源和 API 前均检查网关身份。`play.zhu-li-4212.xyz` 的直接请求由独立站点接收。玩家继续从各入口的同源 `/petshop-api/v1/` 登录。
 
 1. 在完成测试安装的服务器上，从正式包目录运行 `sudo bash production.sh stage`。该命令独立安装生产程序、用户和 systemd 配置。排练使用 `python3 migrate.py verify rehearsal.sqlite receipt.json` 校验源库的逐表摘要，再用 `bash production.sh audit rehearsal.sqlite <receipt.json中的sqlite_sha256>` 以只读模式核对本机收到的文件。上述命令不启动服务。
 2. 为两个 Pages 网关配置相同的 Secret 绑定 `PETSHOP_ORIGIN_SECRET`。在服务器端将同一个值从受控的秘密文件经标准输入传给 `sudo bash production.sh set-secret < 私有文件路径`。使用至少 40 个字符的随机 base64url 字符串。秘钥文件由 root 写入，nginx 需要的配置仅允许 petshop 专用组读取，响应与访问日志均不包含它。轮换后重启 `petshop.service` 与已启用的 `petshop-web.service`。
