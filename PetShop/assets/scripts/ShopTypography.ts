@@ -74,21 +74,14 @@ function webFontFamily(url:string):string {
     return family+'_LABEL';
 }
 
-type LoadingCallbacks = {
-    transferred:(asset:string,received:number,total:number)=>void;
-    prepared:(count:number)=>void;
-};
-
-async function downloadFont(url:string,signal:AbortSignal|undefined,
-                            transfer:(received:number,total:number)=>void):Promise<ArrayBuffer> {
+async function downloadFont(url:string,signal:AbortSignal|undefined,activity:()=>void):Promise<ArrayBuffer> {
     const response=await fetch(url,{signal});
     if(!response.ok)throw new Error('店铺资源下载失败。');
-    const total=response.headers.has('Content-Encoding')?0:Number(response.headers.get('Content-Length'))||0;
-    transfer(0,total);
+    activity();
     const reader=response.body?.getReader();
     if(!reader){
         const buffer=await response.arrayBuffer();
-        transfer(buffer.byteLength,total);
+        activity();
         return buffer;
     }
     const chunks:Uint8Array[]=[];
@@ -99,7 +92,7 @@ async function downloadFont(url:string,signal:AbortSignal|undefined,
             if(done)break;
             chunks.push(value);
             received+=value.byteLength;
-            transfer(received,total);
+            activity();
         }
     } finally {reader.releaseLock();}
     const bytes=new Uint8Array(received);
@@ -108,15 +101,16 @@ async function downloadFont(url:string,signal:AbortSignal|undefined,
     return bytes.buffer;
 }
 
-function registerWebFontDownloader(signal:AbortSignal|undefined,
-                                   transfer:(asset:string,received:number,total:number)=>void):void {
-    // Creator 3.8 can deserialize TTFFont assets but has no WOFF2 downloader.
-    assetManager.downloader.register('.woff2',(url,_options,done)=>{
+function registerWebFontDownloader(signal:AbortSignal|undefined,packedUrl:((url:string)=>string)|undefined,activity:()=>void):void {
+    const readFont=(url:string,_options:unknown,done:(error:Error|null,family?:string)=>void)=>{
         const family=webFontFamily(url);
-        void downloadFont(url,signal,(received,total)=>transfer(url,received,total)).then(buffer=>{
+        void downloadFont(packedUrl?.(url)??url,signal,activity).then(buffer=>{
             document.fonts.add(new FontFace(family,buffer));
         }).then(()=>done(null,family),error=>done(error as Error));
-    });
+    };
+    // Keep the original URL for the font family while reading the packed bytes.
+    assetManager.downloader.register('.woff2',readFont);
+    if(packedUrl)assetManager.downloader.register('.ttf',readFont);
 }
 
 async function waitForWebFont(font:Font):Promise<void> {
@@ -135,8 +129,7 @@ async function waitForWebFont(font:Font):Promise<void> {
 
 export function loadShopFonts():Promise<void> {
     if(loading)return loading;
-    const browser=typeof document==='undefined'?undefined:window as Window & {petshopLoading?:LoadingCallbacks};
-    const progress=browser?.petshopLoading;
+    const browser=typeof document==='undefined'?undefined:window as Window & {petshopAssetUrl?:(url:string)=>string};
     const controller=browser&&typeof AbortController==='function'?new AbortController():undefined;
     let deadline:ReturnType<typeof setTimeout>;
     let rejectIdle:(error:Error)=>void;
@@ -149,11 +142,7 @@ export function loadShopFonts():Promise<void> {
         },90000);
     };
     reportActivity();
-    if(browser)registerWebFontDownloader(controller?.signal,(asset,received,total)=>{
-        reportActivity();
-        progress?.transferred(asset,received,total);
-    });
-    let completed=0;
+    if(browser)registerWebFontDownloader(controller?.signal,browser.petshopAssetUrl,reportActivity);
     const fontsReady=Promise.all((Object.keys(paths) as FontKey[]).map(key=>new Promise<void>((resolve,reject)=>{
         resources.load(paths[key],Font,(error,font)=>{
             if(error||!font){reject(error||new Error('字体资源缺失：'+paths[key]));return;}
@@ -164,7 +153,6 @@ export function loadShopFonts():Promise<void> {
                     if(roles.get(label)===key)bind(label,key);
                 }
                 reportActivity();
-                progress?.prepared(++completed);
                 resolve();
             },reject);
         });

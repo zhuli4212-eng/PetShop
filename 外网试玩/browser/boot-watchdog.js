@@ -1,11 +1,10 @@
 // Use actual completed steps and bytes received by the required resources.
 (() => {
   const engineSteps = 4;
-  const resourceCount = 3;
   const resources = new Map();
   let phase = 'engine';
   let steps = 0;
-  let completed = 0;
+  let resourceBytes = 0;
   let failed = false;
   let hidden = false;
   let timeout;
@@ -21,7 +20,8 @@
     const detail = document.getElementById('petshop-loading-detail');
     const retry = document.getElementById('petshop-loading-retry');
     const label = failed ? '加载失败，请重试。' : phase === 'engine' ? '正在启动游戏…' :
-      phase === 'resources' ? '正在载入资源…' : '正在连接店铺…';
+      phase === 'resources' ? '正在载入资源…' :
+      phase === 'prepare' ? '正在准备游戏…' : phase === 'ready' ? '准备完成' : '正在连接店铺…';
     if (message.textContent !== label) message.textContent = label;
     retry.hidden = !failed;
     progress.hidden = failed;
@@ -30,17 +30,13 @@
       progress.removeAttribute('value');
       return;
     }
-    const transfers = [...resources.values()];
-    const received = transfers.reduce((sum, item) => sum + item.received, 0);
-    const total = transfers.length === resourceCount && transfers.every(item => item.total > 0)
-      ? transfers.reduce((sum, item) => sum + item.total, 0) : 0;
-    const preparedFraction = completed / resourceCount;
-    const downloadedFraction = total > 0 ? Math.min(.99, received / total) : 0;
-    const fraction = Math.max(preparedFraction, downloadedFraction);
-    const value = Math.floor(100 * (steps + fraction * resourceCount) / (engineSteps + resourceCount));
+    const received = [...resources.values()].reduce((sum, bytes) => sum + bytes, 0);
+    const value = phase === 'engine' ? Math.floor(10 * steps / engineSteps) :
+      phase === 'ready' ? 100 : phase === 'prepare' ? 99 :
+      Math.min(99, 10 + Math.floor(89 * received / resourceBytes));
     progress.value = value;
-    detail.textContent = total > 0
-      ? `${value}% · ${(received / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MiB`
+    detail.textContent = resourceBytes > 0
+      ? `${value}% · ${(received / 1048576).toFixed(1)} / ${(resourceBytes / 1048576).toFixed(1)} MiB`
       : `${value}%`;
   }
 
@@ -59,7 +55,7 @@
 
   function resetDeadline() {
     clearTimeout(timeout);
-    timeout = setTimeout(() => { if (phase === 'engine') fail(); }, 120000);
+    timeout = setTimeout(() => { if (phase === 'engine' || phase === 'prepare') fail(); }, 120000);
   }
 
   window.petshopLoading = {
@@ -69,14 +65,26 @@
       if (!failed) resetDeadline();
       schedulePaint();
     },
-    transferred(asset, received, total) {
+    beginResources(bytes) {
+      clearTimeout(timeout);
+      resourceBytes = bytes;
+      phase = 'resources';
+      paint();
+    },
+    transferred(asset, received) {
       if (phase !== 'resources' || failed) return;
-      resources.set(asset, { received, total });
+      resources.set(asset, received);
       schedulePaint();
     },
-    prepared(count) {
-      if (phase !== 'resources' || failed) return;
-      completed = count;
+    prepareGame() {
+      phase = 'prepare';
+      resetDeadline();
+      paint();
+    },
+    ready() {
+      clearTimeout(timeout);
+      phase = 'ready';
+      failed = false;
       paint();
     },
     connect() {
@@ -90,17 +98,11 @@
 
   resetDeadline();
   document.addEventListener('DOMContentLoaded', paint, {once:true});
-  window.addEventListener('petshop:startup-failed', () => { if (phase === 'engine') fail(); });
+  window.addEventListener('petshop:startup-failed', fail);
   window.addEventListener('error', event => {
     if (event.target?.id === 'petshop-start' && phase === 'engine') fail();
   }, true);
-  window.addEventListener('petshop:startup-ready', () => {
-    clearTimeout(timeout);
-    phase = 'resources';
-    steps = engineSteps;
-    failed = false;
-    paint();
-  }, {once:true});
+  window.addEventListener('petshop:startup-ready', resetDeadline, {once:true});
 
   document.addEventListener('click', event => {
     if (event.target.id === 'petshop-loading-retry') location.reload();

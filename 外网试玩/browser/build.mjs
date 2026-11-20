@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,52 @@ await cp(path.join(here, 'node_modules/@noble/hashes/LICENSE'), path.join(dist, 
 const main = await readFile(path.join(dist,'assets/main/index.js'));
 const release = createHash('sha256').update(main).digest('hex');
 const fingerprint = content => createHash('sha256').update(content).digest('hex').slice(0,16);
+const resourceTypes = {
+  '.json':'application/json', '.png':'image/png', '.wav':'audio/wav',
+  '.mp3':'audio/mpeg', '.woff2':'font/woff2', '.ttf':'font/ttf',
+};
+async function gameAssets(directory) {
+  const files = await readdir(path.join(dist, directory), { withFileTypes:true });
+  const paths = await Promise.all(files.map(entry => {
+    const relative = directory + '/' + entry.name;
+    return entry.isDirectory() ? gameAssets(relative) : relative;
+  }));
+  return paths.flat().filter(relative => resourceTypes[path.extname(relative)]);
+}
+
+async function writeResourcePacks(browserAssets) {
+  const files = [...await gameAssets('assets'), ...browserAssets].sort();
+  const parts = [];
+  const limit = 3 * 1024 * 1024;
+  let buffers = [], entries = [], bytes = 0;
+  async function flush() {
+    if (!bytes) return;
+    const data = Buffer.concat(buffers, bytes);
+    const path = 'src/game-resources.' + fingerprint(data) + '.bin';
+    await writeFile(dist + '/' + path, data);
+    parts.push({path,bytes,files:entries});
+    buffers = [];
+    entries = [];
+    bytes = 0;
+  }
+  for (const name of files) {
+    const type = resourceTypes[path.extname(name)];
+    const data = await readFile(path.join(dist,name));
+    if (bytes && bytes + data.length > limit) await flush();
+    if (/\.[a-f0-9]{16}\.woff2$/.test(name)) {
+      parts.push({path:name,bytes:data.length,files:[[name,data.length,type]]});
+    } else {
+      buffers.push(data);
+      entries.push([name,data.length,type]);
+      bytes += data.length;
+    }
+  }
+  await flush();
+  const data = JSON.stringify({parts});
+  const manifest = 'src/game-resources.' + fingerprint(data) + '.json';
+  await writeFile(path.join(dist,manifest), data);
+  return manifest;
+}
 // Cocos loads config.<version>.json and index.<version>.js for a versioned bundle.
 const config = await readFile(path.join(dist,'assets/main/config.json'));
 const version = fingerprint(Buffer.concat([main,config]));
@@ -67,7 +113,12 @@ if (!values.demo && (values.version || values['compress-fonts'])) {
 }
 const settingsText = JSON.stringify(settings);
 const settingsPath = `src/settings.${fingerprint(settingsText)}.json`;
-const application = (await readFile(path.join(client,'application.js'),'utf8')).replace('src/settings.json',settingsPath);
+let application = (await readFile(path.join(client,'application.js'),'utf8')).replace('src/settings.json',settingsPath);
+if (!values.demo) {
+  const init = 'cc = engine;';
+  if (!application.includes(init)) throw Error('The Cocos engine initialization has changed.');
+  application = application.replace(init, init + '\n            window.petshopInstallAssetCache(cc.assetManager);');
+}
 const applicationName = `application.${fingerprint(application)}.js`;
 const entry = (await readFile(path.join(client,'index.js'),'utf8')).replace('./application.js','./'+applicationName);
 const entryPath = `src/entry.${fingerprint(entry)}.js`;
@@ -106,11 +157,13 @@ if (values.demo) {
   const style = await readFile(path.join(here,'login.css'),'utf8') + '\n' +
     await readFile(path.join(here,'opening.css'),'utf8');
   let opening = await readFile(path.join(here,'opening.html'),'utf8');
+  const browserAssets = ['trial-shopfront.png'];
   for (const name of ['shopfront','rabbit','envelope']) {
     const image = await readFile(path.join(here,'opening',name+'.png'));
     const asset = `src/opening-${name}.${fingerprint(image)}.png`;
     await writeFile(path.join(dist,asset),image);
-    opening = opening.replace(`./opening/${name}.png`, './'+asset);
+    browserAssets.push(asset);
+    opening = opening.replace(`src="./opening/${name}.png"`, `data-petshop-src="./${asset}"`);
   }
   const openingScript = await readFile(path.join(here,'opening.js'));
   const openingModule = `src/opening.${fingerprint(openingScript)}.js`;
@@ -123,6 +176,12 @@ if (values.demo) {
     writeFile(path.join(dist,loginMusicPath),loginMusic),
     writeFile(path.join(dist,loginMusicModule),loginMusicScript),
   ]);
+  browserAssets.push(loginMusicPath);
+  await cp(loginArtFile, path.join(dist, 'trial-shopfront.png'));
+  const preload = await readFile(path.join(here,'resource-preload.js'));
+  const preloadPath = 'src/resource-preload.' + fingerprint(preload) + '.js';
+  await writeFile(path.join(dist,preloadPath), preload);
+  const preloadManifest = await writeResourcePacks(browserAssets);
   const start = (await readFile(path.join(here,'start.js'),'utf8'))
     .replace("from './legacy.js'", `from './legacy.js?v=${fingerprint(legacy)}'`)
     .replace('__PETSHOP_ACCOUNT_ORIGINS__',JSON.stringify(accountOrigins))
@@ -130,7 +189,9 @@ if (values.demo) {
     .replace('__PETSHOP_MAIN_SCRIPT__',mainScript)
     .replace('__PETSHOP_GAME_ENTRY__',entryPath)
     .replace('__PETSHOP_LOGIN_MUSIC_MODULE__',loginMusicModule)
-    .replace('__PETSHOP_OPENING_MODULE__',openingModule);
+    .replace('__PETSHOP_OPENING_MODULE__',openingModule)
+    .replace('__PETSHOP_RESOURCE_PRELOAD__',preloadPath)
+    .replace('__PETSHOP_RESOURCE_MANIFEST__',preloadManifest);
   const html = original.replace('<html>', '<html lang="zh-CN">')
     .replace('<meta charset="utf-8">', tag => `${tag}<script>${bootWatchdog}</script>`)
     .replace(/(<meta name="viewport"\s+)content="([^"]*)"/, '$1data-game-content="$2" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"')
@@ -145,7 +206,6 @@ if (values.demo) {
       || !html.includes('petshop:startup-failed')) {
     throw Error('The Cocos script loader has changed.');
   }
-  await cp(loginArtFile, path.join(dist, 'trial-shopfront.png'));
   await writeFile(path.join(dist,'trial-start.js'), start);
   await writeFile(path.join(dist,'legacy.js'), legacy);
   await writeFile(path.join(dist, 'trial-login.css'), style);
