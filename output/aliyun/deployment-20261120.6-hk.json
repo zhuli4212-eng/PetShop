@@ -1,0 +1,221 @@
+{
+  "version": "2026.11.20.6",
+  "deployedAt": "2026-11-20T23:03:33+08:00",
+  "region": "cn-hongkong",
+  "gameSourceCommit": "d3d19695433c07fe7540cfb8580f954d21243bbb",
+  "versionTag": "petshop-v2026.11.20.6",
+  "baselineTag": "production-baseline-2026-11-20.6",
+  "deploymentArchive": "output/aliyun/petshop-production-20261120.6-hk.tar.gz",
+  "deploymentSha256": "afdb9f3b88491c8d204e29b4209f0964238d5621673b96c0720eec706e08f5b8",
+  "deploymentBytes": 50777053,
+  "stagingDirectory": "/root/petshop-release-20261120.6",
+  "activeReleaseLink": "/opt/petshop/current",
+  "releaseDirectory": "/opt/petshop/release.J8Syi9Pa",
+  "previousReleaseDirectory": "/opt/petshop/release.HXuuStKs",
+  "previousBaseline": "petshop-v2026.11.20.4",
+  "previousArchiveVerified": true,
+  "activationScriptSha256": "acaf16e316e4027428a2fa6a4d344364c504b7d50ad8cadff18e68d422e15891",
+  "serverCodeMatchesPrevious": true,
+  "servicesRestarted": false,
+  "productionDatabase": "/var/lib/petshop/shop.sqlite",
+  "databasePreservation": {
+    "sameDatabaseFile": true,
+    "resetPerformed": false,
+    "backupMethod": "SQLite online backup",
+    "backupQuickCheckPassed": true,
+    "backupForeignKeyCheckPassed": true,
+    "rollbackSnapshot": "/var/lib/petshop/rollback/2026.11.20.6.Y8RksQ7K/shop-before-deploy.sqlite",
+    "rollbackSnapshotSha256": "3cfecbd35016bff7cb60da53f6c12a7f4579af34fcb22f36a927056ac232f62c"
+  },
+  "client": {
+    "version": "2026.11.20.6",
+    "sourceCommit": "d3d19695433c07fe7540cfb8580f954d21243bbb",
+    "clientEntry": "src/entry.eb1841a6e10bf2a4.js",
+    "clientBundle": "assets/main/index.9b2ed7d0980d8d3a.js",
+    "clientSha256": "a0d91ada917bf9ce694258359c737cd94cc78cf776e8d10cce445f26c5e1fd9f"
+  },
+  "candidatePublicDifferences": [
+    "index.html",
+    "trial-start.js"
+  ],
+  "localTestControlsExcluded": true,
+  "separateTrialDomainPublished": false,
+  "localVerification": {
+    "startupProgressBeforeOpeningAndLogin": [
+      "Edge",
+      "WebKit"
+    ],
+    "startupAndDownloadRetry": [
+      "Edge",
+      "WebKit"
+    ],
+    "finalProductionPackageRoomCheck": [
+      "Room with 18 animals renders before delayed background art, which fills later.",
+      "Two timed-out room reads expose reconnect after 18.4s; retry restores all 18 roster entries."
+    ],
+    "originalIPhoneTested": false
+  },
+  "publicVerification": {
+    "testedAt": "2026-11-20T15:04:41.801Z",
+    "site": "https://play.zhu-li-4212.xyz",
+    "ip": "47.243.58.106",
+    "systemPeer": "47.243.58.106",
+    "resolverOverride": false,
+    "release": "2026.11.20.6",
+    "records": [
+      {
+        "path": "/",
+        "status": 302,
+        "peer": "47.243.58.106",
+        "firstByte": 1.506427
+      },
+      {
+        "path": "/petshop/",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.330555,
+        "sha256": "4e09dbb7534c50bd4a9dd47d19d7dd904b9c4ee3f081c450ec7dc2dc180dfa32",
+        "cacheControl": "no-cache"
+      },
+      {
+        "path": "/petshop/release.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.230946,
+        "sha256": "f5f6ffa8c018029832063c249757a20f8bd50483921003f0b52556ffd2e4baf4",
+        "cacheControl": "no-store"
+      },
+      {
+        "path": "/petshop/trial-start.js?v=e4e15c27c03901fc",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.251645,
+        "sha256": "e4e15c27c03901fcfe0f594cbc35df31a5297dd3b12522b6eab85830c3c1e063"
+      },
+      {
+        "path": "/petshop/src/entry.eb1841a6e10bf2a4.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.935385,
+        "sha256": "eb1841a6e10bf2a4503ee663f429036b19f3ae75c79ddc43ea9fdf2b37845424"
+      },
+      {
+        "path": "/petshop/assets/main/index.9b2ed7d0980d8d3a.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.424241,
+        "sha256": "a0d91ada917bf9ce694258359c737cd94cc78cf776e8d10cce445f26c5e1fd9f"
+      },
+      {
+        "path": "/petshop/assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByte": 0.817862,
+        "sha256": "ea54b13d1272a944d962fb8ea88242e8af13d94d93c2cbb491776c933b799f65",
+        "cacheControl": "public, max-age=31536000, immutable"
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByte": 0.218584,
+        "cacheControl": "no-store"
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "47.243.58.106",
+        "firstByte": 0.21144,
+        "cacheControl": "no-store"
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 403,
+        "peer": "47.243.58.106",
+        "firstByte": 0.364587,
+        "cacheControl": "no-store",
+        "origin": "https://unauthorized.example"
+      },
+      {
+        "path": "/petshop/local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "47.243.58.106",
+        "firstByte": 0.196769
+      }
+    ],
+    "pagesGatewayHealth": 200,
+    "pagesGatewayRelease": "2026.11.20.6"
+  },
+  "publicFiles": 2112,
+  "publicBrowserVerification": {
+    "existingPagesGateway": {
+      "url": "https://petshop-trial.pages.dev/",
+      "engine": "Edge",
+      "viewport": 390,
+      "assetRoute": "Aliyun origin via the existing Pages gateway",
+      "api": "local isolated SQLite",
+      "rootRedirect": true,
+      "opening": true,
+      "login": true,
+      "room": true,
+      "progress": [
+        0,
+        14,
+        28,
+        42,
+        57,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ],
+      "openingVisibleAfterSeconds": 23.47
+    },
+    "aliyunDirect": {
+      "engine": "Edge",
+      "viewport": 390,
+      "coldStartCompletedWithin120Seconds": false,
+      "repeatObservedProgressPercent": 58,
+      "repeatObservedAfterSeconds": 102.55,
+      "repeatReceivedMiB": 0.8,
+      "requiredResourceMiB": 34.2,
+      "engineHashMatchedViaHttp1": true
+    },
+    "formalPlayerDatabaseUsedForGameTest": false,
+    "originalIPhoneTested": false
+  }
+}
