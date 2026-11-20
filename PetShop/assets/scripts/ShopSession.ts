@@ -1,5 +1,5 @@
 import { Label, Node, ScrollView, sys, UITransform, Vec2 } from 'cc';
-import { api, connectShop, requestId, ServerError, type Args, type Choice, type Command, type LedgerPage, type ShopSnapshot, type ShopLetter } from './ShopConnection';
+import { api, connectShop, requestId, ServerError, startShopRead, type Args, type Choice, type Command, type LedgerPage, type ShopSnapshot, type ShopLetter, type ShopRead } from './ShopConnection';
 import { drawLedger, confirmBox, ledgerModal } from './ShopEntranceView';
 import { filterMenu, prepareIllustration, type FilterField } from './LedgerCanvas';
 import { accessFeature, featureFor, GameBrowserBack } from './ShopNavigation';
@@ -9,7 +9,7 @@ import type { AudioSetting, ShopAudio } from './ShopAudio';
 
 interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; expandedAnimal?:string; roomAnchor?:{id:string;delta:number}; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
-interface PageRead { expiresAt:number; retryAt:number; slow:boolean; stop:()=>void; }
+interface PageRead extends ShopRead<PageResponse> { retryAt:number; slow:boolean; }
 interface ResponseReceipt { message:string; requestId:string; }
 interface StageClock {label:Label;endsAt:number;shown:string;prefix?:string;progress?:(seconds:number)=>void;}
 interface Host {
@@ -75,6 +75,7 @@ export class ShopSession {
     private dropdown:Node|null=null;
     private serial=0;
     private busy=false;
+    private recovery?:Promise<string>;
     private receiptRoute?:{id:string;apply:()=>void|Promise<void>};
     private reading=false;
     private pageRead?:PageRead;
@@ -321,27 +322,21 @@ export class ShopSession {
             }
             if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
             if(visit.key==='audioSettings'){this.showAudioSettings(visit);return;}
-            const controller=typeof AbortController==='function'?new AbortController():undefined;
-            let stop!:()=>void;
-            const timeout=new Promise<never>((_,reject)=>{
-                stop=()=>{
-                    reject(new ServerError('打开页面超时，请重新连接。',0));
-                    controller?.abort();
-                };
-            });
-            const now=Date.now();
-            const pageRead={expiresAt:now+12000,retryAt:firstRead&&!quiet?now+4000:Infinity,slow:false,stop};
-            this.pageRead=pageRead;
-            const fetchPage=()=>Promise.race([timeout,api<PageResponse>(this.host.origin,'page',{
-                page:visit.key,args:visit.args,
-            },controller?.signal)]);
+            const retryAt=firstRead&&!quiet?Date.now()+4000:Infinity;
+            const fetchPage=()=>{
+                const request=startShopRead(signal=>api<PageResponse>(this.host.origin,'page',{
+                    page:visit.key,args:visit.args,
+                },signal));
+                return this.pageRead={...request,retryAt,slow:this.pageRead?.slow??false};
+            };
+            let request=fetchPage();
             let result:PageResponse;
-            try{result=await fetchPage();}
+            try{result=await request.result;}
             catch(error){
                 if(!firstRead||quiet||!(error instanceof ServerError)||![0,502,503,504].includes(error.status))throw error;
                 if(this.closed||serial!==this.serial)return;
-                if(Date.now()>=pageRead.expiresAt)throw error;
-                result=await fetchPage();
+                request=fetchPage();
+                result=await request.result;
             }
             if(this.closed||serial!==this.serial)return;
             // The server holds only the latest litter. A dossier opened from an older
@@ -355,7 +350,9 @@ export class ShopSession {
             // A delayed response gives an older lower bound for the server clock.
             const offset=result.shop.now-clockMs();
             visit.serverClockOffset=Math.max(visit.serverClockOffset??offset,offset);
-            if(!quiet&&visit.key!=='rooms')await Promise.race([timeout,prepareIllustration(visit.key,visit.args,result.page)]);
+            if(!quiet&&visit.key!=='rooms'){
+                await Promise.race([request.deadline,prepareIllustration(visit.key,visit.args,result.page)]).catch(()=>{});
+            }
             if(this.closed||serial!==this.serial||(quiet&&this.dropdown))return;
             updateSaleNotice(visit,result.page);
             const redraw=!quiet||!this.online||JSON.stringify(renderState(visit.data))!==JSON.stringify(renderState(result.page))||result.shop.coins!==this.host.wallet().coins;
@@ -578,7 +575,11 @@ export class ShopSession {
         finally{this.busy=false;}
         if(!this.closed){await this.read();this.host.notice(msg||'已核对经营账簿。');}
     }
-    async recover():Promise<string>{
+    recover():Promise<string>{
+        if(!this.recovery)this.recovery=this.recoverPending().finally(()=>{this.recovery=undefined;});
+        return this.recovery;
+    }
+    private async recoverPending():Promise<string>{
         const storage=sys.localStorage,keys=this.pending();
         let message='';
         for(const k of keys){

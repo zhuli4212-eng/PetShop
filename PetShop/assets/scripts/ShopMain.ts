@@ -1,7 +1,7 @@
 import { bindSceneFonts, loadShopFonts, setTextWeight } from './ShopTypography';
 import { _decorator, Component, game, Game, EventKeyboard, input, Input, isValid, KeyCode,
     Graphics, Label, Node, screen, sys, UITransform, view } from 'cc';
-import { api, connectShop, requestId, sendDeparture, type ShopSnapshot, type ShopLetter } from './ShopConnection';
+import { api, connectShop, requestId, sendDeparture, startShopRead, type ShopRead, type ShopSnapshot, type ShopLetter } from './ShopConnection';
 import { box, caption, picture, drawConnection, guestArrival } from './ShopEntranceView';
 import { ShopHomeFeatures } from './ShopHomeFeatures';
 import { ShopSession } from './ShopSession';
@@ -85,6 +85,7 @@ export class ShopMain extends Component {
     private decorKey='';
     private lastHintAt=0;
     private pulseBusy=false;
+    private shopRead?:ShopRead<ShopSnapshot>;
     private pageHeight = 844;
     private features!:ShopHomeFeatures;
     private levelProgress!:Label;
@@ -130,7 +131,7 @@ export class ShopMain extends Component {
         this.layout();
         this.schedule(this.poll,5);
         this.schedule(this.pulse,20);
-        this.schedule(()=>this.session.checkPageRead(),.25);
+        this.schedule(()=>this.checkReads(),.25);
         void this.openStore();
     }
 
@@ -139,7 +140,10 @@ export class ShopMain extends Component {
         view.on('canvas-resize', this.layout, this);
         game.on(Game.EVENT_HIDE,this.hideGame,this);
         game.on(Game.EVENT_SHOW,this.showGame,this);
-        if(typeof window!=='undefined')window.addEventListener('pagehide',this.pageExit);
+        if(typeof window!=='undefined'){
+            window.addEventListener('pagehide',this.pageExit);
+            window.addEventListener('online',this.networkRestored);
+        }
         input.on(Input.EventType.KEY_DOWN, this.onKey, this);
     }
 
@@ -148,7 +152,10 @@ export class ShopMain extends Component {
         view.off('canvas-resize', this.layout, this);
         game.off(Game.EVENT_HIDE,this.hideGame,this);
         game.off(Game.EVENT_SHOW,this.showGame,this);
-        if(typeof window!=='undefined')window.removeEventListener('pagehide',this.pageExit);
+        if(typeof window!=='undefined'){
+            window.removeEventListener('pagehide',this.pageExit);
+            window.removeEventListener('online',this.networkRestored);
+        }
         input.off(Input.EventType.KEY_DOWN, this.onKey, this);
     }
 
@@ -170,27 +177,50 @@ export class ShopMain extends Component {
         }
         if(!isValid(this,true))return;
         this.showPage();
-        let shop: ShopSnapshot;
-        try {
-            shop = await connectShop(this.serverOrigin);
-        } catch {
-            if (!isValid(this, true)) return;
-            this.state = 'offline';
-            this.showPage();
-            dismissStartupNotice();
-            return;
-        }
-        if (!isValid(this, true)) return;
-        this.applyShop(shop);
-        this.state = 'open';this.showPage();
-        dismissStartupNotice();
-        try {const msg=await this.session.recover();if(msg){this.applyShop(await connectShop(this.serverOrigin));this.notify(msg);}}
-        catch {this.notify('上次请求尚待确认，重连后会核对原回执。');}
-        this.showHomeNotes();
-        void this.pulse();
+        await this.syncShop();
     }
 
-    onDestroy():void {dismissStartupNotice();this.session?.dispose();this.audio?.dispose();}
+    private checkReads():void {
+        this.session.checkPageRead();
+        if(this.shopRead&&Date.now()>=this.shopRead.expiresAt)this.shopRead.stop();
+    }
+
+    private async syncShop():Promise<void> {
+        if(this.shopRead)return;
+        const request=startShopRead(signal=>connectShop(this.serverOrigin,signal));
+        this.shopRead=request;
+        let reopened=false;
+        try {
+            const shop=await request.result;
+            if(!isValid(this,true))return;
+            this.applyShop(shop);
+            reopened=this.state!=='open';
+            this.state='open';
+            if(reopened){this.showPage();dismissStartupNotice();}
+        } catch {
+            if(isValid(this,true)&&!this.session.active&&this.state!=='offline'){
+                this.state='offline';
+                this.showPage();
+                dismissStartupNotice();
+            }
+            return;
+        } finally {
+            this.shopRead=undefined;
+        }
+        if(reopened){
+            try {
+                const msg=await this.session.recover();
+                if(msg&&isValid(this,true)){this.notify(msg);void this.poll();}
+            } catch {
+                if(isValid(this,true))this.notify('上次请求尚待确认，重连后会核对原回执。');
+            }
+        }
+        if(!isValid(this,true))return;
+        this.showHomeNotes();
+        if(reopened)void this.pulse();
+    }
+
+    onDestroy():void {this.shopRead?.stop();dismissStartupNotice();this.session?.dispose();this.audio?.dispose();}
     private notify(message:string):void {
         if(!message||!this.node.isValid)return;
         if(this.toast){this.toast.removeFromParent();this.toast.destroy();}
@@ -269,13 +299,9 @@ export class ShopMain extends Component {
     }
 
     private poll=async ():Promise<void>=>{
-        if(this.state!=='open'||!this.foreground)return;
+        if(this.state==='connecting'||!this.foreground)return;
         if(this.session.active){await this.session.refresh();return;}
-        try {
-            const shop=await connectShop(this.serverOrigin);
-            if(this.isValid){this.applyShop(shop);this.showHomeNotes();}
-        }
-        catch{if(this.isValid&&!this.session.active){this.state='offline';this.showPage();}}
+        await this.syncShop();
     };
     private pulse=async ():Promise<void>=>{
         if(this.state!=='open'||this.pulseBusy||!this.foreground)return;
@@ -354,10 +380,14 @@ export class ShopMain extends Component {
     private showGame():void {
         this.audio?.setForeground(true);
         this.foreground=true;void this.pulse();
-        this.session?.checkPageRead();
-        if(this.session?.active&&this.state==='open')void this.session.refresh(true);
-        else void this.poll();
+        this.networkRestored();
     }
+    private networkRestored=():void=>{
+        if(!this.foreground||this.state==='connecting')return;
+        this.checkReads();
+        if(this.session.active)void this.session.refresh(true);
+        else void this.syncShop();
+    };
 
     private layout(): void {
         const visible = view.getVisibleSize();
@@ -489,6 +519,6 @@ export class ShopMain extends Component {
         if(!ready){this.closeGuestPopup();this.closeKeeperNote();}
         else this.fitBubble();
         for(const child of [...this.layer.children]){child.removeFromParent();child.destroy();}
-        if(!ready)drawConnection(this.layer,this.pageHeight,this.state==='offline',()=>{if(this.state==='offline')void this.openStore();});
+        if(!ready)drawConnection(this.layer,this.pageHeight,this.state==='offline',()=>{if(this.state==='offline')void this.syncShop();});
     }
 }

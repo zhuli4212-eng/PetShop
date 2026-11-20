@@ -59,6 +59,26 @@ export function requestId():string {
 function serviceBase(origin:string):string {
     return origin.trim().replace(/\/+$/,'') || (PREVIEW || WECHAT ? 'http://127.0.0.1:17888' : '');
 }
+const requestTimeout=9000;
+export interface ShopRead<T> {
+    result:Promise<T>;
+    deadline:Promise<never>;
+    expiresAt:number;
+    stop:()=>void;
+}
+export function startShopRead<T>(request:(signal?:AbortSignal)=>Promise<T>):ShopRead<T> {
+    const controller=typeof AbortController==='function'?new AbortController():undefined;
+    const expiresAt=Date.now()+requestTimeout;
+    let stop!:()=>void;
+    const deadline=new Promise<never>((_,reject)=>{
+        stop=()=>{
+            reject(new ServerError('读取超时，请重新连接。',0));
+            controller?.abort();
+        };
+    });
+    const result=Promise.race([deadline,request(controller?.signal)]);
+    return {result,deadline,expiresAt,stop};
+}
 export function sendDeparture(origin:string,data:Args):void {
     const body=JSON.stringify(data);
     if(typeof navigator!=='undefined'&&typeof navigator.sendBeacon==='function'){
@@ -73,8 +93,7 @@ export function api<T>(origin:string, path:string, data?:Args, signal?:AbortSign
         const r=new XMLHttpRequest();
         r.open(data===undefined?'GET':'POST',base+'/api/'+path);
         if(data!==undefined)r.setRequestHeader('Content-Type','application/json');
-        const timeout=9000;
-        r.timeout=timeout;
+        r.timeout=requestTimeout;
         const cleanup=()=>{
             clearTimeout(deadline);
             signal?.removeEventListener('abort',abort);
@@ -85,7 +104,7 @@ export function api<T>(origin:string, path:string, data?:Args, signal?:AbortSign
         };
         const abort=()=>{interrupted();r.abort();};
         // A stalled response may never deliver the native XHR timeout event.
-        const deadline=setTimeout(abort,timeout);
+        const deadline=setTimeout(abort,requestTimeout);
         r.onload=()=>{
             cleanup();
             try {
@@ -101,8 +120,8 @@ export function api<T>(origin:string, path:string, data?:Args, signal?:AbortSign
         catch(error){cleanup();reject(error);}
     });
 }
-export async function connectShop(origin=''):Promise<ShopSnapshot> {
-    const shop=await api<ShopSnapshot>(origin,'shop');
+export async function connectShop(origin='',signal?:AbortSignal):Promise<ShopSnapshot> {
+    const shop=await api<ShopSnapshot>(origin,'shop',undefined,signal);
     if(shop.protocol!==1 || !shop.profileId || !Number.isSafeInteger(shop.version) || !Array.isArray(shop.entrances))
         throw new Error('请先启动经营版店铺服务器。');
     return shop;

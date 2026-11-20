@@ -461,7 +461,7 @@ export function drawConnection(parent:Node,height:number,failed:boolean,retry:()
     const width=Math.min(340,w-26);
     const sign=frame(sheet,'Sign',0,10,width,failed?192:105,paper.page);
     heading(sign,'Title','宠物店',0,failed?53:17,width-24,39,23,paper.green,true);
-    caption(sign,'Status',failed?'店铺服务器未连接，请检查服务后重试。':'正在打开经营账簿…',0,failed?8:-20,width-24,40,15,paper.ink,true);
+    caption(sign,'Status',failed?'店铺连接中断，网络恢复后会自动重连。':'正在打开经营账簿…',0,failed?8:-20,width-24,40,15,paper.ink,true);
     if(failed){
         const button=press(sign,'Retry','重新连接',0,-52,150,retry,true);
         if(guide)showGuideSpotlight(parent,button,'重新连接后，继续当前引导。');
