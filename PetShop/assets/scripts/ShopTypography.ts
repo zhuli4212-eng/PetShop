@@ -97,21 +97,15 @@ async function waitForWebFont(font:Font):Promise<void> {
     if(!document.fonts||!/\.(ttf|woff2)$/.test(url))
         throw new Error('浏览器无法验证店铺字体。');
     const family=webFontFamily(url);
-    let timer:ReturnType<typeof setTimeout>|undefined;
-    try {
-        const faces=await Promise.race([
-            document.fonts.load('16px '+JSON.stringify(family),'麦穗宠物店芋头臻选绒光𠮷S+#%0123'),
-            new Promise<FontFace[]>((_,reject)=>{timer=setTimeout(()=>reject(new Error('店铺字体加载超时。')),90000);}),
-        ]);
-        if(!faces.length||faces.some(face=>face.status!=='loaded'))
-            throw new Error('店铺字体尚未加载完成。');
-    } finally {if(timer!==undefined)clearTimeout(timer);}
+    const faces=await document.fonts.load('16px '+JSON.stringify(family),'麦穗宠物店芋头臻选绒光𠮷S+#%0123');
+    if(!faces.length||faces.some(face=>face.status!=='loaded'))
+        throw new Error('店铺字体尚未加载完成。');
 }
 
 export function loadShopFonts():Promise<void> {
     if(loading)return loading;
     if(typeof document!=='undefined')registerWebFontDownloader();
-    loading=Promise.all((Object.keys(paths) as FontKey[]).map(key=>new Promise<void>((resolve,reject)=>{
+    const fontsReady=Promise.all((Object.keys(paths) as FontKey[]).map(key=>new Promise<void>((resolve,reject)=>{
         resources.load(paths[key],Font,(error,font)=>{
             if(error||!font){reject(error||new Error('字体资源缺失：'+paths[key]));return;}
             void waitForWebFont(font).then(()=>{
@@ -123,6 +117,12 @@ export function loadShopFonts():Promise<void> {
                 resolve();
             },reject);
         });
-    }))).then(()=>undefined).catch(error=>{loading=undefined;throw error;});
+    })));
+    let deadline:ReturnType<typeof setTimeout>;
+    const timeout=new Promise<never>((_,reject)=>{
+        deadline=setTimeout(()=>reject(new Error('店铺字体加载超时。')),90000);
+    });
+    loading=Promise.race([fontsReady,timeout]).then(()=>undefined)
+        .catch(error=>{loading=undefined;throw error;}).finally(()=>clearTimeout(deadline));
     return loading;
 }

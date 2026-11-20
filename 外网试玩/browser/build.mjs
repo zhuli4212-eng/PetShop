@@ -95,6 +95,8 @@ if (values.demo) {
   console.log('Public browser demo ready at', dist);
 } else {
   const login = await readFile(path.join(here,'login.html'),'utf8');
+  const bootWatchdog = await readFile(path.join(here,'boot-watchdog.js'),'utf8');
+  const legacy = await readFile(path.join(here,'legacy.js'));
   const style = await readFile(path.join(here,'login.css'),'utf8') + '\n' +
     await readFile(path.join(here,'opening.css'),'utf8');
   let opening = await readFile(path.join(here,'opening.html'),'utf8');
@@ -116,12 +118,14 @@ if (values.demo) {
     writeFile(path.join(dist,loginMusicModule),loginMusicScript),
   ]);
   const start = (await readFile(path.join(here,'start.js'),'utf8'))
+    .replace("from './legacy.js'", `from './legacy.js?v=${fingerprint(legacy)}'`)
     .replace('__PETSHOP_MAIN_SHA256__',release)
     .replace('__PETSHOP_MAIN_SCRIPT__',mainScript)
     .replace('__PETSHOP_GAME_ENTRY__',entryPath)
     .replace('__PETSHOP_LOGIN_MUSIC_MODULE__',loginMusicModule)
     .replace('__PETSHOP_OPENING_MODULE__',openingModule);
   const html = original.replace('<html>', '<html lang="zh-CN">')
+    .replace('<head>', `<head><script>${bootWatchdog}</script>`)
     .replace(/(<meta name="viewport"\s+)content="([^"]*)"/, '$1data-game-content="$2" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"')
     .replace('<title>Cocos Creator | PetShop</title>', '<title>麦穗宠物店</title>')
     .replace('</head>', `<link rel="stylesheet" id="login-style" href="./trial-login.css?v=${fingerprint(style)}"></head>`)
@@ -129,13 +133,14 @@ if (values.demo) {
       `<small class="release-version" id="petshop-release">版本 ${values.version}</small>`:'') + '\n' + opening + '\n<div id="GameDiv"')
     .replace(/<script src="(src\/[^"]+\.bundle\.js)" charset="utf-8">\s*<\/script>/g,
       '<script type="application/x-petshop-loader" data-game-script="$1"></script>')
-    .replace(/<script>\s*System\.import\('\.\/index\.js'\)[\s\S]*?<\/script>/, `<script type="module" src="./trial-start.js?v=${fingerprint(start)}"></script>`);
-  if (!html.includes('data-game-script="src/system.bundle.js"') || !html.includes('src="./trial-start.js?v=')) {
+    .replace(/<script>\s*System\.import\('\.\/index\.js'\)[\s\S]*?<\/script>/, `<script id="petshop-start" type="module" src="./trial-start.js?v=${fingerprint(start)}"></script>`);
+  if (!html.includes('data-game-script="src/system.bundle.js"') || !html.includes('src="./trial-start.js?v=')
+      || !html.includes('petshop:startup-failed')) {
     throw Error('The Cocos script loader has changed.');
   }
   await cp(loginArtFile, path.join(dist, 'trial-shopfront.png'));
   await writeFile(path.join(dist,'trial-start.js'), start);
-  await cp(path.join(here, 'legacy.js'), path.join(dist, 'legacy.js'));
+  await writeFile(path.join(dist,'legacy.js'), legacy);
   await writeFile(path.join(dist, 'trial-login.css'), style);
   await writeFile(path.join(dist, 'index.html'), html);
   console.log('Static browser trial ready at', dist);

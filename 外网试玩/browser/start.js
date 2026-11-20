@@ -36,13 +36,23 @@ async function api(path, data, token) {
   const headers = {};
   if (token) headers.Authorization = 'Bearer ' + token;
   if (data !== undefined) headers['Content-Type'] = 'application/json';
-  const response = await fetch(apiBase + path, {
-    method: data === undefined ? 'GET' : 'POST', headers, credentials: 'omit',
-    cache: 'no-store', redirect: 'error', body: data === undefined ? undefined : JSON.stringify(data),
-  });
-  const value = await response.json();
-  if (!response.ok) throw Error(value.error || '店铺暂时无法处理请求。');
-  return value;
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(apiBase + path, {
+      method: data === undefined ? 'GET' : 'POST', headers, credentials: 'omit',
+      cache: 'no-store', redirect: 'error', body: data === undefined ? undefined : JSON.stringify(data),
+      signal: controller.signal,
+    });
+    const value = await response.json();
+    if (!response.ok) throw Error(value.error || '店铺暂时无法处理请求。');
+    return value;
+  } catch (error) {
+    if (controller.signal.aborted) throw Error('连接超时，请重试。');
+    throw error;
+  } finally {
+    clearTimeout(deadline);
+  }
 }
 
 function connectGame(token) {
@@ -152,6 +162,7 @@ async function showAccountForm() {
 window.petshopBeforeShop = showEntry => {
   if (accountReady) return accountReady;
   accountReady = new Promise(resolve => { completeLogin = resolve; });
+  window.dispatchEvent(new Event('petshop:startup-ready'));
   accountLayer.hidden = false;
   setLoginMusicActive = bindLoginMusic({autoplay:true});
   if (!setup && !register && !params.has('login')) {
@@ -166,15 +177,6 @@ async function bootGame() {
   await refreshGameMain();
   for (const tag of document.querySelectorAll('[data-game-script]')) await loadScript(tag.dataset.gameScript);
   await window.System.import(gameEntry);
-}
-
-function bootFailed() {
-  byId('GameDiv').hidden = true;
-  accountLayer.hidden = false;
-  byId('loading').hidden = true;
-  statusError('加载失败，请重试。');
-  byId('retry').textContent = '重新载入';
-  byId('retry').hidden = false;
 }
 
 function legacyProof(snapshot) {
@@ -259,6 +261,5 @@ form.addEventListener('submit', async event => {
   }
 });
 
-byId('retry').addEventListener('click', () => location.replace(entry));
 window.addEventListener('pageshow', event => { if (event.persisted) location.replace(entry); });
-bootGame().catch(bootFailed);
+bootGame().catch(() => window.dispatchEvent(new Event('petshop:startup-failed')));

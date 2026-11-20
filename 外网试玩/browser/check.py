@@ -224,6 +224,33 @@ def read_only_game_page(page,key,args):
     return page.evaluate("game().session.current.data")
 
 
+def open_account_while_art_is_pending(page):
+    page.evaluate("""()=>{
+        const art='shop-modules/opening/spriteFrame';
+        const bundle=cc.resources,load=bundle.load,get=bundle.get;
+        const waiting=[];
+        bundle.get=function(path,...args){
+            return path===art?null:get.call(this,path,...args);
+        };
+        bundle.load=function(path,...args){
+            if(path===art){waiting.push(args);return;}
+            return load.call(this,path,...args);
+        };
+        window.resumeLedgerArt=()=>{
+            bundle.load=load;
+            bundle.get=get;
+            for(const args of waiting)load.call(bundle,art,...args);
+            return waiting.length;
+        };
+    }""")
+    try:
+        tap_game(page,'Hotspot_login',by_name=True)
+        page.wait_for_function("""()=>game().session.current?.data?.title==='店主登记簿'
+            && !game().session.reading""",timeout=10000)
+    finally:
+        assert page.evaluate("window.resumeLedgerArt()")>0
+
+
 def play_tutorial(page):
     page.evaluate(touch_tools.LOCATORS)
     touch=touch_tools.Touch(page)
@@ -362,7 +389,7 @@ def verify_accounts(browser,url):
         assert submit(two,a,pw_a)==id_a and two.evaluate("game().shop.dayClaimed")
 
         # Switch using the account entry a player sees inside Cocos.
-        tap_game(two,"Hotspot_login",by_name=True)
+        open_account_while_art_is_pending(two)
         label=two.wait_for_function("game().session.current?.data?.actions?.find(x=>x.label.includes('切换'))?.label").json_value()
         tap_game(two,label)
         visible_form(two)

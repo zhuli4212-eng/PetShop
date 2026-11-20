@@ -290,22 +290,23 @@ export class ShopSession {
     }
     private async read(quiet=false):Promise<void>{
         const visit=this.current;if(!visit||this.closed)return;
-        const openingHonor=visit.version===undefined&&featureFor(visit.key,visit.args)==='collection';
+        const firstRead=visit.version===undefined;
+        const section=accessFeature(visit.key,visit.args);
+        const featureName=this.host.wallet().featureAccess?.[section]?.name;
+        const title=firstRead?featureName||'店铺':visit.data?.title||featureName||'店铺';
         const serial=++this.serial;this.reading=true;
-        if(!quiet) {
-            if(!visit.data)visit.data=openingHonor
-                ?{title:'荣誉',rows:[{title:'正在打开荣誉…'}]}
-                :{title:'店铺',rows:[{title:'正在翻开账簿…'}]};
-            this.render();
-        }
         try {
+            if(!quiet) {
+                if(firstRead&&!visit.data)visit.data={title,rows:[{title:'正在打开'+(featureName||'页面')+'…'}]};
+                this.render();
+            }
             if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
             if(visit.key==='audioSettings'){this.showAudioSettings(visit);return;}
             const fetchPage=()=>api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
             let result:PageResponse;
             try{result=await fetchPage();}
             catch(error){
-                if(!openingHonor||!(error instanceof ServerError)||![0,502,503,504].includes(error.status))throw error;
+                if(!firstRead||quiet||!(error instanceof ServerError)||![0,502,503,504].includes(error.status))throw error;
                 if(this.closed||serial!==this.serial)return;
                 result=await fetchPage();
             }
@@ -350,7 +351,12 @@ export class ShopSession {
                 this.render();
             } else {
                 const wasOnline=this.online;this.online=false;
-                if(openingHonor)visit.data={title:'荣誉',rows:[{title:'暂时无法打开荣誉',text:'请重新连接，或返回店铺。'}]};
+                if(firstRead||!(err instanceof ServerError)){
+                    visit.version=undefined;
+                    visit.data={title,rows:[{title:section==='collection'?'暂时无法打开荣誉':'暂时无法打开页面',
+                        text:'请重新连接，或返回店铺。'}]};
+                }
+                if(!(err instanceof ServerError))console.error('无法显示页面',visit.key,err);
                 if(wasOnline||!quiet){this.render();this.host.notice((err as Error).message);}
             }
         } finally {if(serial===this.serial){this.reading=false;this.lastRead=Date.now();}}
@@ -480,7 +486,7 @@ export class ShopSession {
     }
     private choose(a:Choice):void {
         const v=this.current;if(!v||this.confirm)return;
-        if(a.type==='ui.retry'){void this.read();return;}
+        if(a.type==='ui.retry'){if(!this.reading)void this.read();return;}
         if(a.type==='ui.back'){this.back();return;}
         if(a.type==='ui.home'){this.toHome();return;}
         if(a.type==='ui.editSelection'){this.editSelection();return;}
