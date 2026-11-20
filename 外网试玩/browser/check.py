@@ -125,11 +125,42 @@ def register_form(page):
     visible_form(page,True)
 
 
-def form_only(browser,url,screenshot=None):
+def track_preloaded_fonts(page):
+    page.add_init_script("""(() => {
+        const create = URL.createObjectURL.bind(URL);
+        const revoke = URL.revokeObjectURL.bind(URL);
+        const outstanding = new Map();
+        const released = [];
+        URL.createObjectURL = blob => {
+            const url = create(blob);
+            if (blob.type === 'font/woff2' || blob.type === 'font/ttf') outstanding.set(url, blob.size);
+            return url;
+        };
+        URL.revokeObjectURL = url => {
+            if (outstanding.has(url)) {
+                released.push(outstanding.get(url));
+                outstanding.delete(url);
+            }
+            revoke(url);
+        };
+        window.preloadedFontState = () => ({ released, outstanding: [...outstanding.values()] });
+    })();""")
+
+
+def assert_preloaded_fonts_released(page):
+    state=page.evaluate("preloadedFontState()")
+    assert len(state['released'])==3 and all(state['released']) and not state['outstanding'],state
+    font_states=page.evaluate("[...document.fonts].filter(face=>face.family.endsWith('_LABEL')).map(face=>face.status)")
+    assert font_states==['loaded']*3,font_states
+    return sum(state['released'])
+
+
+def form_only(browser,url,screenshot=None,verify_font_release=False):
     for width in [320,390,1280]:
         session=mobile(browser,width) if width<1000 else browser.new_context(viewport={'width':1280,'height':900},has_touch=True)
         with session as ctx:
             page=ctx.new_page()
+            if verify_font_release:track_preloaded_fonts(page)
             requests=[]
             page.on("request",lambda r:requests.append((r.method,r.url)))
             page.goto(url)
@@ -159,6 +190,13 @@ def form_only(browser,url,screenshot=None):
             assert len(font_paths)==3,font_paths
             font_states=page.evaluate("[...document.fonts].filter(face=>face.family.endsWith('_LABEL')).map(face=>face.status)")
             assert font_states==['loaded']*3,font_states
+            if verify_font_release:
+                cold=assert_preloaded_fonts_released(page)
+                page.reload()
+                visible_form(page)
+                warm=assert_preloaded_fonts_released(page)
+                assert cold==warm,(cold,warm)
+                print(f'{width}px cold and warm open each released {cold} bytes of preloaded font data.',flush=True)
             print(f"{width}px login/register forms visible at {url}; no account requests submitted.",flush=True)
 
 
@@ -500,6 +538,7 @@ if __name__=="__main__":
     mode.add_argument("--local-url",help="Loopback trial, served by Pages dev with a disposable local accounts service")
     mode.add_argument("--local-api",help="Origin of a disposable Workers dev server, serving /petshop-api/v1; host the local Cocos files under /petshop/")
     parser.add_argument("--screenshot",type=Path,help="Save mobile and desktop login/register PNGs using this base filename")
+    parser.add_argument("--verify-font-release",action="store_true",help="Check disposal of preloaded font blobs on cold and warm opens")
     parser.add_argument("--legacy-db",type=Path,help="Disposable local D1 .sqlite file for pre-password shop fixtures")
     opts=parser.parse_args()
     local=opts.local_url or opts.local_api
@@ -517,7 +556,7 @@ if __name__=="__main__":
         with sync_playwright() as pw:
             browser=pw.chromium.launch(channel="msedge",args=["--use-angle=swiftshader","--enable-unsafe-swiftshader"])
             try:
-                form_only(browser,url,opts.screenshot)
+                form_only(browser,url,opts.screenshot,opts.verify_font_release)
                 if local:verify_accounts(browser,url)
                 if opts.legacy_db:verify_legacy_accounts(browser,url,opts.legacy_db)
             finally:browser.close()

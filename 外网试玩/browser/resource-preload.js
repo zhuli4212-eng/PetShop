@@ -14,6 +14,14 @@ function packedUrl(path) {
   return urls.get(key);
 }
 
+function releasePackedAsset(path) {
+  const key = assetKey(path);
+  const url = urls.get(key);
+  if (url) URL.revokeObjectURL(url);
+  urls.delete(key);
+  blobs.delete(key);
+}
+
 async function download(part, controller, progress) {
   let idle;
   const activity = () => {
@@ -82,6 +90,7 @@ export async function preloadGameResources(manifestPath, progress) {
     progress.prepareGame();
 
     window.petshopAssetUrl = packedUrl;
+    window.petshopReleasePackedAsset = releasePackedAsset;
     window.petshopInstallAssetCache = manager => {
       const downloader = manager.downloader;
       const downloadAsset = downloader.download.bind(downloader);
