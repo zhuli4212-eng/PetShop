@@ -74,7 +74,13 @@ BROWSER = r"""()=>{
     }
     return {x,y,top:0,bottom:innerHeight};
   };
-  window.marketQA={find,desk,visit,labels,measure,app:m};
+  const revealRow=(i)=>{
+    const row=find('Row'+i,desk()),s=m.session.scroll;
+    if(!row||row.getChildByName('Name'))return;
+    s.stopAutoScroll();
+    s.scrollToOffset(new cc.Vec2(0,Math.max(0,Math.min(s.getMaxScrollOffset().y,-row.position.y-ui(s.node).height/2))),0);
+  };
+  window.marketQA={find,desk,visit,labels,measure,revealRow,app:m};
 }"""
 
 
@@ -91,6 +97,8 @@ def verify(browser, process, width):
     cdp = page.context.new_cdp_session(page)
 
     def tap(**spec):
+        if "row" in spec:
+            page.evaluate("i=>marketQA.revealRow(i)",spec["row"])
         page.wait_for_function("spec=>!!marketQA.measure(spec)",arg=spec)
         for _ in range(12):
             # Re-measure only after inertia stops; otherwise a delayed touch can
@@ -123,6 +131,7 @@ def verify(browser, process, width):
         tap(name=("SpeciesFilter","GrowthStageFilter")[index])
         page.wait_for_function("()=>!!marketQA.find('FilterMenu')")
         options = page.evaluate("""()=>marketQA.find('Options',marketQA.find('FilterMenu')).children
+            .filter(n=>/^Option\\d+$/.test(n.name))
             .map(n=>n.getChildByName('Caption').getComponent(cc.Label).string)""")
         assert options==(FILTERS,STAGES)[index],options
         tap(name="Option"+str(options.index(value)))
@@ -149,14 +158,18 @@ def verify(browser, process, width):
     def check(key, value, stage="全部"):
         at(key)
         state=page.evaluate("""()=>{const q=marketQA,v=q.visit(),p=v.data,d=q.desk();
-          return {filters:p.filters.map(g=>g.find(o=>o.active).label),count:p.visual.eligibleCount,protected:p.visual.protectedCount,
+          const scroll=q.app.session.scroll,offset=scroll.getScrollOffset().y;
+          const snapshot={filters:p.filters.map(g=>g.find(o=>o.active).label),count:p.visual.eligibleCount,protected:p.visual.protectedCount,
             empty:p.empty,labels:q.labels(d).map(l=>l.string),rows:p.rows.map((r,i)=>{
+              q.revealRow(i);
               const row=q.find('Row'+i,d);
               return {id:r.link.args.id,select:r.select,price:r.visual.price,reason:r.visual.blockedReason,
                 rendered:q.labels(row).map(l=>l.string),mark:q.find('Mark',row)?.getComponent(cc.Label).string,
                 hasClock:!!q.find('StageCountdown',row),number:!!q.find('Number',row),
                 gray:q.find('Portrait',row)?.getComponent(cc.Sprite).grayscale};
             })};
+          scroll.scrollToOffset(new cc.Vec2(0,offset),0);
+          return snapshot;
         }""")
         assert state["filters"]==[value,stage],state
         species=SPECIES[value]

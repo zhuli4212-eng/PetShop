@@ -1,7 +1,7 @@
 import { setTextWeight } from './ShopTypography';
-import { assetManager, isValid, Sprite, SpriteFrame, UITransform } from 'cc';
+import { assetManager, isValid, type Node, Sprite, SpriteFrame, UITransform } from 'cc';
 import type { Choice, LedgerPage, LedgerRow } from './ShopConnection';
-import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
+import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, frameContents, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { banner, blocks, brown, buttons, card, cream, dock, edge, green, info, ink, note, section, text, thumbTabs } from './BusinessCards';
 import { guideNote } from './TutorialPresentation';
 
@@ -60,14 +60,18 @@ function orders(c:PageCanvas):void {
     });
     dock(c,c.p.actions||[],-1);
 }
-function tradeAnimal(c:PageCanvas,r:DisplayRow,i:number):void {
-    const animal=r.animal!,v=r.visual!;
-    const selected=!!r.select&&c.ui.selected.has(r.select),blocked=!r.select;
-    const w=animalCardWidth(c),reason=v.blockedReason||'';
+function tradeAnimal(c:PageCanvas,r:DisplayRow,i:number,market:boolean):void {
+    const w=animalCardWidth(c),reason=r.visual!.blockedReason||'';
     const reasonH=reason?blocks(reason,w-22,13)*19+9:0;
-    const h=animalSummaryHeight+reasonH,top=h/2,muted='#625F56';
-    const n=frame(c.body,'Row'+i,0,c.slot(h,6),w,h,blocked?'#E8E5DB':selected?'#E3EBCD':cream,
-        blocked?'#B6B2A6':selected?'#618063':edge);
+    const h=animalSummaryHeight+reasonH;
+    const draw=(node:Node)=>drawTradeCard(c,node,r,w,h/2,reason,reasonH);
+    if(market)c.visibleRow('Row'+i,w,h,6,draw);
+    else draw(box(c.body,'Row'+i,0,c.slot(h,6),w,h));
+}
+function drawTradeCard(c:PageCanvas,n:Node,r:DisplayRow,w:number,top:number,reason:string,reasonH:number):void {
+    const animal=r.animal!,v=r.visual!,muted='#625F56';
+    const selected=!!r.select&&c.ui.selected.has(r.select),blocked=!r.select;
+    frameContents(n,blocked?'#E8E5DB':selected?'#E3EBCD':cream,blocked?'#B6B2A6':selected?'#618063':edge);
     const check=frame(n,'Check',-w/2+15,top-34,17,17,blocked?'#D5D2C8':selected?'#365F4A':'#FFF8E6',
         blocked?'#A29E93':selected?'#365F4A':'#9A8970',false);
     if(selected||blocked)text(check,'Mark',blocked?'–':'✓',0,0,16,18,14,blocked?muted:'#FFF7E3','center',true);
@@ -102,7 +106,7 @@ function sale(c:PageCanvas):void {
     guideNote(c);
     c.startList();
     for(const [i,r] of list.entries()){
-        if(r.animal&&r.visual)tradeAnimal(c,r,i);
+        if(r.animal&&r.visual)tradeAnimal(c,r,i,channel==='market');
         else c.row(r,i);
     }
     if(!list.length)c.empty();

@@ -51,11 +51,18 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
     let cursor=startsWithScene&&!modal?0:pad;
     const slot=(h:number,after=gap)=>{const y=-cursor-h/2;cursor+=h+after;return y;};
     const boundaries:{height:number;count:number}[]=[];
+    const visibleRows:{node:Node;height:number;draw:(node:Node)=>void;mounted:boolean}[]=[];
     let footer:{height:number;count:number}|undefined;
     function startList():void {
         if(content.children.length)boundaries.push({height:cursor,count:content.children.length});
     }
     function startFooter():void {footer={height:cursor,count:content.children.length};}
+    function visibleRow(name:string,w:number,h:number,after:number,draw:(node:Node)=>void):void {
+        const node=box(content,name,0,slot(h,after),w,h);
+        // The guide resolves live node targets before it scrolls them into view.
+        if(p.guide)draw(node);
+        else visibleRows.push({node,height:h,draw,mounted:false});
+    }
     const choice=(a:Choice)=>ui.choose(a);
     function strip(items:Choice[],name:string):void {
         if (!items.length)return;
@@ -133,8 +140,8 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
         const h=Math.max(52,lines(p.empty,inner-24,15)*22+18);
         caption(content,'Empty',p.empty,0,slot(h),inner-24,h,15,paper.muted,true);
     }
-    const ctx:PageCanvas={key,args,p,body:content,width,inner,ui,modal,slot,startList,startFooter,strip,row,action,actions,selection,empty};
-    return {ctx,boundaries,get footer(){return footer;},extent:()=>cursor+pad};
+    const ctx:PageCanvas={key,args,p,body:content,width,inner,ui,modal,slot,visibleRow,startList,startFooter,strip,row,action,actions,selection,empty};
+    return {ctx,boundaries,visibleRows,get footer(){return footer;},extent:()=>cursor+pad};
 }
 
 function account(ctx: PageCanvas): boolean {
@@ -430,6 +437,29 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
         solidRect(sheet,halfW-3,-halfH+3,3,actualHeight-6,edge);
     }
     scroll.scrollToOffset(new Vec2(0,Math.max(0,Math.min(ui.offset,listHeight-vh))),0);
+    if(layout.visibleRows.length){
+        const margin=Math.min(112,vh*.25);
+        const updateRows=()=>{
+            // Content is top-anchored at vh/2. Its local position also updates on instant scrolls.
+            const offset=content.position.y-vh/2;
+            for(const row of layout.visibleRows){
+                const top=-row.node.position.y-row.height/2;
+                const visible=row.node.parent!==content||top+row.height>offset-margin&&top<offset+vh+margin;
+                if(visible===row.mounted)continue;
+                row.mounted=visible;
+                if(visible)row.draw(row.node);
+                else {
+                    row.node.off(Node.EventType.TOUCH_END);
+                    for(const child of [...row.node.children]){
+                        child.removeFromParent();
+                        child.destroy();
+                    }
+                }
+            }
+        };
+        content.on(Node.EventType.TRANSFORM_CHANGED,updateRows);
+        updateRows();
+    }
     const canGuide=!opts.backdrop&&!opts.suppressGuide;
     const recovery=opts.guideMode&&(opts.offline?{target:'Retry',text:'重新连接后，继续当前引导。'}:
         opts.pending?{target:'Row-1',text:'查询操作结果，继续当前引导。'}:
