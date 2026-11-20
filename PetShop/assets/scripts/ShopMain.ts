@@ -130,6 +130,7 @@ export class ShopMain extends Component {
         this.layout();
         this.schedule(this.poll,5);
         this.schedule(this.pulse,20);
+        this.schedule(()=>this.session.checkPageRead(),.25);
         void this.openStore();
     }
 
@@ -353,6 +354,7 @@ export class ShopMain extends Component {
     private showGame():void {
         this.audio?.setForeground(true);
         this.foreground=true;void this.pulse();
+        this.session?.checkPageRead();
         if(this.session?.active&&this.state==='open')void this.session.refresh(true);
         else void this.poll();
     }

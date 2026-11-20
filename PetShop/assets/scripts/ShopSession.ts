@@ -9,6 +9,7 @@ import type { AudioSetting, ShopAudio } from './ShopAudio';
 
 interface Visit { key:string; args:Args; selected:Set<string>; offset:number; roomFloor?:RoomFloor; data?:LedgerPage; version?:number; serverClockOffset?:number; detailPage?:number; quoteNotice?:string; returnPanel?:Visit; litterBirth?:number; expandedAnimal?:string; roomAnchor?:{id:string;delta:number}; }
 interface PageResponse { shop:ShopSnapshot; page:LedgerPage; }
+interface PageRead { expiresAt:number; retryAt:number; slow:boolean; stop:()=>void; }
 interface ResponseReceipt { message:string; requestId:string; }
 interface StageClock {label:Label;endsAt:number;shown:string;prefix?:string;progress?:(seconds:number)=>void;}
 interface Host {
@@ -76,6 +77,7 @@ export class ShopSession {
     private busy=false;
     private receiptRoute?:{id:string;apply:()=>void|Promise<void>};
     private reading=false;
+    private pageRead?:PageRead;
     private online=true;
     private paymentStage='start';
     private closed=false;
@@ -119,7 +121,23 @@ export class ShopSession {
         this.dropdown=filterMenu(this.host.layer,fields,index,()=>this.closeFilter(),
             next=>this.showFilter(fields,next),option=>this.choose(option));
     }
-    dispose():void{this.browser.dispose();this.closeFilter();this.closed=true;this.serial++;}
+    dispose():void{this.browser.dispose();this.closeFilter();this.closed=true;this.cancelRead();}
+    private cancelRead():void {
+        this.serial++;
+        this.reading=false;
+        this.pageRead?.stop();
+        this.pageRead=undefined;
+    }
+    checkPageRead():void {
+        const read=this.pageRead;
+        if(!read)return;
+        const now=Date.now();
+        if(now>=read.expiresAt){read.stop();return;}
+        if(!read.slow&&now>=read.retryAt){
+            read.slow=true;
+            this.render();
+        }
+    }
     async open(key:string,args:Args={}):Promise<void>{
         if(this.closed||this.confirm)return;
         const rule=this.host.wallet().featureAccess?.[accessFeature(key,args)];
@@ -205,7 +223,7 @@ export class ShopSession {
     }
     private toHome():void {
         this.closeFilter();
-        this.navigation++;this.serial++;this.reading=false;
+        this.navigation++;this.cancelRead();
         this.closePanel();
         this.feature=undefined;this.taskReturn=undefined;this.bonusVisit=undefined;
         this.renderedVisit=undefined;this.scroll=null;
@@ -221,7 +239,7 @@ export class ShopSession {
             this.confirm=undefined;this.render(false);return;
         }
         if(!this.feature)return;
-        this.remember();this.navigation++;this.serial++;this.reading=false;
+        this.remember();this.navigation++;this.cancelRead();
         if(!this.confirm&&this.panel?.returnPanel){
             this.panel=this.panel.returnPanel;this.editDraft=undefined;
         }else if(this.confirm||this.panel)this.closePanel();
@@ -294,7 +312,8 @@ export class ShopSession {
         const section=accessFeature(visit.key,visit.args);
         const featureName=this.host.wallet().featureAccess?.[section]?.name;
         const title=firstRead?featureName||'店铺':visit.data?.title||featureName||'店铺';
-        const serial=++this.serial;this.reading=true;
+        this.cancelRead();
+        const serial=this.serial;this.reading=true;
         try {
             if(!quiet) {
                 if(firstRead&&!visit.data)visit.data={title,rows:[{title:'正在打开'+(featureName||'页面')+'…'}]};
@@ -302,12 +321,26 @@ export class ShopSession {
             }
             if(visit.key==='payment') {visit.data=payment(this.paymentStage);this.render();return;}
             if(visit.key==='audioSettings'){this.showAudioSettings(visit);return;}
-            const fetchPage=()=>api<PageResponse>(this.host.origin,'page',{page:visit.key,args:visit.args});
+            const controller=typeof AbortController==='function'?new AbortController():undefined;
+            let stop!:()=>void;
+            const timeout=new Promise<never>((_,reject)=>{
+                stop=()=>{
+                    reject(new ServerError('打开页面超时，请重新连接。',0));
+                    controller?.abort();
+                };
+            });
+            const now=Date.now();
+            const pageRead={expiresAt:now+12000,retryAt:firstRead&&!quiet?now+4000:Infinity,slow:false,stop};
+            this.pageRead=pageRead;
+            const fetchPage=()=>Promise.race([timeout,api<PageResponse>(this.host.origin,'page',{
+                page:visit.key,args:visit.args,
+            },controller?.signal)]);
             let result:PageResponse;
             try{result=await fetchPage();}
             catch(error){
                 if(!firstRead||quiet||!(error instanceof ServerError)||![0,502,503,504].includes(error.status))throw error;
                 if(this.closed||serial!==this.serial)return;
+                if(Date.now()>=pageRead.expiresAt)throw error;
                 result=await fetchPage();
             }
             if(this.closed||serial!==this.serial)return;
@@ -322,7 +355,7 @@ export class ShopSession {
             // A delayed response gives an older lower bound for the server clock.
             const offset=result.shop.now-clockMs();
             visit.serverClockOffset=Math.max(visit.serverClockOffset??offset,offset);
-            if(!quiet)await prepareIllustration(visit.key,visit.args,result.page);
+            if(!quiet&&visit.key!=='rooms')await Promise.race([timeout,prepareIllustration(visit.key,visit.args,result.page)]);
             if(this.closed||serial!==this.serial||(quiet&&this.dropdown))return;
             updateSaleNotice(visit,result.page);
             const redraw=!quiet||!this.online||JSON.stringify(renderState(visit.data))!==JSON.stringify(renderState(result.page))||result.shop.coins!==this.host.wallet().coins;
@@ -359,7 +392,9 @@ export class ShopSession {
                 if(!(err instanceof ServerError))console.error('无法显示页面',visit.key,err);
                 if(wasOnline||!quiet){this.render();this.host.notice((err as Error).message);}
             }
-        } finally {if(serial===this.serial){this.reading=false;this.lastRead=Date.now();}}
+        } finally {
+            if(serial===this.serial){this.pageRead=undefined;this.reading=false;this.lastRead=Date.now();}
+        }
     }
     private keepRoomPosition(v:Visit,next:LedgerPage):void {
         if(v.key!=='rooms'||this.renderedVisit!==v||!this.scroll?.content||!v.offset)return;
@@ -443,7 +478,8 @@ export class ShopSession {
                 suppressGuide:!!this.confirm||this.bonusVisit===v,
                 backToTasks:!backdrop&&!this.panel&&!!this.taskReturn,
                 ready:view.version!==undefined||view.key==='payment',
-                pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment'
+                pending:!backdrop&&this.pending().length>0,offline:!backdrop&&!this.online&&view.key!=='payment',
+                slowRead:!backdrop&&view.version===undefined&&this.pageRead?.slow
             });
             this.restoreRoomPosition(view,scroll);
             if(stageClocks.length||Number.isFinite(view.data.presentation?.nextStageAt))this.bindStageClocks(view,scroll,stageClocks);
@@ -486,7 +522,10 @@ export class ShopSession {
     }
     private choose(a:Choice):void {
         const v=this.current;if(!v||this.confirm)return;
-        if(a.type==='ui.retry'){if(!this.reading)void this.read();return;}
+        if(a.type==='ui.retry'){
+            if(!this.busy&&(!this.reading||!this.online||this.pageRead?.slow))void this.read();
+            return;
+        }
         if(a.type==='ui.back'){this.back();return;}
         if(a.type==='ui.home'){this.toHome();return;}
         if(a.type==='ui.editSelection'){this.editSelection();return;}
@@ -565,7 +604,7 @@ export class ShopSession {
     private async commit(a:Choice,args:Args,version:number):Promise<void>{
         if(this.busy)return;
         const origin=this.navigation;
-        this.busy=true;this.serial++;this.reading=false;
+        this.busy=true;this.cancelRead();
         const command={requestId:requestId(),profileId:this.host.wallet().profileId,version,type:a.type!,args};
         let feedback='';
         try {

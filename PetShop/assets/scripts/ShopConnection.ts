@@ -67,7 +67,7 @@ export function sendDeparture(origin:string,data:Args):void {
     }
     void api(origin,'heartbeat',data).catch(()=>{});
 }
-export function api<T>(origin:string, path:string, data?:Args):Promise<T> {
+export function api<T>(origin:string, path:string, data?:Args, signal?:AbortSignal):Promise<T> {
     const base=serviceBase(origin);
     return new Promise((resolve,reject)=>{
         const r=new XMLHttpRequest();
@@ -75,14 +75,19 @@ export function api<T>(origin:string, path:string, data?:Args):Promise<T> {
         if(data!==undefined)r.setRequestHeader('Content-Type','application/json');
         const timeout=9000;
         r.timeout=timeout;
-        const interrupted=()=>{
+        const cleanup=()=>{
             clearTimeout(deadline);
+            signal?.removeEventListener('abort',abort);
+        };
+        const interrupted=()=>{
+            cleanup();
             reject(new ServerError('连接中断，请重连后查询本次操作。',0));
         };
+        const abort=()=>{interrupted();r.abort();};
         // A stalled response may never deliver the native XHR timeout event.
-        const deadline=setTimeout(()=>{interrupted();r.abort();},timeout);
+        const deadline=setTimeout(abort,timeout);
         r.onload=()=>{
-            clearTimeout(deadline);
+            cleanup();
             try {
                 const value=JSON.parse(r.responseText);
                 if(r.status!==200) {reject(new ServerError(value.error||'店铺请求失败。',r.status));return;}
@@ -90,8 +95,10 @@ export function api<T>(origin:string, path:string, data?:Args):Promise<T> {
             } catch {reject(new ServerError('未能读取服务器回执。',0));}
         };
         r.onerror=r.ontimeout=r.onabort=interrupted;
+        if(signal?.aborted){interrupted();return;}
+        signal?.addEventListener('abort',abort,{once:true});
         try {r.send(data===undefined?null:JSON.stringify(data));}
-        catch(error){clearTimeout(deadline);reject(error);}
+        catch(error){cleanup();reject(error);}
     });
 }
 export async function connectShop(origin=''):Promise<ShopSnapshot> {
