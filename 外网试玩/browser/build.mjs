@@ -125,7 +125,7 @@ if (values.demo) {
     .replace('__PETSHOP_LOGIN_MUSIC_MODULE__',loginMusicModule)
     .replace('__PETSHOP_OPENING_MODULE__',openingModule);
   const html = original.replace('<html>', '<html lang="zh-CN">')
-    .replace('<head>', `<head><script>${bootWatchdog}</script>`)
+    .replace('<meta charset="utf-8">', tag => `${tag}<script>${bootWatchdog}</script>`)
     .replace(/(<meta name="viewport"\s+)content="([^"]*)"/, '$1data-game-content="$2" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"')
     .replace('<title>Cocos Creator | PetShop</title>', '<title>麦穗宠物店</title>')
     .replace('</head>', `<link rel="stylesheet" id="login-style" href="./trial-login.css?v=${fingerprint(style)}"></head>`)
