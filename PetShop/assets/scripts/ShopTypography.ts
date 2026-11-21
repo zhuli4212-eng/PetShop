@@ -1,4 +1,4 @@
-import { assetManager, Color, Font, isValid, Label, Node, resources } from 'cc';
+import { assetManager, Color, Font, isValid, Label, Node, resources, sys } from 'cc';
 
 type FontKey = 'sans' | 'bold' | 'serif';
 const paths:Record<FontKey,string> = {
@@ -8,15 +8,17 @@ const fonts:Partial<Record<FontKey,Font>> = {};
 const roles = new WeakMap<Label,FontKey>();
 const pending = new Map<Label,boolean>();
 let loading:Promise<void>|undefined;
+const useIPhoneSystemFonts = sys.isBrowser && /\biPhone\b/.test(navigator.userAgent);
 
 function bind(label:Label,key:FontKey):void {
     roles.set(label,key);
-    label.isBold=false;
-    label.isItalic=false;
-    label.useSystemFont=false;
     const font=fonts[key];
+    label.isBold=useIPhoneSystemFonts && key!=='sans';
+    label.isItalic=false;
+    label.useSystemFont=useIPhoneSystemFonts && !!font;
     if(font) {
-        label.font=font;
+        if(useIPhoneSystemFonts) label.fontFamily=key==='serif'?'serif':'sans-serif';
+        else label.font=font;
         if(pending.has(label)){label.enabled=pending.get(label)!;pending.delete(label);}
     } else {
         if(!pending.has(label))pending.set(label,label.enabled);
@@ -24,7 +26,7 @@ function bind(label:Label,key:FontKey):void {
     }
 }
 
-/** Real font weights; never synthesize bold from a regular asset. */
+/** Select the appropriate asset weight or request the equivalent system weight. */
 export function setTextWeight(label:Label,bold:boolean):Label {
     bind(label,roles.get(label)==='serif'?'serif':bold?'bold':'sans');
     return label;
