@@ -8,11 +8,8 @@ const fonts:Partial<Record<FontKey,Font>> = {};
 const roles = new WeakMap<Label,FontKey>();
 const pending = new Map<Label,boolean>();
 let loading:Promise<void>|undefined;
-const browserAgent = sys.isBrowser ? navigator.userAgent : '';
-// Safari on iPad can send the same desktop user agent as Safari on Mac.
-const isTabletOrMacSafari = /\b(?:iPad|Macintosh)\b/.test(browserAgent)
-    && /\bVersion\/[\d.]+\s+(?:Mobile\/\S+\s+)?Safari\/[\d.]+$/.test(browserAgent);
-const useSystemFonts = /\biPhone\b/.test(browserAgent) || isTabletOrMacSafari;
+// Browser clients use system fonts; native app builds keep the bundled font assets.
+const useSystemFonts = sys.isBrowser;
 
 function bind(label:Label,key:FontKey):void {
     roles.set(label,key);

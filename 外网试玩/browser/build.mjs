@@ -1,10 +1,9 @@
-import { execFile } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { parseArgs, promisify } from 'node:util';
+import { parseArgs } from 'node:util';
 import { loginArtFile, loginMusicFile } from '../../PetShop/server/multiplayer-login.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -33,7 +32,7 @@ if (original.includes('local-opening/')) throw Error('Use the original Cocos bui
 if (!original.includes(boot)) throw Error('The Cocos bootstrap has changed.');
 if (values.demo) await mkdir(path.dirname(dist), { recursive: true });
 await mkdir(dist, { recursive: !values.demo });
-await cp(client, dist, { recursive: true });
+await cp(client, dist, { recursive: true, filter: source => !/\.(ttf|woff2)$/i.test(source) });
 const worker = await build({
   entryPoints: [path.join(here, 'worker.mjs')], outfile: path.join(dist, 'trial-worker.js'),
   bundle: true, platform: 'browser', target: 'es2020', format: 'iife', charset: 'utf8',
@@ -48,7 +47,7 @@ const release = createHash('sha256').update(main).digest('hex');
 const fingerprint = content => createHash('sha256').update(content).digest('hex').slice(0,16);
 const resourceTypes = {
   '.json':'application/json', '.png':'image/png', '.wav':'audio/wav',
-  '.mp3':'audio/mpeg', '.woff2':'font/woff2', '.ttf':'font/ttf',
+  '.mp3':'audio/mpeg',
 };
 async function gameAssets(directory) {
   const files = await readdir(path.join(dist, directory), { withFileTypes:true });
@@ -78,13 +77,9 @@ async function writeResourcePacks(browserAssets) {
     const type = resourceTypes[path.extname(name)];
     const data = await readFile(path.join(dist,name));
     if (bytes && bytes + data.length > limit) await flush();
-    if (/\.[a-f0-9]{16}\.woff2$/.test(name)) {
-      parts.push({path:name,bytes:data.length,files:[[name,data.length,type]]});
-    } else {
-      buffers.push(data);
-      entries.push([name,data.length,type]);
-      bytes += data.length;
-    }
+    buffers.push(data);
+    entries.push([name,data.length,type]);
+    bytes += data.length;
   }
   await flush();
   const data = JSON.stringify({parts});
@@ -98,19 +93,6 @@ const version = fingerprint(Buffer.concat([main,config]));
 const mainScript = `assets/main/index.${version}.js`;
 const settings = JSON.parse(await readFile(path.join(client,'src/settings.json'),'utf8'));
 settings.assets.bundleVers.main = version;
-if (!values.demo && (values.version || values['compress-fonts'])) {
-  const resources = path.join(dist, 'assets/resources');
-  const { stdout } = await promisify(execFile)(process.env.PETSHOP_FONT_PYTHON || 'python',
-    [path.join(here, 'compress-fonts.py'), resources], { windowsHide: true });
-  process.stdout.write(stdout);
-  const resourceConfig = await readFile(path.join(resources, 'config.json'));
-  const resourceVersion = fingerprint(resourceConfig);
-  settings.assets.bundleVers.resources = resourceVersion;
-  await Promise.all([
-    writeFile(path.join(resources, `config.${resourceVersion}.json`), resourceConfig),
-    cp(path.join(resources, 'index.js'), path.join(resources, `index.${resourceVersion}.js`)),
-  ]);
-}
 const settingsText = JSON.stringify(settings);
 const settingsPath = `src/settings.${fingerprint(settingsText)}.json`;
 let application = (await readFile(path.join(client,'application.js'),'utf8')).replace('src/settings.json',settingsPath);

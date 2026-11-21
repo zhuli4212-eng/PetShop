@@ -1,10 +1,5 @@
 const blobs = new Map();
 const urls = new Map();
-// Keep the browser policy aligned with ShopTypography: these clients use system fonts.
-const browserAgent = navigator.userAgent;
-const isTabletOrMacSafari = /\b(?:iPad|Macintosh)\b/.test(browserAgent)
-  && /\bVersion\/[\d.]+\s+(?:Mobile\/\S+\s+)?Safari\/[\d.]+$/.test(browserAgent);
-const useSystemFonts = /\biPhone\b/.test(browserAgent) || isTabletOrMacSafari;
 
 function assetKey(path) {
   const url = new URL(path, document.baseURI);
@@ -87,9 +82,7 @@ export async function preloadGameResources(manifestPath, progress, refresh = fal
     if (!response.ok) throw new Error('无法获取游戏资源清单。');
     const { parts } = await response.json();
     clearTimeout(timer);
-    const requiredParts = useSystemFonts
-      ? parts.filter(part => !part.files.every(([, , type]) => type.startsWith('font/')))
-      : parts;
+    const requiredParts = parts.filter(part => !part.files.every(([, , type]) => type.startsWith('font/')));
     progress.beginResources(requiredParts.reduce((sum, part) => sum + part.bytes, 0));
 
     const queue = requiredParts.slice();
