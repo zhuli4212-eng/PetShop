@@ -114,7 +114,10 @@ def check(browser,web,width,output):
                     const q=pairQA,scene=q.find('ParentPair');
                     return {bounds:q.box(scene),slots:[0,1].map(i=>{
                         const slot=q.find('Slot'+i,scene),sprite=q.find('Portrait',slot);
-                        return {bounds:q.box(slot),sprite:!!sprite,sex:!!q.find('Sex',slot)};
+                        const animal=q.visit().data.presentation.parents[i];
+                        return {bounds:q.box(slot),sprite:!!sprite,sex:!!q.find('Sex',slot),
+                            name:q.find('Name'+i,scene).getComponent(cc.Label).string,
+                            expected:animal?animal.breed+'·'+animal.name:(i?'选择父本':'选择母本')};
                     })};
                 }''')
                 b=slots['bounds']
@@ -122,7 +125,8 @@ def check(browser,web,width,output):
                 for i,slot in enumerate(slots['slots']):
                     sb=slot['bounds'];x=(sb['left']+sb['right'])/2
                     assert abs(x/width-(.27 if i==0 else .73))<.01
-                    assert slot['sprite']==(i in selected) and slot['sex']==(i not in selected)
+                    assert slot['sprite']==(i in selected) and not slot['sex']
+                    assert slot['name']==slot['expected']
             scene([])
             if output:page.screenshot(path=str(output/f'繁育场景待选亲本-{width}.png'))
             assert not page.evaluate("()=>['Tab0','Tab1','Tab2'].some(n=>pairQA.find(n,pairQA.find('DeskPage')))")
@@ -172,6 +176,7 @@ def check(browser,web,width,output):
             touch.option('BreedFilter','安哥拉兔');touch.parent('rabbit-angora-0');touch.parent('rabbit-angora-1')
             touch.tap('Review');touch.kind('pairConfirm');add_items()
             touch.tap('Action0');touch.tap('Accept',scope='Confirm');touch.kind('breeding')
+            assert page.evaluate("pairQA.find('Parents',pairQA.find('Job')).getComponent(cc.Label).string===pairQA.visit().data.presentation.parents.filter(Boolean).map(a=>a.breed+'·'+a.name).join(' × ')")
             room=state()['rooms']['rabbit']
             assert room['items']['guide']==1 and room['items']['double']==1 and room['items']['single']==2
             assert room['job']['options']['selection']=={'item':'double','fields':[0,2]}

@@ -421,9 +421,8 @@ function pairingScene(c:PageCanvas,parents:(Animal|null)[]):void {
         const x=c.width*(i ? .73 : .27)-c.width/2,animal=parents[i],size=c.width*.23;
         const holder=box(scene,'Slot'+i,x,h*(.5-.745),size,size);
         if(animal)floorArt(holder,animal,size,0);
-        else caption(holder,'Sex',i?'♂':'♀',0,12,55,44,26,'#65462D',true);
         const plate=frame(scene,'NamePlate'+i,x,h*(.5-.91),c.width*.38,25,'#F8E9C9','#AB8654',true);
-        heading(plate,'Name'+i,animal?animal.name:label,0,0,c.width*.38-8,22,13,ink,true);
+        heading(plate,'Name'+i,animal?animal.breed+'·'+animal.name:label,0,0,c.width*.38-8,22,13,ink,true);
     });
 }
 function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
@@ -477,7 +476,7 @@ function breeding(c:PageCanvas,m:RoomPage):void {
     caption(card,'When','预计出生',0,31,w,22,14,muted);
     const remaining=heading(card,'Remaining','',0,2,w,34,21,green);
     c.ui.bindCountdown(remaining,m.endsAt!,s=>Math.floor(s/60)+' 分 '+String(s%60).padStart(2,'0')+' 秒');
-    caption(card,'Parents',m.parents!.filter(a=>a).map(a=>a!.name).join(' × '),0,-32,w,24,13,muted);
+    caption(card,'Parents',m.parents!.filter(a=>a).map(a=>a!.breed+'·'+a!.name).join(' × '),0,-32,w,24,13,muted);
     guideNote(c);
     c.startFooter();
     buttons(c,c.p.actions||[]);
