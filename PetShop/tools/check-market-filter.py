@@ -41,7 +41,7 @@ s.pets=samples.map(([id,name,species,retained,dead],i)=>({...structuredClone(bas
   bred:i===0,breedGrowth:false,sex:[0,2,3,7].includes(i)?'公':'母',
   breedKey:species==='cat'?'british':['angora','lop','domestic','lionhead'][i%4],
   coatIndex:1+i%6,bornAt:now-(dead?15*86400000:i===4?12*60000-20000:i===1?20*60000:
-    species==='cat'?6*86400000+90*60000-100000:86400000)}));
+    species==='cat'?6*86400000+90*60000-50000:86400000)}));
 const mother=s.pets[5],father=s.pets[3];
 s.rooms.rabbit.job={motherId:mother.id,fatherId:father.id,mother,father,endsAt:now+86400000,offspring:[]};
 store.save(s);
@@ -104,6 +104,7 @@ def verify(browser, process, width):
     cdp = page.context.new_cdp_session(page)
 
     def tap(**spec):
+        page.wait_for_function("()=>!marketQA.app.session.reading && !marketQA.app.session.busy")
         if "row" in spec:
             page.evaluate("i=>marketQA.revealRow(i)",spec["row"])
         page.wait_for_function("spec=>!!marketQA.measure(spec)",arg=spec)
@@ -132,12 +133,17 @@ def verify(browser, process, width):
         raise AssertionError((spec,box))
 
     def at(key):
-        page.wait_for_function("key=>marketQA.visit()?.key===key && marketQA.visit().version!==undefined",arg=key)
+        page.wait_for_function("key=>marketQA.visit()?.key===key && marketQA.visit().version!==undefined && !marketQA.app.session.reading",arg=key)
 
     def choose_filter(index,value):
         species=page.evaluate("()=>marketQA.visit().data.filters[0].find(o=>o.active).label")
         tap(name=("SpeciesFilter","BreedFilter")[index])
-        page.wait_for_function("()=>!!marketQA.find('FilterMenu')")
+        try:
+            page.wait_for_function("()=>!!marketQA.find('FilterMenu')",timeout=5000)
+        except Exception:
+            page.screenshot(path=str(GAME/'local'/f'market-filter-failure-{width}.png'))
+            print('Filter failure',index,value,page.evaluate("()=>({key:marketQA.visit()?.key,args:marketQA.visit()?.args,reading:marketQA.app.session.reading,confirm:!!marketQA.app.session.confirm,labels:marketQA.labels(marketQA.desk()).map(l=>l.string)})"),flush=True)
+            raise
         options = page.evaluate("""()=>marketQA.find('Options',marketQA.find('FilterMenu')).children
             .filter(n=>/^Option\\d+$/.test(n.name))
             .map(n=>n.getChildByName('Caption').getComponent(cc.Label).string)""")
@@ -152,7 +158,7 @@ def verify(browser, process, width):
     def growth(value):
         tap(name="GrowthStageFilter")
         tap(name="Option"+str(STAGES.index(value)))
-        page.wait_for_function("value=>!marketQA.find('FilterMenu') && marketQA.visit().data.filters[1].find(o=>o.active).label===value",arg=value)
+        page.wait_for_function("value=>!marketQA.find('FilterMenu') && marketQA.visit().data?.filters?.[1]?.find(o=>o.active)?.label===value",arg=value)
 
     def breed_filter(value):
         choose_filter(1,value)
