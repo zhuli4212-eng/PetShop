@@ -16,10 +16,12 @@
 
 ## 香港正式版基准
 
-当前正式版为 `2026.11.21.9`，游戏代码为 `c60bbca`。使用 `petshop-v2026.11.21.9` 或 `production-baseline-2026-11-21.9` 查找部署包和回执。
+当前正式版为 `2026.11.21.11`，游戏代码为 `a277225`。使用 `petshop-v2026.11.21.11` 或 `production-baseline-2026-11-21.11` 查找部署包和回执。
 
-- 部署包为 `output/aliyun/petshop-production-20261121.9-hk.tar.gz`，SHA-256 为 `f35bd021cc5e4e687e223cb21694bd14c97ad7df400eb2b852ca2d83cd89ab99`。
-- 店内装饰预览使用 512 × 288 的纯场景图。iPad 和 Mac 上的 Safari 游戏内 Canvas 文字改用系统字体。两个正式入口已核验，继续沿用生产数据库和服务进程。[21.9 发布记录](output/aliyun/deployment-20261121.9-hk.json)
+- 部署包为 `output/aliyun/petshop-production-20261121.11-hk.tar.gz`，SHA-256 为 `16405a2d8a688bb1277462590b3f96b03bf6f50878cf4fc1f9383857bbafbf8b`。
+- 所有浏览器统一使用系统字体，当前网页包和预载清单不包含原字体数据；工程字体及许可保留供原生 App 使用。预载从 48.3 MiB 降至 14.0 MiB。两入口均已实测无字体请求，继续沿用生产数据库和服务进程。[21.11 发布记录](output/aliyun/deployment-20261121.11-hk.json)
+- 切换前的线上版本为 `2026.11.21.10`，程序目录和归档均已保留。[21.10 发布记录](output/aliyun/deployment-20261121.10-hk.json)
+- 21.10 前的线上版本为 `2026.11.21.9`，程序目录和归档均已保留。[21.9 发布记录](output/aliyun/deployment-20261121.9-hk.json)
 - 切换前的线上版本为 `2026.11.21.8`，程序目录和归档均已保留。[21.8 发布记录](output/aliyun/deployment-20261121.8-hk.json)
 - 切换前的线上版本为 `2026.11.21.7`，程序目录和归档均已保留。[21.7 发布记录](output/aliyun/deployment-20261121.7-hk.json)
 - 切换前的线上版本为 `2026.11.21.6`，程序目录和归档均已保留。[21.6 发布记录](output/aliyun/deployment-20261121.6-hk.json)

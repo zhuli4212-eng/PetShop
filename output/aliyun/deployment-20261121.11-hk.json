@@ -1,0 +1,853 @@
+{
+  "version": "2026.11.21.11",
+  "gameSourceCommit": "a277225f5a73b60da5e94696e88607c1947ab06b",
+  "deployedAt": "2026-11-21T13:52:17.654319+08:00",
+  "releaseDirectory": "/opt/petshop/release.uhm2zxxg",
+  "previousReleaseDirectory": "/opt/petshop/release.g2t1g56v",
+  "previousVersion": "2026.11.21.10",
+  "deploymentSha256": "16405a2d8a688bb1277462590b3f96b03bf6f50878cf4fc1f9383857bbafbf8b",
+  "database": "/var/lib/petshop/shop.sqlite",
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/2026.11.21.11.d3z2lgnx/shop-before-deploy.sqlite",
+  "backupSha256": "aaee6fd7a7275a810f5c631a32cbd19730f441237e01aff4a603b3dd34e5d4f2",
+  "backupChecksPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 110,
+    "trial_auth_limits": 2
+  },
+  "servicesNotRestarted": true,
+  "servicePids": {
+    "petshop.service": "38697",
+    "petshop-web.service": "32803"
+  },
+  "diagnosticEntry": "/petshop/gpu-diagnostic.html?probe=21.11",
+  "receipt": "/var/lib/petshop/rollback/2026.11.21.11.d3z2lgnx/deployment.json",
+  "region": "cn-hongkong",
+  "currentReleaseSymlink": "/opt/petshop/current",
+  "previousDeploymentRecord": "output/aliyun/deployment-20261121.10-hk.json",
+  "previousDeploymentSha256": "f7c55576876ad4ecd3e8a1aff634d4dabb88ce52bc03dc92aa962eccd82b0cc0",
+  "deploymentArchive": "output/aliyun/petshop-production-20261121.11-hk.tar.gz",
+  "deploymentBytes": 81167240,
+  "versionTag": "petshop-v2026.11.21.11",
+  "baselineTag": "production-baseline-2026-11-21.11",
+  "client": {
+    "version": "2026.11.21.11",
+    "sourceCommit": "a277225f5a73b60da5e94696e88607c1947ab06b",
+    "clientEntry": "src/entry.e782ae6bc39d476c.js",
+    "clientBundle": "assets/main/index.5f086fc2fa617e7e.js",
+    "clientSha256": "232c2cd978f1aa0447768cb43c765e44674d6c826f7d34d0558c1a88207ad801"
+  },
+  "changeScope": "All browser clients use system fonts; font binaries excluded from fresh browser builds and active preloads; font assets and licenses retained for native app builds.",
+  "preload": {
+    "beforeBytes": 50690536,
+    "currentBytes": 14633125,
+    "originalFontBytesExcluded": 35894412,
+    "currentParts": 5,
+    "freshBrowserFontFiles": 0
+  },
+  "testResults": {
+    "typescriptExitCode": 0,
+    "cocosBuildExitCode": 36,
+    "changedClientModules": [
+      "chunks:///_virtual/ShopTypography.ts"
+    ],
+    "browserEmulation": [
+      {
+        "name": "iphone-chrome",
+        "engine": "edge",
+        "viewport": [
+          390,
+          844
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 45
+        },
+        "toggleFenceAndReopen": true,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      },
+      {
+        "name": "iphone-safari",
+        "engine": "webkit",
+        "viewport": [
+          390,
+          844
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 43
+        },
+        "toggleFenceAndReopen": true,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": true
+      },
+      {
+        "name": "iphone-safari-narrow",
+        "engine": "webkit",
+        "viewport": [
+          320,
+          680
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            302,
+            169.875
+          ],
+          "image": [
+            302,
+            169.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 43
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      },
+      {
+        "name": "ipad-safari-mobile",
+        "engine": "webkit",
+        "viewport": [
+          768,
+          1024
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 39
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      },
+      {
+        "name": "ipad-safari-desktop",
+        "engine": "webkit",
+        "viewport": [
+          820,
+          1180
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 39
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      },
+      {
+        "name": "mac-safari",
+        "engine": "webkit",
+        "viewport": [
+          1100,
+          850
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 43
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      },
+      {
+        "name": "ipad-chrome",
+        "engine": "webkit",
+        "viewport": [
+          768,
+          1024
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 39
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      },
+      {
+        "name": "mac-chrome",
+        "engine": "edge",
+        "viewport": [
+          1100,
+          850
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 45
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      },
+      {
+        "name": "windows-chrome",
+        "engine": "edge",
+        "viewport": [
+          1280,
+          900
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            366,
+            205.875
+          ],
+          "image": [
+            366,
+            205.875
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 45
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": true
+      },
+      {
+        "name": "android-chrome",
+        "engine": "edge",
+        "viewport": [
+          393,
+          851
+        ],
+        "systemFontExpected": true,
+        "render": {
+          "scene": true,
+          "sprite": true,
+          "frame": "decor-room",
+          "source": [
+            512,
+            288
+          ],
+          "window": [
+            369,
+            207.5625
+          ],
+          "image": [
+            369,
+            207.5625
+          ],
+          "children": [
+            "Scene"
+          ],
+          "canvasScale": 2,
+          "customFonts": 0,
+          "systemFonts": 45
+        },
+        "toggleFenceAndReopen": false,
+        "pageErrors": [],
+        "preloadedBytes": 14633125,
+        "savedFontBytes": 35894412,
+        "fontRequests": 0,
+        "fontFaces": [],
+        "warmReload": false
+      }
+    ],
+    "fontDownloadFailureInjection": true,
+    "liveAnonymousStartup": [
+      {
+        "route": "direct",
+        "version": "版本 2026.11.21.11",
+        "seconds": 9.5,
+        "progress": "100% · 14.0 / 14.0 MiB",
+        "fontRequests": [],
+        "pageErrors": [],
+        "writeRequests": []
+      },
+      {
+        "route": "gateway",
+        "version": "版本 2026.11.21.11",
+        "seconds": 9.7,
+        "progress": "100% · 14.0 / 14.0 MiB",
+        "fontRequests": [],
+        "pageErrors": [],
+        "writeRequests": []
+      }
+    ],
+    "productionAccountLoginPerformed": false,
+    "physicalPhoneRetest": "not performed for this release",
+    "nativeAppBuild": "not performed; source assets and native font loading paths retained"
+  },
+  "appFontAssets": [
+    {
+      "path": "PetShop/assets/resources/fonts/NotoSansCJKsc-Bold.ttf",
+      "bytes": 21638636,
+      "sha256": "6594645a72842e6cfaf1ff9bd5f9f5bd1d9d4429469c67cb8d9542d6f0fe9cd9"
+    },
+    {
+      "path": "PetShop/assets/resources/fonts/NotoSansCJKsc-Regular.ttf",
+      "bytes": 21659508,
+      "sha256": "88b0a0aef38aaefad09d181751661487036b73e5e896f48b0736bd51e8e674c0"
+    },
+    {
+      "path": "PetShop/assets/resources/fonts/NotoSerifCJKsc-Bold.ttf",
+      "bytes": 35543416,
+      "sha256": "4c0c368c04121a786add9ccda6ac44522709be38fbe2502d1e4c2d0d69bfb770"
+    }
+  ],
+  "appFontLicenses": [
+    "PetShop/assets/resources/fonts/Sans-LICENSE.txt",
+    "PetShop/assets/resources/fonts/Serif-LICENSE.txt"
+  ],
+  "publicVerification": {
+    "aliyunDirect": [
+      {
+        "path": "index.html",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.238398,
+        "bodyBytes": 10018,
+        "sha256": "9be2fd1c7b95fa3df7d2ed6b9cb055ebc68660e7d13c5b400a32c46fbfbda779",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "release.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.836483,
+        "bodyBytes": 290,
+        "sha256": "f9045a52dbed71846d77ee14aace3a979425a9acba3ee056698f86b3c7c92a96",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.js?v=cb4fe66e7e4251f2",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.395567,
+        "bodyBytes": 11578,
+        "sha256": "cb4fe66e7e4251f2fd4645a119be90be98a8114b0dabe32f19a1b06fa0d1e502",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/entry.e782ae6bc39d476c.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.407156,
+        "bodyBytes": 835,
+        "sha256": "e782ae6bc39d476c68c94f878f6398372de143efb3f3bb8851d9d5dd9f34d04d",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/main/index.5f086fc2fa617e7e.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.432017,
+        "bodyBytes": 155739,
+        "sha256": "232c2cd978f1aa0447768cb43c765e44674d6c826f7d34d0558c1a88207ad801",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.26c494dd8b9aaeb2.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.703508,
+        "bodyBytes": 196236,
+        "sha256": "26c494dd8b9aaeb2b4b76dc3b9f61ce5321e7db43ba095dedd90cf62f13237bd",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/import-map.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.528739,
+        "bodyBytes": 40,
+        "sha256": "2be73d8f2e7e1d814627714ace691b6e1a9d445c779426a224e7f3685f0fa278",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/cc.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.622375,
+        "bodyBytes": 7886,
+        "sha256": "3258b1dfbb429210a817141d2116d18db2255eda4d280be6499a960744acbf9e",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/_virtual_cc-Bp5iGE8z.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.31403,
+        "bodyBytes": 2522764,
+        "sha256": "b75aefabc9e6b699305aafac2d12b1eff669d33c3781caac41b4c382b949369d",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "gpu-diagnostic.html",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.19194,
+        "bodyBytes": 9969,
+        "sha256": "0acde6d772ddc279a73c0b617c6c87256637163df74d4d50c575c32d347a3775",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "gpu-diagnostic.c3a75baf97103a98.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.896989,
+        "bodyBytes": 9756,
+        "sha256": "c3a75baf97103a9869be8c930ac2709f073e4326f4bf5dbf51d791ed84a70ab5",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.gpu-diagnostic.ad154cf5fedc6cc5.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.212408,
+        "bodyBytes": 11881,
+        "sha256": "ad154cf5fedc6cc551245912c8305125d083cb5d368abb4132b46973104dd422",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/resources/native/fd/fd685f01-8b2e-46ef-abc4-f4e448943ef2.png",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.374379,
+        "bodyBytes": 223522,
+        "sha256": "b7fb5f50b240d1e0eb16a7ec63f85085bd844ed542e0f0d50fc955b1b1fd8d5c",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.1e0ad81f03936526.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.199608,
+        "bodyBytes": 64,
+        "sha256": "4036d719eb89308d676dd00c9cf2b307b36186bb40a00af93ea5f384b942f917",
+        "totalAssetBytes": 2960219
+      },
+      {
+        "path": "src/game-resources.c4a214c78b1fa5ce.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.804434,
+        "bodyBytes": 64,
+        "sha256": "1eded2b13d1f53639566599fc858a3312a1007c5ad3ab9e069f7f90e5bea6295",
+        "totalAssetBytes": 2946087
+      },
+      {
+        "path": "src/game-resources.6058437c54dea6de.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.209748,
+        "bodyBytes": 64,
+        "sha256": "866f86b61f11eb3b928039fb69ea463ba9f13ee7d206d3a1d3904aa9f5e03a40",
+        "totalAssetBytes": 3139833
+      },
+      {
+        "path": "src/game-resources.7b6d5de5ca41856f.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.981012,
+        "bodyBytes": 64,
+        "sha256": "50dc8a41be060aeb27106c7394af071ffa3259924dc7a94e04e5425a2f3954fc",
+        "totalAssetBytes": 3139917
+      },
+      {
+        "path": "src/game-resources.dd150a04335f7260.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.193787,
+        "bodyBytes": 64,
+        "sha256": "e90d6a6a2e96adb7eaf4cb10da16989e2ab46c4d9a0e2f1e3252dc034bb7f608",
+        "totalAssetBytes": 2447069
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.313503,
+        "bodyBytes": 88,
+        "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.188088,
+        "bodyBytes": 39,
+        "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.219316,
+        "bodyBytes": 162,
+        "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87",
+        "totalAssetBytes": null
+      }
+    ],
+    "existingGateway": [
+      {
+        "path": "index.html",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 7.136347,
+        "bodyBytes": 10018,
+        "sha256": "9be2fd1c7b95fa3df7d2ed6b9cb055ebc68660e7d13c5b400a32c46fbfbda779",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "release.json",
+        "status": 200,
+        "peer": "172.66.47.25",
+        "firstByteSeconds": 2.364609,
+        "bodyBytes": 290,
+        "sha256": "f9045a52dbed71846d77ee14aace3a979425a9acba3ee056698f86b3c7c92a96",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.js?v=cb4fe66e7e4251f2",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.509285,
+        "bodyBytes": 11578,
+        "sha256": "cb4fe66e7e4251f2fd4645a119be90be98a8114b0dabe32f19a1b06fa0d1e502",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/entry.e782ae6bc39d476c.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.183783,
+        "bodyBytes": 835,
+        "sha256": "e782ae6bc39d476c68c94f878f6398372de143efb3f3bb8851d9d5dd9f34d04d",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/main/index.5f086fc2fa617e7e.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.314701,
+        "bodyBytes": 155739,
+        "sha256": "232c2cd978f1aa0447768cb43c765e44674d6c826f7d34d0558c1a88207ad801",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.26c494dd8b9aaeb2.json",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 3.434983,
+        "bodyBytes": 196236,
+        "sha256": "26c494dd8b9aaeb2b4b76dc3b9f61ce5321e7db43ba095dedd90cf62f13237bd",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/import-map.json",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.195666,
+        "bodyBytes": 40,
+        "sha256": "2be73d8f2e7e1d814627714ace691b6e1a9d445c779426a224e7f3685f0fa278",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/cc.js",
+        "status": 200,
+        "peer": "172.66.47.25",
+        "firstByteSeconds": 2.496855,
+        "bodyBytes": 7886,
+        "sha256": "3258b1dfbb429210a817141d2116d18db2255eda4d280be6499a960744acbf9e",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/_virtual_cc-Bp5iGE8z.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.285299,
+        "bodyBytes": 2522764,
+        "sha256": "b75aefabc9e6b699305aafac2d12b1eff669d33c3781caac41b4c382b949369d",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/resources/native/fd/fd685f01-8b2e-46ef-abc4-f4e448943ef2.png",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.721834,
+        "bodyBytes": 223522,
+        "sha256": "b7fb5f50b240d1e0eb16a7ec63f85085bd844ed542e0f0d50fc955b1b1fd8d5c",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.1e0ad81f03936526.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.286449,
+        "bodyBytes": 64,
+        "sha256": "4036d719eb89308d676dd00c9cf2b307b36186bb40a00af93ea5f384b942f917",
+        "totalAssetBytes": 2960219
+      },
+      {
+        "path": "src/game-resources.c4a214c78b1fa5ce.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.563129,
+        "bodyBytes": 64,
+        "sha256": "1eded2b13d1f53639566599fc858a3312a1007c5ad3ab9e069f7f90e5bea6295",
+        "totalAssetBytes": 2946087
+      },
+      {
+        "path": "src/game-resources.6058437c54dea6de.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.48418,
+        "bodyBytes": 64,
+        "sha256": "866f86b61f11eb3b928039fb69ea463ba9f13ee7d206d3a1d3904aa9f5e03a40",
+        "totalAssetBytes": 3139833
+      },
+      {
+        "path": "src/game-resources.7b6d5de5ca41856f.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.526415,
+        "bodyBytes": 64,
+        "sha256": "50dc8a41be060aeb27106c7394af071ffa3259924dc7a94e04e5425a2f3954fc",
+        "totalAssetBytes": 3139917
+      },
+      {
+        "path": "src/game-resources.dd150a04335f7260.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.276423,
+        "bodyBytes": 64,
+        "sha256": "e90d6a6a2e96adb7eaf4cb10da16989e2ab46c4d9a0e2f1e3252dc034bb7f608",
+        "totalAssetBytes": 2447069
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.116212,
+        "bodyBytes": 88,
+        "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.916017,
+        "bodyBytes": 39,
+        "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.91141,
+        "bodyBytes": 162,
+        "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87",
+        "totalAssetBytes": null
+      }
+    ]
+  },
+  "backwardCompatibility": "The release archive retains older static files for older clients and rollback; the current browser build and active resource manifest contain no font binaries.",
+  "reportedPCDirectRouteIssue": "Player could enter through the existing Pages gateway; that player has not retested the new direct entry. This release is not evidence that every carrier route has recovered."
+}
