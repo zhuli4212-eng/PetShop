@@ -1,6 +1,6 @@
 @echo off
 if not "%~1"=="" goto local
-start "" "https://petshop-trial.pages.dev/"
+start "" "https://www.petshop-trial.fun/petshop/"
 exit /b %ERRORLEVEL%
 
 :local

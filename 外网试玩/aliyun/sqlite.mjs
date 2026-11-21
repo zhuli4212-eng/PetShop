@@ -23,6 +23,10 @@ class BoundStatement {
     const { changes } = this.statement.run(...this.values);
     return { meta: { changes } };
   }
+
+  all() {
+    return {results:this.statement.all(...this.values)};
+  }
 }
 
 function tableDefinition(db, table) {

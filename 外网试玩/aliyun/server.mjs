@@ -110,7 +110,7 @@ const server = createServer({ requestTimeout: 30000, headersTimeout: 15000 }, (r
     if (res.destroyed) return;
     console.error('Account HTTP request failed:', error.name);
     if (res.headersSent) res.destroy();
-    else reject(res, 503, '暂时无法读取或保存试玩店铺。');
+    else reject(res, 503, '暂时无法读取或保存店铺。');
   });
 });
 server.once('close', () => DB.close());

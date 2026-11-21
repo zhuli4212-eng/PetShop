@@ -14,6 +14,7 @@ const publicOrigin = values['public-origin'];
 if (publicOrigin && (values.demo || new URL(publicOrigin).origin !== publicOrigin || !publicOrigin.startsWith('https://')))
   throw Error('The public account site requires an HTTPS origin with no path.');
 const accountOrigins = publicOrigin ? [publicOrigin] : [
+  'https://www.petshop-trial.fun',
   'https://play.zhu-li-4212.xyz', 'https://petshop-trial.pages.dev', 'https://petshop.zhu-li-4212.xyz',
 ];
 if(values.version&&(!/^\d{4}\.\d{2}\.\d{2}\.[1-9]\d*$/.test(values.version)||!/^\p{ASCII_Hex_Digit}{40}$/u.test(values.source??''))) {

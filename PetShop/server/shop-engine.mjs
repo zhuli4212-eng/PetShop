@@ -94,9 +94,10 @@ export function validateState(s) {
   return s;
 }
 export class ShopEngine {
-  constructor({wall=Date.now, monotonic=()=>performance.now(), rules=shopRules, onboarding=false}={}) {
+  constructor({wall=Date.now, monotonic=()=>performance.now(), rules=shopRules, onboarding=false, shows=null}={}) {
     this.wall=wall; this.monotonic=monotonic; this.rules=rules;
     this.onboarding=onboarding;
+    this.shows=shows;
     this.readers=new Map();
   }
   ensure() {
@@ -104,9 +105,10 @@ export class ShopEngine {
   }
   initialize(restored,{fromBackup=false,resetConnections=false}={}) {
     const s=restored ?? newState(this.wall(),this.onboarding);
+    const showsChanged=this.shows?.initialize(s,this.wall())??false;
     const retentionChanged=Boolean(restored)&&clearBredRetention(s);
     const tagsChanged=Boolean(restored)&&normalizeStoredTags(s);
-    if(retentionChanged||tagsChanged)s.version++;
+    if(retentionChanged||tagsChanged||showsChanged&&restored)s.version++;
     const needsVisitBook=initVisitBook(s,!!restored);
     const needsTasks=initTasks(s,Math.max(s.clock,this.wall()));
     const needsOpening=!Number.isFinite(s.createdAt);
@@ -118,7 +120,7 @@ export class ShopEngine {
     if(restored && this.wall()<s.clock) s.clockEvent={at:s.clock,text:'检测到设备时钟回拨，经营时间从上次存档继续。'};
     this.anchor=Math.max(s.clock,this.wall()); this.mark=this.monotonic();
     this.savedAt=s.clock;
-    if(!restored || retentionChanged || tagsChanged || needsXp || needsOpening || needsVisitBook || needsTasks || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
+    if(!restored || showsChanged || retentionChanged || tagsChanged || needsXp || needsOpening || needsVisitBook || needsTasks || fromBackup || s.clockEvent&&s.clockEvent.at===s.clock) this.save(s);
     this.state=s;
   }
   now() {
@@ -142,6 +144,7 @@ export class ShopEngine {
     const world=({receipts,clock,...fields})=>JSON.stringify(fields);
     const before=world(s);
     tickCare(s,now);settleOnboarding(s,now);tickShow(s,now);tickBusiness(s,now);
+    this.shows?.settle(s);
     if(s.onboarding?.finishedAt&&!this.state.onboarding?.finishedAt)recordTaskAction(s,'onboarding.claim',{},now);
     if(this.clockChange)s.clockEvent=this.clockChange;
     const changed=before!==world(s);
@@ -167,7 +170,7 @@ export class ShopEngine {
     this.requireFeature(level,operationFeature(page,args));
     // Rendering cannot mutate the authoritative store.
     const data=structuredClone(s);
-    let view=openingPage(data,page,args,now)??(page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access,args));
+    let view=this.shows?.page(data,page,args,now,this.rules)??openingPage(data,page,args,now)??(page==='login'?accountPage(data,now,access):visitHistoryPage(data,page,now,access,args));
     if(page==='tasks'&&!view)view=tasksPage(data,access);
     for(const get of pageHandlers) {if(view) break;view=get(data,page,args,now,this.rules);}
     if(!view) throw new GameError('这个页面暂不可用，请返回店铺。',404);
@@ -220,7 +223,7 @@ export class ShopEngine {
     this.requireFeature(level,operationFeature(type,args));
     if(type==='sale.commit'&&args.litterRetention)this.requireFeature(level,'breed');
     const s=structuredClone(current);
-    let message=openingAction(s,type,args,now);
+    let message=this.shows?.action(s,type,args,now,this.rules)??openingAction(s,type,args,now);
     if(message===undefined)for(const run of actionHandlers) {message=run(s,type,args,now,this.rules);if(message!==undefined) break;}
     if(message===undefined) throw new GameError('未识别的经营操作。',400);
     if(typeof message!=='string' || !Number.isSafeInteger(s.coins)||s.coins<0) throw Error('经营数据校验失败。');

@@ -173,7 +173,7 @@ function account(ctx: PageCanvas): boolean {
         return true;
     }
     if(key==='payment') {
-        heading(body,'Title','模拟支付',0,slot(26,6),inner,26,19,paper.ink);
+        heading(body,'Title',p.title||'店铺服务',0,slot(26,6),inner,26,19,paper.ink);
         const note=box(body,'Notice',0,slot(46),inner,46,'#E9DAB9');
         caption(note,'Text',p.subtitle||'',0,0,inner-18,40,14,paper.muted);
         ctx.startList();(p.rows||[]).forEach(ctx.row);ctx.startFooter();ctx.actions(p.actions||[]);return true;

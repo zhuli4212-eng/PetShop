@@ -2,9 +2,10 @@ import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { accountName } from '../../PetShop/server/account-name.mjs';
 import { GameError, RequestGameStore } from '../../PetShop/server/request-store.mjs';
 import { validPassword, passwordRecord, matchesPassword } from './passwords.mjs';
+import {openOnlineShows,stripImportedOnlineShows} from './online-shows.mjs';
 
 const prefix = '/petshop-api/v1/';
-const sites = new Set(['https://play.zhu-li-4212.xyz', 'https://petshop-trial.pages.dev', 'https://petshop.zhu-li-4212.xyz']);
+const sites = new Set(['https://www.petshop-trial.fun', 'https://play.zhu-li-4212.xyz', 'https://petshop-trial.pages.dev', 'https://petshop.zhu-li-4212.xyz']);
 const sessionLifetime = 30 * 86400000;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
@@ -86,12 +87,13 @@ async function legacySetupCode(db, token, digest) {
     setup_expires_at=CASE WHEN setup_expires_at>? THEN setup_expires_at ELSE ? END
     WHERE digest=? AND expires_at>? RETURNING setup_expires_at`)
     .bind(now,hash(codeAt(expires)),now,expires,digest,now).first();
-  if (!session) throw new GameError('请重新登录试玩账号。',401);
+  if (!session) throw new GameError('请重新登录店主账号。',401);
   return codeAt(session.setup_expires_at);
 }
 
 export function newTrialSnapshot(legacy=null) {
   const snapshot = new RequestGameStore(legacy, {onboarding:true}).snapshot();
+  stripImportedOnlineShows(snapshot);
   snapshot.readers = [];
   snapshot.state.visitors.sessions = {};
   snapshot.state.visitors.intervals = [];
@@ -145,11 +147,13 @@ function play(game, route, data, username) {
   if (data.page === 'multiplayerAccount') return {shop:game.shop(), page:{title:'切换账号', rows:[]}};
   const result = game.page(data.page, data.args || {});
   if (data.page === 'login') {
-    result.page.subtitle = '试玩账号 · ' + username;
+    result.page.subtitle = '店主账号 · ' + username;
+    result.page.actions=result.page.actions.filter(action=>action.page!=='payment');
     result.page.actions.push({ label:'切换账号', page:'multiplayerAccount' });
     const clock = result.page.rows.find(row => row.title === '设备时间');
     if (clock) { clock.title = '经营时间'; clock.text = '换设备输入同一账号与密码，可继续经营这家店。'; }
   }
+  if(data.page==='payment')result.page={title:'店铺服务',rows:[{title:'暂未开放'}],actions:[]};
   return result;
 }
 
@@ -157,14 +161,14 @@ async function dispatch(request, db, route) {
   const get = request.method === 'GET';
   if (get && route === 'health') {
     await db.prepare('SELECT 1 FROM trial_accounts LIMIT 1').first();
-    return json({ service:'petshop', storage:'trial-accounts', status:'ok', protocol:1, gameplay:1 });
+    return json({ service:'petshop', storage:'trial-accounts', status:'ok', protocol:1, gameplay:1, publicShows:'shared', showScoringVersion:2 });
   }
   if (request.method === 'POST' && ['auth/register','auth/login','auth/set-password'].includes(route)) return authenticate(db, request, route);
   const read = route === 'shop' || /^receipts\/[\w-]+$/.test(route);
   if (!read && !['auth/logout','page','heartbeat','action'].includes(route)) throw new GameError('接口不存在。', 404);
   if (request.method !== (read ? 'GET' : 'POST')) throw new GameError('不支持此请求方法。', 405);
   const token = request.headers.get('authorization')?.match(/^Bearer ([\w-]{43})$/)?.[1];
-  if (!token) throw new GameError('请先登录试玩账号。', 401);
+  if (!token) throw new GameError('请先登录店主账号。', 401);
   const digest = hash(token);
   if (route === 'auth/logout') {
     await db.prepare('DELETE FROM trial_sessions WHERE digest=?').bind(digest).run();
@@ -174,8 +178,10 @@ async function dispatch(request, db, route) {
   for (let attempt = 0; attempt < 8; attempt++) {
     const row = await db.prepare(`SELECT a.id,a.username,a.revision,a.snapshot,(a.password_hash IS NULL) AS legacy FROM trial_sessions s
       JOIN trial_accounts a ON a.id=s.account_id WHERE s.digest=? AND s.expires_at>?`).bind(digest, Date.now()).first();
-    if (!row) throw new GameError('请重新登录试玩账号。', 401);
-    const game = new RequestGameStore(JSON.parse(row.snapshot));
+    if (!row) throw new GameError('请重新登录店主账号。', 401);
+    const snapshot=JSON.parse(row.snapshot);
+    const shows=await openOnlineShows(db,row,snapshot,data);
+    const game = new RequestGameStore(snapshot,{shows});
     let result, rejected;
     try { result = play(game, route, data, row.username); }
     catch (error) {
@@ -183,14 +189,22 @@ async function dispatch(request, db, route) {
       rejected = error instanceof GameError ? error : new GameError(error.message);
     }
     if (game.dirty) {
-      const written = await db.prepare('UPDATE trial_accounts SET snapshot=?,revision=revision+1 WHERE id=? AND revision=? AND EXISTS(SELECT 1 FROM trial_sessions WHERE digest=? AND expires_at>?)')
-        .bind(JSON.stringify(game.snapshot()), row.id, row.revision,digest,Date.now()).run();
+      const pending=!rejected&&shows.pending;
+      const next=JSON.stringify(game.snapshot());
+      const update=db.prepare('UPDATE trial_accounts SET snapshot=?,revision=revision+1 WHERE id=? AND revision=? AND EXISTS(SELECT 1 FROM trial_sessions WHERE digest=? AND expires_at>?)'+
+        (pending?' AND ?<(SELECT close_at FROM petshop_public_rounds WHERE id=?)':''))
+        .bind(next,row.id,row.revision,digest,Date.now(),...(pending?[Date.now(),pending.id]:[]));
+      // Registration, fee, local receipt and shared entry commit in one SQLite
+      // transaction. A lost CAS must not publish an entry from the losing tab.
+      const written=pending?(await db.batch([update,db.prepare(`INSERT INTO petshop_public_entries(round_id,account_id,username,entry)
+        SELECT ?,?,?,? WHERE changes()=1 AND EXISTS(SELECT 1 FROM trial_accounts WHERE id=? AND revision=? AND snapshot=?)`)
+        .bind(pending.id,row.id,row.username,JSON.stringify(pending),row.id,row.revision+1,next)]))[0]:await update.run();
       if (!written.meta.changes) continue;
     }
     if (rejected) throw rejected;
     if (row.legacy && route === 'page' && data.page === 'login') {
       const code = await legacySetupCode(db,token,digest);
-      result.page.rows.unshift({title:'设置密码验证码',text:code+'（15 分钟有效）。在另一个标签页打开试玩，点「旧账号设置密码」，输入验证码并设置密码。'});
+      result.page.rows.unshift({title:'设置密码验证码',text:code+'（15 分钟有效）。在另一个标签页打开游戏，点「旧账号设置密码」，输入验证码并设置密码。'});
     }
     const response = json(result);
     if (route === 'page' && data.page === 'multiplayerAccount') response.headers.set('X-PetShop-Account','switch');
@@ -212,7 +226,7 @@ export default {
         await dispatch(request, env.DB.withSession?.('first-primary') ?? env.DB, url.pathname.slice(prefix.length));
     } catch (error) {
       if (!(error instanceof GameError)) console.error('Trial account request failed', error.name);
-      response = error instanceof GameError ? json({error:error.message},error.status) : json({error:'暂时无法读取或保存试玩店铺。'},503);
+      response = error instanceof GameError ? json({error:error.message},error.status) : json({error:'暂时无法读取或保存店铺。'},503);
     }
     response.headers.set('Vary','Origin');
     if (origin) {

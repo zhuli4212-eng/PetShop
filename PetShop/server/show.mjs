@@ -99,7 +99,7 @@ function syncRounds(s,now) {
     s.show.activePrivate={...daily,choices};
   }
   const week=period(s,'public',now);
-  if(week && !s.show.weeks[week.id]) s.show.weeks[week.id]=makeWeek(s,week);
+  if(!s.show.onlinePublic && week && !s.show.weeks[week.id]) s.show.weeks[week.id]=makeWeek(s,week);
 }
 export function matchScores(scores,theme) {
   if(theme.rules)return v2Match(scores,theme);
@@ -166,7 +166,7 @@ function board(s,week,species) {
   }
   return {entries,nq};
 }
-function recordCup(s,entry,outcome) {
+export function recordCup(s,entry,outcome) {
   const tier=outcome.tier;
   if(!tier) return;
   const key=entry.theme.id+'-'+tier;
@@ -194,6 +194,7 @@ export function tickShow(s,now) {
   syncRounds(s,now);
   const due=[];
   for(const e of Object.values(s.show.entries)) {
+    if(e.online)continue;
     if(e.voided) continue;
     if(!e.outcome && e.result<=now) due.push({at:e.result,e,step:'result'});
     if(e.payout && !e.cashClosed && e.payout<=now) due.push({at:e.payout,e,step:'cash'});

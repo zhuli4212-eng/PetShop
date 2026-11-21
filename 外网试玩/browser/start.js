@@ -132,7 +132,7 @@ async function enterShop(token) {
 
 async function showAccountForm() {
   if (!local && !allowedSites.includes(location.origin)) {
-    throw Error('请从宠物店的试玩网址打开。');
+    throw Error('请从宠物店正式网址打开：https://www.petshop-trial.fun/petshop/');
   }
   byId('heading').textContent = setup ? '设置密码' : register ? '注册店主' : '店主登录';
   document.title = byId('heading').textContent + ' · 麦穗宠物店';
