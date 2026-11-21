@@ -83,7 +83,12 @@
     "publicLoginBrowsers": "Edge 390x844 on new and original domains; Edge 1280x900 on Pages; no account login or write",
     "loginRegisterSwitchWithoutResourceReload": true,
     "fontRequests": 0,
-    "iPhoneHardwareTestPerformed": false
+    "iPhoneHardwareTestPerformed": false,
+    "preload": {
+      "bytes": 17190188,
+      "parts": 6,
+      "fontEntries": 0
+    }
   },
   "rollback": {
     "programDirectory": "/opt/petshop/release.uhm2zxxg",
