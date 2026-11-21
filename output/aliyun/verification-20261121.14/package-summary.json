@@ -1,0 +1,40 @@
+{
+  "version": "2026.11.21.14",
+  "sourceCommit": "11bb8a2c1528b97aabb0e5a26207cd406f669ff9",
+  "sha256": "74a56187fc3313f680d4c43008643a5ff3c91687bac4525000903c3bc6190d90",
+  "previousSha256": "47d30c442340750876f87f7b64ca9b130e5eec73ab1b61c7cef95d29578474fd",
+  "archiveBytes": 102877020,
+  "uploadBytes": 215040,
+  "uploadSha256": "bd707758008f019721c9d1d89605e3c9b085e3e5a44996f0a1e258a80cb9c0ad",
+  "activeFiles": [
+    "src/import-map.json",
+    "cocos-js/cc.js",
+    "src/entry.e30148d2add58707.js",
+    "assets/main/index.acecb6ca88ece097.js",
+    "src/game-resources.c851d412fb95c99e.json",
+    "src/resource-preload.bd155257fc217a72.js",
+    "trial-shopfront.png"
+  ],
+  "workerSha256": "66f90d9c19790827dc77398ca00d963de5406d1d0dd42ddb6f47521e4be619db",
+  "previousWorkerSha256": "230934d77d082ba300bcf194dfce2a042d6beb65d1ff2b5af618d4fd1557640c",
+  "changedFiles": [
+    "public/index.html",
+    "public/release.json",
+    "public/trial-start.js",
+    "public/src/game-resources.c851d412fb95c99e.json",
+    "account-service.mjs",
+    "server.mjs",
+    "sqlite.mjs",
+    "schema.sql"
+  ],
+  "client": {
+    "version": "2026.11.21.14",
+    "sourceCommit": "11bb8a2c1528b97aabb0e5a26207cd406f669ff9",
+    "clientEntry": "src/entry.e30148d2add58707.js",
+    "clientBundle": "assets/main/index.acecb6ca88ece097.js",
+    "clientSha256": "b5982530e947ca2c967e97249bbc0550ddd0ae4598b642c54fa7dc1776585e15"
+  },
+  "showScoringVersion": 2,
+  "publicShows": "shared",
+  "localTestIncluded": false
+}

@@ -1,0 +1,42 @@
+{
+  "version": "2026.11.21.14",
+  "gameSourceCommit": "11bb8a2c1528b97aabb0e5a26207cd406f669ff9",
+  "deployedAt": "2026-11-21T19:38:51.498541+08:00",
+  "site": "https://www.petshop-trial.fun/petshop/",
+  "releaseDirectory": "/opt/petshop/release.juhuvlrm",
+  "previousReleaseDirectory": "/opt/petshop/release.wryzpaqu",
+  "previousVersion": "2026.11.21.13",
+  "deploymentSha256": "74a56187fc3313f680d4c43008643a5ff3c91687bac4525000903c3bc6190d90",
+  "accountServiceSha256": "66f90d9c19790827dc77398ca00d963de5406d1d0dd42ddb6f47521e4be619db",
+  "runtimeServerSha256": "49844ad143945be54878215c81b05e4d11118cf20aa98fbece2b041d45056ef9",
+  "database": "/var/lib/petshop/shop.sqlite",
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/2026.11.21.14.85yspm3l/shop-before-deploy.sqlite",
+  "backupSha256": "273155f0aff972a49660082388f9f09cfcaf48cc9bf93b94fc6ab17994212807",
+  "backupChecksPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 121,
+    "trial_auth_limits": 2
+  },
+  "accountServiceRestarted": true,
+  "webServicePreserved": true,
+  "previousServicePids": {
+    "petshop.service": "42788",
+    "petshop-web.service": "32803"
+  },
+  "servicePids": {
+    "petshop.service": "42909",
+    "petshop-web.service": "32803"
+  },
+  "additiveSchemaMigration": true,
+  "priorAccountsAndPasswordsPreserved": true,
+  "publicShows": "shared",
+  "showScoringVersion": 2,
+  "firstPublicStartBeijing": "2026-11-23T20:00:00+08:00",
+  "publicFirstWeek": 2,
+  "publicEpoch": 1794225600000,
+  "localTestIncluded": false,
+  "receipt": "/var/lib/petshop/rollback/2026.11.21.14.85yspm3l/deployment.json"
+}

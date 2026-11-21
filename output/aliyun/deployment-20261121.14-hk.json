@@ -1,0 +1,158 @@
+{
+  "version": "2026.11.21.14",
+  "gameSourceCommit": "11bb8a2c1528b97aabb0e5a26207cd406f669ff9",
+  "deployedAt": "2026-11-21T19:38:51.498541+08:00",
+  "site": "https://www.petshop-trial.fun/petshop/",
+  "releaseDirectory": "/opt/petshop/release.juhuvlrm",
+  "previousReleaseDirectory": "/opt/petshop/release.wryzpaqu",
+  "previousVersion": "2026.11.21.13",
+  "deploymentSha256": "74a56187fc3313f680d4c43008643a5ff3c91687bac4525000903c3bc6190d90",
+  "accountServiceSha256": "66f90d9c19790827dc77398ca00d963de5406d1d0dd42ddb6f47521e4be619db",
+  "runtimeServerSha256": "49844ad143945be54878215c81b05e4d11118cf20aa98fbece2b041d45056ef9",
+  "database": "/var/lib/petshop/shop.sqlite",
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/2026.11.21.14.85yspm3l/shop-before-deploy.sqlite",
+  "backupSha256": "273155f0aff972a49660082388f9f09cfcaf48cc9bf93b94fc6ab17994212807",
+  "backupChecksPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 121,
+    "trial_auth_limits": 2
+  },
+  "accountServiceRestarted": true,
+  "webServicePreserved": true,
+  "previousServicePids": {
+    "petshop.service": "42788",
+    "petshop-web.service": "32803"
+  },
+  "servicePids": {
+    "petshop.service": "42909",
+    "petshop-web.service": "32803"
+  },
+  "additiveSchemaMigration": true,
+  "priorAccountsAndPasswordsPreserved": true,
+  "publicShows": "shared",
+  "showScoringVersion": 2,
+  "firstPublicStartBeijing": "2026-11-23T20:00:00+08:00",
+  "publicFirstWeek": 2,
+  "publicEpoch": 1794225600000,
+  "localTestIncluded": false,
+  "receipt": "/var/lib/petshop/rollback/2026.11.21.14.85yspm3l/deployment.json",
+  "archive": "output/aliyun/petshop-production-20261121.14-hk.tar.gz",
+  "previousArchiveSha256": "47d30c442340750876f87f7b64ca9b130e5eec73ab1b61c7cef95d29578474fd",
+  "client": {
+    "version": "2026.11.21.14",
+    "sourceCommit": "11bb8a2c1528b97aabb0e5a26207cd406f669ff9",
+    "clientEntry": "src/entry.e30148d2add58707.js",
+    "clientBundle": "assets/main/index.acecb6ca88ece097.js",
+    "clientSha256": "b5982530e947ca2c967e97249bbc0550ddd0ae4598b642c54fa7dc1776585e15"
+  },
+  "normalFeatureLocksPreserved": true,
+  "testWalletIncluded": false,
+  "alternateSites": [
+    "https://play.zhu-li-4212.xyz/petshop/",
+    "https://petshop-trial.pages.dev/"
+  ],
+  "publicRules": {
+    "scoringVersion": 2,
+    "privateAttributeCounts": [
+      1,
+      3,
+      5
+    ],
+    "privateThresholds": {
+      "1": [
+        96,
+        120,
+        140
+      ],
+      "3": [
+        328,
+        394,
+        458
+      ],
+      "5": [
+        610,
+        680,
+        767
+      ]
+    },
+    "publicQualification": {
+      "4": 470,
+      "5": 655
+    },
+    "hiddenCorePercent": 10,
+    "finalIntegerRounding": true,
+    "participants": "real accounts only",
+    "sameScoreSameAward": true,
+    "boardPageSize": 20,
+    "resultFrozenInSharedDatabase": true,
+    "firstRegistrationBeijing": "2026-11-23T20:00:00+08:00",
+    "firstCloseBeijing": "2026-11-27T18:00:00+08:00",
+    "firstResultBeijing": "2026-11-28T20:00:00+08:00",
+    "firstCashPayoutBeijing": "2026-11-29T20:00:00+08:00"
+  },
+  "economy": {
+    "privateBaseFees": {
+      "rabbit": 20,
+      "cat": 100,
+      "dog": 120
+    },
+    "publicFee": 0,
+    "publicAwardedGuarantee": 20,
+    "publicAwardBands": [
+      "laurel",
+      "gold",
+      "silver",
+      "bronze",
+      "memorial"
+    ],
+    "publicRankingCash": "Existing rankCash formula; supplement only after guarantee; fixed with published board",
+    "authorization": "User approved using the existing numerical configuration for the official version"
+  },
+  "ui": {
+    "accountLabel": "店主账号",
+    "trialAndLocalSimulationLabelsRemoved": true,
+    "drawCommitmentNotDisplayed": true,
+    "paymentDemonstrationEntryRemoved": true,
+    "breedFilterFixedOutsideScrollingList": true
+  },
+  "changeScope": "All approved official competition and UI changes from 21.13, plus validation of submitted grades before the shared registration transaction.",
+  "verification": {
+    "existingServerRegressionTests": 151,
+    "sharedCompetitionTests": 7,
+    "sharedCompetitionFailures": 0,
+    "malformedGradeRejectedBeforeSharedCommit": true,
+    "isolatedUpgrade": {
+      "previous": "2026.11.21.13",
+      "candidate": "2026.11.21.14",
+      "isolatedSQLite": true,
+      "identityAndPasswordPreserved": true,
+      "sessionsPreserved": true,
+      "petsCoinsRoomsAndGuidePreserved": true,
+      "priorActionReplayedOnce": true,
+      "permanentNinePageLetter": true,
+      "productionScoringVersion": 2,
+      "sharedPublicShows": true,
+      "normalFeatureLocks": true,
+      "walletCheatRejected": true,
+      "productionDatabaseUsed": false
+    },
+    "verifiedUiClientSameSha256As21_13": true,
+    "browserUiEvidence": "output/aliyun/verification-20261121.13/ui-results.json",
+    "publicLoginEvidence": "output/aliyun/verification-20261121.13/live-login.log",
+    "publicChecks": {
+      "aliyunDirect": 19,
+      "existingGateway": 19,
+      "newTrialDomain": 19
+    },
+    "productionPlayerGameplayPerformed": false,
+    "iPhoneHardwareTestPerformed": false
+  },
+  "rollback": {
+    "programDirectory": "/opt/petshop/release.wryzpaqu",
+    "archive": "output/aliyun/petshop-production-20261121.13-hk.tar.gz",
+    "databasePolicy": "Keep current database, shared rounds, rankings and entries; do not restore the database snapshot over player progress."
+  }
+}
