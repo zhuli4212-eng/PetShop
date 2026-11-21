@@ -329,16 +329,18 @@ function researchDetail(c:PageCanvas):void {
 }
 function decor(c:PageCanvas):void {
     section(c,'装饰小铺','固定位置 · 可摆放或收起');
-    const height=Math.min(210,Math.round(c.inner*.47)),sw=height*4/7;
-    const n=box(c.body,'Miniature',0,c.slot(height,10),c.inner,height,'#4A3224');
-    picture(n,'Scene','shop-modules/shop-interior',0,0,sw,height);
-    const unit=sw/390,position:Record<string,number[]>={fence:[-65,-278,86,60],lamp:[68,-273,51,81],plant:[-150,-208,66,75],rug:[3,-205,125,62]};
+    const width=c.inner,unit=width/512,height=288*unit;
+    const n=box(c.body,'Miniature',0,c.slot(height,10),width,height,'#4A3224');
+    picture(n,'Scene','shop-modules/decor-room',0,0,width,height);
+    const position:Record<string,number[]>={
+        fence:[-86,-104,78,54],lamp:[136,-65,52,76],plant:[-160,-68,62,66],rug:[25,-103,126,58]
+    };
     rows(c).forEach(r=>{
         if(r.action?.type!=='decor.place'||r.action.args?.placed!==false)return;
         const v=position[r.action.args.key];
         if(v&&r.art)picture(n,'Placed'+r.action.args.key,r.art,v[0]*unit,v[1]*unit,v[2]*unit,v[3]*unit);
     });
-    picture(n,'Keeper','shopkeeper/step-0',0,0,72*unit,108*unit);
+    picture(n,'Keeper','shopkeeper/step-0',0,-43*unit,48*unit,72*unit);
     c.startList();
     rows(c).forEach((r,i)=>{
         const w=c.inner,n=card(c,'Decor'+i,60,cream,6),tw=w-151,tx=-w/2+53+tw/2;
