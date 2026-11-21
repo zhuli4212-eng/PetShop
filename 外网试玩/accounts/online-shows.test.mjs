@@ -159,3 +159,21 @@ test('全服排名冻结且不会因玩家时钟提前发奖，提交截止由�
   await f.api(b,'action',late,409);assert.deepEqual(f.snapshot(b),before);
   assert.equal(f.db.prepare('SELECT count(*) n FROM petshop_public_entries').first().n,1);
 });
+
+test('异常旧档评分在正式报名时拒绝，不能写入共享榜单影响其他参赛者',async t=>{
+  const f=await fixture(t),good=f.actor('正常选手'),bad=f.actor('异常旧档');
+  const valid=f.command(await f.review(good));await f.api(good,'action',valid);
+  const before=f.command(await f.review(bad));
+  const snapshot=f.snapshot(bad),pet=snapshot.state.pets.find(p=>p.id===before.args.pet);
+  pet.traits[0].grade='未知等级';
+  f.db.prepare('UPDATE trial_accounts SET snapshot=? WHERE id=?').bind(JSON.stringify(snapshot),bad.id).run();
+  const review=await f.api(bad,'page',{page:'show.review',args:before.args});
+  assert.match(review.page.rows[0].title,/评分数据无效/);
+  assert.ok(review.page.actions.every(a=>a.type!=='show.enter'));
+  await f.api(bad,'action',before,409);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM petshop_public_entries').first().n,1);
+  const entry=JSON.parse(f.db.prepare('SELECT entry FROM petshop_public_entries').first().entry);
+  f.clock(entry.result);
+  const board=await f.api(good,'page',{page:'show.board',args:{event:entry.id}});
+  assert.match(board.page.subtitle,/参赛 1 位 · 过线 1 位/);
+});
