@@ -16,10 +16,11 @@
 
 ## 香港正式版基准
 
-当前正式版为 `2026.11.21.6`，游戏代码为 `c45b7a5`。使用 `petshop-v2026.11.21.6` 或 `production-baseline-2026-11-21.6` 查找部署包和回执。
+当前正式版为 `2026.11.21.7`，游戏代码为 `c053290`。使用 `petshop-v2026.11.21.7` 或 `production-baseline-2026-11-21.7` 查找部署包和回执。
 
-- 部署包为 `output/aliyun/petshop-production-20261121.6-hk.tar.gz`，SHA-256 为 `364f5020bfa046f1f580847f8e6ea4c89370869ef5af4a44264afcf20bd93989`。
-- 两个正式入口均已核对版本、1× 引擎模块及 API。切换前生成并校验 SQLite 一致备份，继续使用同一生产库。[正式发布记录](output/aliyun/deployment-20261121.6-hk.json)
+- 部署包为 `output/aliyun/petshop-production-20261121.7-hk.tar.gz`，SHA-256 为 `b430fb15582a5c7d709973338209f0ed4192ce795ef9d8cbc9644d028a94b106`。
+- 自由市场前「物种」、后「品种」，品种随物种联动，移除市场成长状态筛选。保留 21.6 的 iPhone 渲染调整。两个正式入口已核对版本、客户端、资源分片及 API。切换前校验 SQLite 一致备份，继续使用同一生产库；本次重启账号服务以应用市场业务改动，网页服务未重启。[正式发布记录](output/aliyun/deployment-20261121.7-hk.json)
+- 切换前的线上版本为 `2026.11.21.6`，程序目录和归档均已保留。[21.6 发布记录](output/aliyun/deployment-20261121.6-hk.json)
 - 切换前的线上版本为 `2026.11.21.5`，程序目录和归档均已保留。[21.5 发布记录](output/aliyun/deployment-20261121.5-hk.json)
 - 21.5 切换前的线上版本为 `2026.11.21.4`，程序目录和归档均已保留。[21.4 发布记录](output/aliyun/deployment-20261121.4-hk.json)
 - 21.4 切换前的线上版本为 `2026.11.21.3`，程序目录和归档均已保留。[21.3 发布记录](output/aliyun/deployment-20261121.3-hk.json)

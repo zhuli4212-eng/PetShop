@@ -1,0 +1,443 @@
+{
+  "version": "2026.11.21.7",
+  "gameSourceCommit": "c0532907dbff07670c9c1421aa822a0d6fd599c2",
+  "deployedAt": "2026-11-21T11:35:28.173054+08:00",
+  "releaseDirectory": "/opt/petshop/release.xo1rhjq_",
+  "previousReleaseDirectory": "/opt/petshop/release.b1v__4s6",
+  "previousVersion": "2026.11.21.6",
+  "deploymentSha256": "b430fb15582a5c7d709973338209f0ed4192ce795ef9d8cbc9644d028a94b106",
+  "database": "/var/lib/petshop/shop.sqlite",
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/2026.11.21.7.q_sn60kz/shop-before-deploy.sqlite",
+  "backupSha256": "b19cbd986cd76c233aa91924a0b0806181c61ead23c42a774b2abe7e97f99593",
+  "backupChecksPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 106,
+    "trial_auth_limits": 2
+  },
+  "accountServiceRestarted": true,
+  "webServicePreserved": true,
+  "previousServicePids": {
+    "petshop.service": "33763",
+    "petshop-web.service": "32803"
+  },
+  "servicePids": {
+    "petshop.service": "38697",
+    "petshop-web.service": "32803"
+  },
+  "changeScope": "market species and dependent breed filters",
+  "receipt": "/var/lib/petshop/rollback/2026.11.21.7.q_sn60kz/deployment.json",
+  "region": "cn-hongkong",
+  "currentReleaseSymlink": "/opt/petshop/current",
+  "previousDeploymentRecord": "output/aliyun/deployment-20261121.6-hk.json",
+  "deploymentArchive": "output/aliyun/petshop-production-20261121.7-hk.tar.gz",
+  "deploymentBytes": 65215852,
+  "versionTag": "petshop-v2026.11.21.7",
+  "baselineTag": "production-baseline-2026-11-21.7",
+  "client": {
+    "version": "2026.11.21.7",
+    "sourceCommit": "c0532907dbff07670c9c1421aa822a0d6fd599c2",
+    "clientEntry": "src/entry.7f25cb91841d9f0e.js",
+    "clientBundle": "assets/main/index.25fb9fd300d84b01.js",
+    "clientSha256": "9b03ba70695c8691c3aaa16f3b6ae5a73b659d04ef2a2b8eec44afa44b252f3c"
+  },
+  "changedPackageFiles": [
+    "public/index.html",
+    "public/release.json",
+    "public/trial-start.js",
+    "public/trial-worker.js",
+    "public/src/application.aaff83c02275c957.js",
+    "public/src/entry.7f25cb91841d9f0e.js",
+    "public/src/game-resources.517cf73d1b95a808.json",
+    "public/src/settings.3147cda44c8f6a36.json",
+    "public/assets/main/config.25fb9fd300d84b01.json",
+    "public/assets/main/index.25fb9fd300d84b01.js",
+    "public/assets/main/index.js",
+    "account-service.mjs"
+  ],
+  "testResults": {
+    "serverTestsPassed": 142,
+    "serverTestsFailed": 0,
+    "cocosBuildExitCode": 36,
+    "touchWidthsPassed": [
+      320,
+      390
+    ],
+    "packagedBrowsers": [
+      {
+        "engine": "edge",
+        "login": true,
+        "rabbitBreeds": true,
+        "catBreeds": true,
+        "speciesResetsBreed": true,
+        "noGrowthStageFilter": true,
+        "errors": [],
+        "iphoneUserAgent": true,
+        "physicalIPhone": false
+      },
+      {
+        "engine": "webkit",
+        "login": true,
+        "rabbitBreeds": true,
+        "catBreeds": true,
+        "speciesResetsBreed": true,
+        "noGrowthStageFilter": true,
+        "errors": [],
+        "iphoneUserAgent": true,
+        "physicalIPhone": false
+      }
+    ],
+    "upgrade": {
+      "previous": "2026.11.21.6",
+      "candidate": "2026.11.21.7",
+      "isolatedSQLite": true,
+      "identityAndPasswordPreserved": true,
+      "sessionsPreserved": true,
+      "petsCoinsRoomsAndGuidePreserved": true,
+      "priorActionReplayedOnce": true,
+      "dependentBreedFilter": true,
+      "productionDatabaseUsed": false
+    },
+    "physicalIPhoneRetest": "pending",
+    "legacyGenericUpgradeCheck": "Old tutorial and room-count assertions no longer match the baseline; validated migration using a dedicated isolated SQLite upgrade check."
+  },
+  "productionPreserved": {
+    "sameAccountDatabase": true,
+    "noSaveReset": true,
+    "priorIPhoneRenderChanges": true,
+    "diagnosticServerSha256": "dba40a6174d5266a1c4282c99a2778995722b954a3ccd0254793123d79b2327e",
+    "accountServiceSha256": "a7a8b64a4545e9bf90795c9e87ad531ba87b1e16382e7961aaaba999f1e1f48c"
+  },
+  "publicVerification": {
+    "aliyunDirect": [
+      {
+        "path": "index.html",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.596434,
+        "bodyBytes": 10034,
+        "sha256": "8939863702cd1804f2713f7a98797ef596c2e6a11a8fa22d1f3be5f1b667d168",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "release.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.799117,
+        "bodyBytes": 289,
+        "sha256": "457a764e2d8910820446f3e0456e7960e5f3985f3ed77d0146b276eb38c530cc",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.js?v=ea53ece52ea3c1d2",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.193915,
+        "bodyBytes": 11578,
+        "sha256": "ea53ece52ea3c1d279467facb0b952c0c03eba6d7229771bc3100c005f21d5cf",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/entry.7f25cb91841d9f0e.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.203364,
+        "bodyBytes": 835,
+        "sha256": "7f25cb91841d9f0efc6dc8915e8e5208a994cc66f972b61b50419de889f0c272",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/main/index.25fb9fd300d84b01.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.62059,
+        "bodyBytes": 156266,
+        "sha256": "9b03ba70695c8691c3aaa16f3b6ae5a73b659d04ef2a2b8eec44afa44b252f3c",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.517cf73d1b95a808.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.418663,
+        "bodyBytes": 196866,
+        "sha256": "517cf73d1b95a8088d4f4c14593a3b9ed8ff2783fe0ec381949a8df2e7fa06df",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.00d9ab098d58c0d7.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.2744,
+        "bodyBytes": 64,
+        "sha256": "4036d719eb89308d676dd00c9cf2b307b36186bb40a00af93ea5f384b942f917",
+        "totalAssetBytes": 3122174
+      },
+      {
+        "path": "src/game-resources.c4a214c78b1fa5ce.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.248392,
+        "bodyBytes": 64,
+        "sha256": "1eded2b13d1f53639566599fc858a3312a1007c5ad3ab9e069f7f90e5bea6295",
+        "totalAssetBytes": 2946087
+      },
+      {
+        "path": "src/game-resources.a542ad6c5a3a10b4.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.288841,
+        "bodyBytes": 64,
+        "sha256": "866f86b61f11eb3b928039fb69ea463ba9f13ee7d206d3a1d3904aa9f5e03a40",
+        "totalAssetBytes": 2025786
+      },
+      {
+        "path": "assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.283946,
+        "bodyBytes": 64,
+        "sha256": "0cf4f03d0039b690fe86d3d3fe47eb7533717c5078e10c3329cc3d8f1eb16d64",
+        "totalAssetBytes": 10163964
+      },
+      {
+        "path": "src/game-resources.0241ca91277924fc.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.295065,
+        "bodyBytes": 64,
+        "sha256": "3eb2e312dcc3b443f7000335bb9dbfab96c4c7a5788d1ca78d1cfd5650b39a00",
+        "totalAssetBytes": 1975905
+      },
+      {
+        "path": "assets/resources/native/ab/ab8fdcc7-f3f3-4b5c-9030-84d0f6b1b276.5667fddaa41d7cb0.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.175514,
+        "bodyBytes": 64,
+        "sha256": "cc7548381ca3937d04f1f33f2cc6a40a78d372d00ab6ed5ce359cdfb0b4ba4ab",
+        "totalAssetBytes": 15387064
+      },
+      {
+        "path": "src/game-resources.efb21d72e80a57c4.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.64949,
+        "bodyBytes": 64,
+        "sha256": "7ba9e8e28898cbcc2b647d5d18f2c0b2cb3f08cf1bde8fbb669d444ea2f095e3",
+        "totalAssetBytes": 2793242
+      },
+      {
+        "path": "assets/resources/native/e8/e840e2dd-b0f5-43e6-8bec-b1c446a23c45.95dac98a72e4f5b7.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.191675,
+        "bodyBytes": 64,
+        "sha256": "2f4a50771bfa9971d132da5bfc1d7e749d89462eb9150ba4ebcad3c94a0f2340",
+        "totalAssetBytes": 10343384
+      },
+      {
+        "path": "src/game-resources.14f96769fc127084.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.53401,
+        "bodyBytes": 64,
+        "sha256": "9a021302f9e8df9421eaeb7a01891b9bbc2ed23d2ffaca35ea15f9c482edfc7a",
+        "totalAssetBytes": 1708364
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.217866,
+        "bodyBytes": 88,
+        "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.173138,
+        "bodyBytes": 39,
+        "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.175001,
+        "bodyBytes": 162,
+        "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87",
+        "totalAssetBytes": null
+      }
+    ],
+    "existingGateway": [
+      {
+        "path": "index.html",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.664304,
+        "bodyBytes": 10034,
+        "sha256": "8939863702cd1804f2713f7a98797ef596c2e6a11a8fa22d1f3be5f1b667d168",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "release.json",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.686413,
+        "bodyBytes": 289,
+        "sha256": "457a764e2d8910820446f3e0456e7960e5f3985f3ed77d0146b276eb38c530cc",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.js?v=ea53ece52ea3c1d2",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.801105,
+        "bodyBytes": 11578,
+        "sha256": "ea53ece52ea3c1d279467facb0b952c0c03eba6d7229771bc3100c005f21d5cf",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/entry.7f25cb91841d9f0e.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.573732,
+        "bodyBytes": 835,
+        "sha256": "7f25cb91841d9f0efc6dc8915e8e5208a994cc66f972b61b50419de889f0c272",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/main/index.25fb9fd300d84b01.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.742917,
+        "bodyBytes": 156266,
+        "sha256": "9b03ba70695c8691c3aaa16f3b6ae5a73b659d04ef2a2b8eec44afa44b252f3c",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.517cf73d1b95a808.json",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.109452,
+        "bodyBytes": 196866,
+        "sha256": "517cf73d1b95a8088d4f4c14593a3b9ed8ff2783fe0ec381949a8df2e7fa06df",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.00d9ab098d58c0d7.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.049027,
+        "bodyBytes": 64,
+        "sha256": "4036d719eb89308d676dd00c9cf2b307b36186bb40a00af93ea5f384b942f917",
+        "totalAssetBytes": 3122174
+      },
+      {
+        "path": "src/game-resources.c4a214c78b1fa5ce.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.295654,
+        "bodyBytes": 64,
+        "sha256": "1eded2b13d1f53639566599fc858a3312a1007c5ad3ab9e069f7f90e5bea6295",
+        "totalAssetBytes": 2946087
+      },
+      {
+        "path": "src/game-resources.a542ad6c5a3a10b4.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 3.038335,
+        "bodyBytes": 64,
+        "sha256": "866f86b61f11eb3b928039fb69ea463ba9f13ee7d206d3a1d3904aa9f5e03a40",
+        "totalAssetBytes": 2025786
+      },
+      {
+        "path": "assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.428122,
+        "bodyBytes": 64,
+        "sha256": "0cf4f03d0039b690fe86d3d3fe47eb7533717c5078e10c3329cc3d8f1eb16d64",
+        "totalAssetBytes": 10163964
+      },
+      {
+        "path": "src/game-resources.0241ca91277924fc.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.268486,
+        "bodyBytes": 64,
+        "sha256": "3eb2e312dcc3b443f7000335bb9dbfab96c4c7a5788d1ca78d1cfd5650b39a00",
+        "totalAssetBytes": 1975905
+      },
+      {
+        "path": "assets/resources/native/ab/ab8fdcc7-f3f3-4b5c-9030-84d0f6b1b276.5667fddaa41d7cb0.woff2",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.296368,
+        "bodyBytes": 64,
+        "sha256": "cc7548381ca3937d04f1f33f2cc6a40a78d372d00ab6ed5ce359cdfb0b4ba4ab",
+        "totalAssetBytes": 15387064
+      },
+      {
+        "path": "src/game-resources.efb21d72e80a57c4.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 2.316806,
+        "bodyBytes": 64,
+        "sha256": "7ba9e8e28898cbcc2b647d5d18f2c0b2cb3f08cf1bde8fbb669d444ea2f095e3",
+        "totalAssetBytes": 2793242
+      },
+      {
+        "path": "assets/resources/native/e8/e840e2dd-b0f5-43e6-8bec-b1c446a23c45.95dac98a72e4f5b7.woff2",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.144663,
+        "bodyBytes": 64,
+        "sha256": "2f4a50771bfa9971d132da5bfc1d7e749d89462eb9150ba4ebcad3c94a0f2340",
+        "totalAssetBytes": 10343384
+      },
+      {
+        "path": "src/game-resources.14f96769fc127084.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.073976,
+        "bodyBytes": 64,
+        "sha256": "9a021302f9e8df9421eaeb7a01891b9bbc2ed23d2ffaca35ea15f9c482edfc7a",
+        "totalAssetBytes": 1708364
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.808982,
+        "bodyBytes": 88,
+        "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.253996,
+        "bodyBytes": 39,
+        "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.701661,
+        "bodyBytes": 162,
+        "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87",
+        "totalAssetBytes": null
+      }
+    ]
+  }
+}
