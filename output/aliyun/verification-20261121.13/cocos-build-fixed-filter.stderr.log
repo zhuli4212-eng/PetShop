@@ -1,0 +1,2 @@
+web-mobile 插件构建配置无版本号，将跳过数据迁移
+Check build parameter mainBundleCompressionType (merge_dep) failed,  compression type(undefined) is invalid for this platform!, and the default value "merge_dep" will be used instead. mainBundleCompressionType (merge_dep) validation failed,  compression type(undefined) is invalid for this platform!, and the default value "merge_dep" will be used instead.

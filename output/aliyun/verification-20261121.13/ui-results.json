@@ -1,0 +1,20 @@
+[
+  {
+    "engine": "edge",
+    "officialAccount": true,
+    "fixedBreedFilter": true,
+    "breedingSceneLoaded": true,
+    "newPrivateChoices": true,
+    "realPublicRegistration": true,
+    "fontsRequested": 0
+  },
+  {
+    "engine": "webkit",
+    "officialAccount": true,
+    "fixedBreedFilter": true,
+    "breedingSceneLoaded": true,
+    "newPrivateChoices": true,
+    "realPublicRegistration": true,
+    "fontsRequested": 0
+  }
+]

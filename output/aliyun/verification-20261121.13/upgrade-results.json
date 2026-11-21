@@ -1,0 +1,15 @@
+{
+  "previous": "2026.11.21.12",
+  "candidate": "2026.11.21.13",
+  "isolatedSQLite": true,
+  "identityAndPasswordPreserved": true,
+  "sessionsPreserved": true,
+  "petsCoinsRoomsAndGuidePreserved": true,
+  "priorActionReplayedOnce": true,
+  "permanentNinePageLetter": true,
+  "productionScoringVersion": 2,
+  "sharedPublicShows": true,
+  "normalFeatureLocks": true,
+  "walletCheatRejected": true,
+  "productionDatabaseUsed": false
+}

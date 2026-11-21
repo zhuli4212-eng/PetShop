@@ -1,0 +1,198 @@
+{
+  "version": "2026.11.21.13",
+  "gameSourceCommit": "f79a7de4c9e063dedfb0edd10f395a1f2576ff6c",
+  "deployedAt": "2026-11-21T19:28:22.711355+08:00",
+  "site": "https://www.petshop-trial.fun/petshop/",
+  "releaseDirectory": "/opt/petshop/release.wryzpaqu",
+  "previousReleaseDirectory": "/opt/petshop/release.f2c8ltx2",
+  "previousVersion": "2026.11.21.12",
+  "deploymentSha256": "47d30c442340750876f87f7b64ca9b130e5eec73ab1b61c7cef95d29578474fd",
+  "accountServiceSha256": "230934d77d082ba300bcf194dfce2a042d6beb65d1ff2b5af618d4fd1557640c",
+  "runtimeServerSha256": "49844ad143945be54878215c81b05e4d11118cf20aa98fbece2b041d45056ef9",
+  "database": "/var/lib/petshop/shop.sqlite",
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/2026.11.21.13.lifjpaf2/shop-before-deploy.sqlite",
+  "backupSha256": "dfe63d06e237428cdb9ad9776f08ccd2632904616748461ae28de1efd67f4f54",
+  "backupChecksPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 120,
+    "trial_auth_limits": 2
+  },
+  "accountServiceRestarted": true,
+  "webServicePreserved": true,
+  "previousServicePids": {
+    "petshop.service": "42164",
+    "petshop-web.service": "32803"
+  },
+  "servicePids": {
+    "petshop.service": "42788",
+    "petshop-web.service": "32803"
+  },
+  "additiveSchemaMigration": true,
+  "priorAccountsAndPasswordsPreserved": true,
+  "publicShows": "shared",
+  "showScoringVersion": 2,
+  "firstPublicStartBeijing": "2026-11-23T20:00:00+08:00",
+  "publicFirstWeek": 2,
+  "publicEpoch": 1794225600000,
+  "localTestIncluded": false,
+  "receipt": "/var/lib/petshop/rollback/2026.11.21.13.lifjpaf2/deployment.json",
+  "archive": "output/aliyun/petshop-production-20261121.13-hk.tar.gz",
+  "previousArchiveSha256": "68242ff339e429afb36058f94ac79b33af156543801a9b198bea945f42e76cbd",
+  "client": {
+    "version": "2026.11.21.13",
+    "sourceCommit": "f79a7de4c9e063dedfb0edd10f395a1f2576ff6c",
+    "clientEntry": "src/entry.e30148d2add58707.js",
+    "clientBundle": "assets/main/index.acecb6ca88ece097.js",
+    "clientSha256": "b5982530e947ca2c967e97249bbc0550ddd0ae4598b642c54fa7dc1776585e15"
+  },
+  "alternateSites": [
+    "https://play.zhu-li-4212.xyz/petshop/",
+    "https://petshop-trial.pages.dev/"
+  ],
+  "normalFeatureLocksPreserved": true,
+  "testWalletIncluded": false,
+  "verification": {
+    "serverTests": {
+      "passed": 157,
+      "failed": 0
+    },
+    "typescriptNoEmit": true,
+    "cocosBuildExitCode": 36,
+    "isolatedUpgrade": {
+      "previous": "2026.11.21.12",
+      "candidate": "2026.11.21.13",
+      "isolatedSQLite": true,
+      "identityAndPasswordPreserved": true,
+      "sessionsPreserved": true,
+      "petsCoinsRoomsAndGuidePreserved": true,
+      "priorActionReplayedOnce": true,
+      "permanentNinePageLetter": true,
+      "productionScoringVersion": 2,
+      "sharedPublicShows": true,
+      "normalFeatureLocks": true,
+      "walletCheatRejected": true,
+      "productionDatabaseUsed": false
+    },
+    "isolatedBrowserUi": [
+      {
+        "engine": "edge",
+        "officialAccount": true,
+        "fixedBreedFilter": true,
+        "breedingSceneLoaded": true,
+        "newPrivateChoices": true,
+        "realPublicRegistration": true,
+        "fontsRequested": 0
+      },
+      {
+        "engine": "webkit",
+        "officialAccount": true,
+        "fixedBreedFilter": true,
+        "breedingSceneLoaded": true,
+        "newPrivateChoices": true,
+        "realPublicRegistration": true,
+        "fontsRequested": 0
+      }
+    ],
+    "productionData": {
+      "priorAccountsAndPasswordsPreserved": true,
+      "priorAccounts": 17,
+      "currentAccounts": 17,
+      "publicFirstWeek": 2,
+      "publicEpoch": 1794225600000,
+      "sharedEntries": 0,
+      "foreignKeyCheck": true
+    },
+    "publicChecks": {
+      "aliyunDirect": 19,
+      "existingGateway": 19,
+      "newTrialDomain": 19
+    },
+    "publicLogin": {
+      "engines": [
+        "Edge"
+      ],
+      "sizes": [
+        "390x844",
+        "1280x900"
+      ],
+      "sites": 3,
+      "resourceReloadOnLoginRegisterSwitch": false,
+      "fontRequests": 0
+    },
+    "productionPlayerGameplayPerformed": false,
+    "iPhoneHardwareTestPerformed": false
+  },
+  "publicRules": {
+    "scoringVersion": 2,
+    "privateAttributeCounts": [
+      1,
+      3,
+      5
+    ],
+    "privateThresholds": {
+      "1": [
+        96,
+        120,
+        140
+      ],
+      "3": [
+        328,
+        394,
+        458
+      ],
+      "5": [
+        610,
+        680,
+        767
+      ]
+    },
+    "publicQualification": {
+      "4": 470,
+      "5": 655
+    },
+    "hiddenCorePercent": 10,
+    "finalIntegerRounding": true,
+    "participants": "real accounts only",
+    "sameScoreSameAward": true,
+    "boardPageSize": 20,
+    "resultFrozenInSharedDatabase": true,
+    "firstRegistrationBeijing": "2026-11-23T20:00:00+08:00",
+    "firstCloseBeijing": "2026-11-27T18:00:00+08:00",
+    "firstResultBeijing": "2026-11-28T20:00:00+08:00",
+    "firstCashPayoutBeijing": "2026-11-29T20:00:00+08:00"
+  },
+  "economy": {
+    "privateBaseFees": {
+      "rabbit": 20,
+      "cat": 100,
+      "dog": 120
+    },
+    "publicFee": 0,
+    "publicAwardedGuarantee": 20,
+    "publicAwardBands": [
+      "laurel",
+      "gold",
+      "silver",
+      "bronze",
+      "memorial"
+    ],
+    "publicRankingCash": "Existing rankCash formula; supplement only after guarantee; fixed with published board",
+    "authorization": "User approved using the existing numerical configuration for the official version"
+  },
+  "ui": {
+    "accountLabel": "店主账号",
+    "trialAndLocalSimulationLabelsRemoved": true,
+    "drawCommitmentNotDisplayed": true,
+    "paymentDemonstrationEntryRemoved": true,
+    "breedFilterFixedOutsideScrollingList": true
+  },
+  "rollback": {
+    "archive": "output/aliyun/petshop-production-20261121.12-hk.tar.gz",
+    "programDirectory": "/opt/petshop/release.f2c8ltx2",
+    "databasePolicy": "Keep the current database. Added tables can remain. Do not restore a pre-release database over player progress.",
+    "afterSharedRegistrationStarts": "21.12 cannot settle shared entries; a compatibility program retaining the shared show service is required before rolling back the client."
+  }
+}
