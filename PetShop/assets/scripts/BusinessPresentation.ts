@@ -1,5 +1,5 @@
 import { setTextWeight } from './ShopTypography';
-import { assetManager, isValid, type Node, Sprite, SpriteFrame, UITransform } from 'cc';
+import { type Node, UITransform } from 'cc';
 import type { Choice, LedgerPage, LedgerRow } from './ShopConnection';
 import { animalCardWidth, animalDetails, animalFilters, animalSummary, animalSummaryHeight, box, caption, frame, frameContents, heading, paper, picture, press, tap, type PageCanvas } from './LedgerCanvas';
 import { banner, blocks, brown, buttons, card, cream, dock, edge, green, info, ink, note, section, text, thumbTabs } from './BusinessCards';
@@ -329,22 +329,9 @@ function researchDetail(c:PageCanvas):void {
 }
 function decor(c:PageCanvas):void {
     section(c,'装饰小铺','固定位置 · 可摆放或收起');
-    const height=Math.min(210,Math.round(c.inner*.47)),sw=height*4/7;
-    const n=box(c.body,'Miniature',0,c.slot(height,10),c.inner,height,'#4A3224');
-    const scene=box(n,'Scene',0,0,sw,height);
-    const sprite=scene.addComponent(Sprite);sprite.sizeMode=Sprite.SizeMode.CUSTOM;
-    // This SpriteFrame is also the shop scene backdrop. Loading the bundled asset
-    // by its serialized id lets the miniature use the exact same pixels.
-    assetManager.loadAny('7f41155e-e245-5890-a76a-3182db144e9d@f9941',(err:Error|null,sf:SpriteFrame)=>{
-        if(!err&&sf&&isValid(scene,true)){sprite.spriteFrame=sf;scene.getComponent(UITransform)!.setContentSize(sw,height);}
-    });
-    const unit=sw/390,position:Record<string,number[]>={fence:[-65,-278,86,60],lamp:[68,-273,51,81],plant:[-150,-208,66,75],rug:[3,-205,125,62]};
-    rows(c).forEach(r=>{
-        if(r.action?.type!=='decor.place'||r.action.args?.placed!==false)return;
-        const v=position[r.action.args.key];
-        if(v&&r.art)picture(n,'Placed'+r.action.args.key,r.art,v[0]*unit,v[1]*unit,v[2]*unit,v[3]*unit);
-    });
-    picture(n,'Keeper','shopkeeper/step-0',0,0,72*unit,108*unit);
+    const width=c.inner,height=width*9/16;
+    const n=box(c.body,'Miniature',0,c.slot(height,10),width,height,'#4A3224');
+    picture(n,'Scene','shop-modules/decor-room',0,0,width,height);
     c.startList();
     rows(c).forEach((r,i)=>{
         const w=c.inner,n=card(c,'Decor'+i,60,cream,6),tw=w-151,tx=-w/2+53+tw/2;

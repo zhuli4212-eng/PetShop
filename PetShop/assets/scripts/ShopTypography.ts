@@ -8,16 +8,20 @@ const fonts:Partial<Record<FontKey,Font>> = {};
 const roles = new WeakMap<Label,FontKey>();
 const pending = new Map<Label,boolean>();
 let loading:Promise<void>|undefined;
-const useIPhoneSystemFonts = sys.isBrowser && /\biPhone\b/.test(navigator.userAgent);
+const browserAgent = sys.isBrowser ? navigator.userAgent : '';
+// Safari on iPad can send the same desktop user agent as Safari on Mac.
+const isTabletOrMacSafari = /\b(?:iPad|Macintosh)\b/.test(browserAgent)
+    && /\bVersion\/[\d.]+\s+(?:Mobile\/\S+\s+)?Safari\/[\d.]+$/.test(browserAgent);
+const useSystemFonts = /\biPhone\b/.test(browserAgent) || isTabletOrMacSafari;
 
 function bind(label:Label,key:FontKey):void {
     roles.set(label,key);
     const font=fonts[key];
-    label.isBold=useIPhoneSystemFonts && key!=='sans';
+    label.isBold=useSystemFonts && key!=='sans';
     label.isItalic=false;
-    label.useSystemFont=useIPhoneSystemFonts && !!font;
+    label.useSystemFont=useSystemFonts && !!font;
     if(font) {
-        if(useIPhoneSystemFonts) label.fontFamily=key==='serif'?'serif':'sans-serif';
+        if(useSystemFonts) label.fontFamily=key==='serif'?'serif':'sans-serif';
         else label.font=font;
         if(pending.has(label)){label.enabled=pending.get(label)!;pending.delete(label);}
     } else {
