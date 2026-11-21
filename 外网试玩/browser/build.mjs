@@ -46,6 +46,35 @@ await cp(path.join(here, 'node_modules/@noble/hashes/LICENSE'), path.join(dist, 
 const main = await readFile(path.join(dist,'assets/main/index.js'));
 const release = createHash('sha256').update(main).digest('hex');
 const fingerprint = content => createHash('sha256').update(content).digest('hex').slice(0,16);
+const originalImportMapPath = 'src/import-map.json';
+
+async function writeAccountImportMap() {
+  const importMap = JSON.parse(await readFile(path.join(dist,originalImportMapPath),'utf8'));
+  const ccFile = '../cocos-js/cc.js';
+  if (importMap.imports.cc !== './' + ccFile) throw Error('The Cocos engine import has changed.');
+  const cc = await readFile(path.join(dist,'src',ccFile),'utf8');
+  const engineFile = cc.match(/"\.\/(_virtual_cc-[\w-]+\.js)"/)?.[1];
+  if (!engineFile) throw Error('The Cocos engine entry has changed.');
+  const engine = await readFile(path.join(dist,'cocos-js',engineFile),'utf8');
+  const ratioLimit = /(key:"devicePixelRatio",get:function\(\)\{var (\w+);return Math\.min\(null!==\(\2=window\.devicePixelRatio\)&&void 0!==\2\?\2:1,)2\)/g;
+  if ([...engine.matchAll(ratioLimit)].length !== 1) throw Error('The Cocos Web screen adapter has changed.');
+  // The screen adapter supplies the ratio for both the backing buffer and input coordinates.
+  const patchedEngine = engine.replace(ratioLimit, (_, getter) =>
+    getter + '/\\biPhone\\b/.test(navigator.userAgent)?1:2)');
+  const engineName = `_virtual_cc.${fingerprint(patchedEngine)}.js`;
+  const patchedCc = cc.replace('"./' + engineFile + '"','"./' + engineName + '"');
+  const ccName = `cc.${fingerprint(patchedCc)}.js`;
+  importMap.imports.cc = `./../cocos-js/${ccName}`;
+  const map = JSON.stringify(importMap);
+  const mapPath = `src/import-map.${fingerprint(map)}.json`;
+  await Promise.all([
+    writeFile(path.join(dist,'cocos-js',engineName),patchedEngine),
+    writeFile(path.join(dist,'cocos-js',ccName),patchedCc),
+    writeFile(path.join(dist,mapPath),map),
+  ]);
+  return mapPath;
+}
+
 const resourceTypes = {
   '.json':'application/json', '.png':'image/png', '.wav':'audio/wav',
   '.mp3':'audio/mpeg', '.woff2':'font/woff2', '.ttf':'font/ttf',
@@ -151,6 +180,10 @@ if (values.demo) {
   ]);
   console.log('Public browser demo ready at', dist);
 } else {
+  if (!original.includes(`src="${originalImportMapPath}" type="systemjs-importmap"`)) {
+    throw Error('The Cocos import map loader has changed.');
+  }
+  const importMapPath = await writeAccountImportMap();
   const login = await readFile(path.join(here,'login.html'),'utf8');
   const bootWatchdog = await readFile(path.join(here,'boot-watchdog.js'),'utf8');
   const legacy = await readFile(path.join(here,'legacy.js'));
@@ -193,6 +226,7 @@ if (values.demo) {
     .replace('__PETSHOP_RESOURCE_PRELOAD__',preloadPath)
     .replace('__PETSHOP_RESOURCE_MANIFEST__',preloadManifest);
   const html = original.replace('<html>', '<html lang="zh-CN">')
+    .replace(`src="${originalImportMapPath}" type="systemjs-importmap"`, `src="${importMapPath}" type="systemjs-importmap"`)
     .replace('<meta charset="utf-8">', tag => `${tag}<script>${bootWatchdog}</script>`)
     .replace(/(<meta name="viewport"\s+)content="([^"]*)"/, '$1data-game-content="$2" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"')
     .replace('<title>Cocos Creator | PetShop</title>', '<title>麦穗宠物店</title>')
