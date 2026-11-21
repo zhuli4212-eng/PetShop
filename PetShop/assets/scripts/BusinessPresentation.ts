@@ -102,7 +102,7 @@ function sale(c:PageCanvas):void {
     const protection=protectedCount&&(channel==='recycle'||channel==='market')?' · 种源保护 '+protectedCount+' 只':'';
     const count=channel==='market'&&c.p.filters?.length ? '可售 '+ids.length+' / 共 '+list.length+' 只' : ids.length+' 只可选'+protection;
     section(c,channel==='recycle'?'回收已故动物':'选择'+mode+'的动物',count);
-    if(channel==='market'&&!c.p.visual?.singleSelect)animalFilters(c,'物种');
+    if(channel==='market'&&!c.p.visual?.singleSelect)animalFilters(c,'物种','品种');
     guideNote(c);
     c.startList();
     for(const [i,r] of list.entries()){

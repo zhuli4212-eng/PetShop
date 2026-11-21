@@ -1,5 +1,5 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import { BREEDS, SPECIES, TRAITS, breedName, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, specimen, stageEnd, stageNames, stageOf } from './care.mjs';
+import { BREEDS, SPECIES, TRAITS, breedName, isBusy, petArt, retainedLitterPets, rosterFilter, rosterFilters, rosterStage, specimen, stageEnd, stageOf } from './care.mjs';
 import { bredValuePercent, researchBenefit } from './research-effects.mjs';
 import { getPetTags, tagIdFor } from './animal-traits.mjs';
 
@@ -314,12 +314,18 @@ function petCaption(p, now, status = p.bred ? '已繁育' : '未繁育') {
   return [breedName(p), BREEDS[p.breedKey].coats[p.coatIndex - 1], p.sex, stageOf(p, now),
     status, ...(p.retained?['种源']:[])].join(' · ');
 }
+function marketBreed(args, species) {
+  if(args.breed==='mixed')return args.breed;
+  const config=Object.hasOwn(BREEDS,args.breed)?BREEDS[args.breed]:undefined;
+  return config&&(!species||config.species===species)?args.breed:undefined;
+}
 function quoteSelection(s, args, now, agreedAmounts) {
   const ids = args.ids;
   requireValue(Array.isArray(ids) && ids.length && new Set(ids).size === ids.length, '请勾选动物，每只只能选一次。');
   let target;
   const filter = args.channel === 'market' ? rosterFilter(args.filter) : '全部';
   const stage = args.channel === 'market' ? rosterStage(args.stage,args.filter) : '全部';
+  const breed = args.channel === 'market' ? marketBreed(args,args.species) : undefined;
   const lines = [], issues = [];
   try { target = saleTarget(s, args, now); }
   catch (error) {
@@ -349,6 +355,10 @@ function quoteSelection(s, args, now, agreedAmounts) {
       issues.push(name+'已不符合「'+stage+'」筛选，目前为'+stageOf(p,now));
       continue;
     }
+    if(breed && (p.mixed?'mixed':p.breedKey)!==breed){
+      issues.push(name+'已不符合「'+(breed==='mixed'?'杂交':BREEDS[breed].name)+'」筛选');
+      continue;
+    }
     if (!target) continue;
     const amount = salePrice(s, p, target.quoteAtBirth?.(p)?p.bornAt:now, args.channel, target.rate);
     if (Array.isArray(agreedAmounts) && agreedAmounts[index] !== amount) {
@@ -367,8 +377,9 @@ function quoteSelection(s, args, now, agreedAmounts) {
   if (target.species) terms.push(target.species);
   if (filter !== '全部') terms.push(filter);
   if (stage !== '全部') terms.push({stage});
+  if (breed) terms.push({breed});
   const hash = createHash('sha256').update(JSON.stringify(terms)).digest('hex');
-  return { target, lines, risks, hash, filter, stage, total: lines.reduce((sum, row) => sum + row.amount, 0) };
+  return { target, lines, risks, hash, filter, stage, breed, total: lines.reduce((sum, row) => sum + row.amount, 0) };
 }
 export function validateSaleQuote(s, args, now) {
   const quote = quoteSelection(s, args, now, args.amounts);
@@ -411,13 +422,15 @@ function researchState(s, species, branch) {
 const nextPage = (label, page, args = {}) => ({ label, page, args });
 const linkRow = (title, text, page, args = {}, art) => ({ title, text, art, link: { page, args } });
 function marketRoster(s, page, args, target, now) {
-  const filter = rosterFilter(args.filter);
-  const stage = rosterStage(args.stage,args.filter);
-  const scope = {channel:'market', ...(target.species && {species:target.species})};
+  const breed = marketBreed(args,target.species);
+  const scope = {channel:'market', ...(target.species && {species:target.species}), ...(breed&&{breed})};
+  const breeds = (target.species?[target.species]:speciesList).flatMap(key=>SPECIES[key].breeds);
+  const breedOptions = [['','全部'],...breeds.map(key=>[key,BREEDS[key].name])];
+  if(breed==='mixed'||s.pets.some(p=>p.mixed&&target.eligible(p)))breedOptions.push(['mixed','杂交']);
   const rows = [], counts = {'种源保护':0, '繁育中':0, '已故':0};
   let eligibleCount = 0;
   for (const p of s.pets) {
-    if (!target.eligible(p) || !rosterFilters[filter](s,p,now) || (stage!=='全部' && stageOf(p,now)!==stage)) continue;
+    if (!target.eligible(p) || (breed&&(p.mixed?'mixed':p.breedKey)!==breed)) continue;
     const reasons = saleBlocks(s,p,now,'market');
     const animal=specimen(s,p,now), summary=petCaption(p,now,animal.status);
     const visual = {name:animal.name, number:animal.number, summary};
@@ -438,9 +451,9 @@ function marketRoster(s, page, args, target, now) {
   return {title:channelNames.market, subtitle:[target.condition,...reasons].join(' · '),
     visual:{eligibleCount, protectedCount:counts.种源保护}, empty:'当前筛选下没有动物。', rows,
     filters:[['',...speciesList].map(key=>({...nextPage(key?speciesName(key):'全部',page,
-      {channel:'market',...(key&&{species:key}),stage}),active:key===(target.species??'')})),
-      ['全部',...stageNames].map(label=>({...nextPage(label,page,{...scope,...(filter!=='全部'&&{filter}),stage:label}),active:label===stage}))],
-    actions:eligibleCount?[{...nextPage('核对所选报价','saleQuote',{...scope,...(filter!=='全部'&&{filter}),...(stage!=='全部'&&{stage})}),useSelection:true}]:[]};
+      {channel:'market',...(key&&{species:key})}),active:key===(target.species??'')})),
+      breedOptions.map(([key,label])=>({...nextPage(label,page,{channel:'market',...(target.species&&{species:target.species}),...(key&&{breed:key})}),active:key===(breed??'')}))],
+    actions:eligibleCount?[{...nextPage('核对所选报价','saleQuote',scope),useSelection:true}]:[]};
 }
 function orderActions(s, id) {
   const source = s.businessDay.freeUsed < 3 ? 'free' : 'paid';
@@ -479,13 +492,13 @@ export function businessPage(s, page, args, now) {
       actions: eligible.length ? [{ label: '核对所选报价', page: 'saleQuote', args: targetArgs, useSelection: true }] : [] };
   }
   if (page === 'saleQuote') {
-    const { target, lines, total, risks, hash, filter, stage } = quoteSelection(s, args, now);
+    const { target, lines, total, risks, hash, filter, stage, breed } = quoteSelection(s, args, now);
     const scope = target.species ? { species: target.species } : {};
     const rows = lines.map(line => ({ title: line.name, text: line.amount + ' 金币 · 编号 ' + line.id.slice(0, 6).toUpperCase() }));
     if (risks.length) rows.push({ title: '繁育提醒', text: '本批包含' + risks.join('、') + '。' });
     return { title: '核对出售', subtitle: channelNames[args.channel] + ' · ' + lines.length + ' 只，合计 ' + total + ' 金币',
       rows, actions: [{ label: '确认交付 · ' + total + ' 金币', type: 'sale.commit',
-        args: { channel: args.channel, ...scope, ...(filter!=='全部'&&{filter}), ...(stage!=='全部'&&{stage}), ids: args.ids, targetId: args.targetId || null,
+        args: { channel: args.channel, ...scope, ...(filter!=='全部'&&{filter}), ...(stage!=='全部'&&{stage}), ...(breed&&{breed}), ids: args.ids, targetId: args.targetId || null,
           amounts: lines.map(line => line.amount), hash } }, { label: '修改选择', type: 'ui.editSelection' }] };
   }
   if (page === 'orders') {

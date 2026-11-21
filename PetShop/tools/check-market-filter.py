@@ -12,7 +12,14 @@ GAME = Path(__file__).resolve().parents[1]
 FILTERS = ["全部", "兔", "猫", "狗"]
 SPECIES = dict(zip(FILTERS, [None, "rabbit", "cat", "dog"]))
 STAGES = ["全部", "幼年", "成长", "成年", "老年", "已故"]
-PET_STAGES = ["成年","成长","已故","成年","幼年","成年","已故","老年"]
+BREEDS = {
+    "兔":["原色兔","垂耳兔","安哥拉兔","狮子兔"],
+    "猫":["英国短毛猫","美国短毛猫","波斯猫","缅因猫"],
+    "狗":["柴犬","柯基犬","贵宾犬","腊肠犬"],
+}
+BREEDS["全部"] = sum(BREEDS.values(), [])
+BREED_KEYS = dict(zip(BREEDS["全部"], ["domestic","lop","angora","lionhead","british","american","persian","maine","shiba","corgi","poodle","dachshund"]))
+PET_BREEDS = ["安哥拉兔","垂耳兔","原色兔","狮子兔","安哥拉兔","垂耳兔","原色兔","英国短毛猫"]
 # name, species, unbred and idle, protected, deceased, busy
 PETS = [
     ("胡桃","rabbit",False,False,False,False), ("小麦","rabbit",True,True,False,False),
@@ -128,12 +135,13 @@ def verify(browser, process, width):
         page.wait_for_function("key=>marketQA.visit()?.key===key && marketQA.visit().version!==undefined",arg=key)
 
     def choose_filter(index,value):
-        tap(name=("SpeciesFilter","GrowthStageFilter")[index])
+        species=page.evaluate("()=>marketQA.visit().data.filters[0].find(o=>o.active).label")
+        tap(name=("SpeciesFilter","BreedFilter")[index])
         page.wait_for_function("()=>!!marketQA.find('FilterMenu')")
         options = page.evaluate("""()=>marketQA.find('Options',marketQA.find('FilterMenu')).children
             .filter(n=>/^Option\\d+$/.test(n.name))
             .map(n=>n.getChildByName('Caption').getComponent(cc.Label).string)""")
-        assert options==(FILTERS,STAGES)[index],options
+        assert options==(FILTERS,["全部",*BREEDS[species]])[index],options
         tap(name="Option"+str(options.index(value)))
         page.wait_for_function("""([index,value])=>!marketQA.find('FilterMenu') && (marketQA.find('SpeciesFilter')||marketQA.find('BreedFilter')) &&
             marketQA.visit()?.data?.filters?.[index].find(o=>o.active)?.label===value""",arg=[index,value])
@@ -142,6 +150,11 @@ def verify(browser, process, width):
         choose_filter(0,value)
 
     def growth(value):
+        tap(name="GrowthStageFilter")
+        tap(name="Option"+str(STAGES.index(value)))
+        page.wait_for_function("value=>!marketQA.find('FilterMenu') && marketQA.visit().data.filters[1].find(o=>o.active).label===value",arg=value)
+
+    def breed_filter(value):
         choose_filter(1,value)
 
     def selected(expected):
@@ -155,12 +168,12 @@ def verify(browser, process, width):
                 rows:marketQA.visit().data.rows.map(r=>({id:r.animal?.id,select:r.select,reason:r.visual?.blockedReason}))})"""),flush=True)
             raise
 
-    def check(key, value, stage="全部"):
+    def check(key, value, breed="全部"):
         at(key)
         state=page.evaluate("""()=>{const q=marketQA,v=q.visit(),p=v.data,d=q.desk();
           const scroll=q.app.session.scroll,offset=scroll.getScrollOffset().y;
           const snapshot={filters:p.filters.map(g=>g.find(o=>o.active).label),count:p.visual.eligibleCount,protected:p.visual.protectedCount,
-            empty:p.empty,labels:q.labels(d).map(l=>l.string),rows:p.rows.map((r,i)=>{
+            empty:p.empty,labels:q.labels(d).map(l=>l.string),growthFilter:!!q.find('GrowthStageFilter',d),rows:p.rows.map((r,i)=>{
               q.revealRow(i);
               const row=q.find('Row'+i,d);
               return {id:r.link.args.id,select:r.select,price:r.visual.price,reason:r.visual.blockedReason,
@@ -171,10 +184,10 @@ def verify(browser, process, width):
           scroll.scrollToOffset(new cc.Vec2(0,offset),0);
           return snapshot;
         }""")
-        assert state["filters"]==[value,stage],state
+        assert state["filters"]==[value,breed] and not state["growthFilter"],state
         species=SPECIES[value]
         indices=[i for i,(_,kind,*_) in enumerate(PETS)
-                 if (species is None or kind==species) and (stage=="全部" or PET_STAGES[i]==stage)]
+                 if (species is None or kind==species) and (breed=="全部" or PET_BREEDS[i]==breed)]
         assert [r["id"] for r in state["rows"]]==[IDS[i] for i in indices],state
         eligible=[]
         for i,r in zip(indices,state["rows"]):
@@ -202,7 +215,8 @@ def verify(browser, process, width):
         action=page.evaluate("""()=>marketQA.visit().data.actions.find(a=>a.type==='sale.commit')""")
         assert action and sorted(action["args"]["ids"])==sorted(expected),action
         assert action["args"].get("species")==SPECIES[filters[0]],action
-        assert action["args"].get("stage","全部")==filters[1],action
+        assert action["args"].get("breed")==BREED_KEYS.get(filters[1]),action
+        assert "stage" not in action["args"] and "filter" not in action["args"],action
         total=sum(action["args"]["amounts"])
         assert page.evaluate("t=>marketQA.labels(marketQA.desk()).some(l=>l.string==='合计 '+t+' 金币')",total)
         return action
@@ -249,22 +263,24 @@ def verify(browser, process, width):
     at("market")
     selected([IDS[0]])
     species_filter("兔")
-    ok=check("market","兔")
+    breed_filter("安哥拉兔")
+    ok=check("market","兔","安哥拉兔")
     selected([])
     tap(copy="全选本页")
     selected(ok)
     quote(ok)
     tap(copy="修改选择")
-    check("market","兔")
+    check("market","兔","安哥拉兔")
     selected(ok)
     image = page.screenshot() if width==390 else None
-    for value in ("兔","猫","狗","全部"):
+    for value in ("猫","狗","全部","兔"):
         species_filter(value)
-        for stage in (*STAGES[1:],"全部"):
-            growth(stage)
-            eligible=check("market",value,stage=stage)
-            if not eligible and (value,stage) in (("兔","成长"),("全部","已故")):
-                tap(row=0,name="Check")
+        check("market",value)
+        selected([])
+        for breed in (*BREEDS[value],"全部"):
+            breed_filter(breed)
+            eligible=check("market",value,breed)
+            if not eligible:
                 tap(copy="全选本页")
                 tap(copy="核对出售")
                 at("market")
@@ -277,23 +293,25 @@ def verify(browser, process, width):
     at("rooms")
     growth("幼年")
     tap(copy="挑选出售")
-    room_ok=check("sale","兔","幼年")
+    room_ok=check("sale","兔")
+    breed_filter("安哥拉兔")
+    room_ok=check("sale","兔","安哥拉兔")
     tap(copy="全选本页")
     selected(room_ok)
     tap(row=0,name="Details")
     at("pet")
     tap(name="Back")
-    check("sale","兔","幼年")
+    check("sale","兔","安哥拉兔")
     selected(room_ok)
     quote(room_ok)
     tap(copy="修改选择")
-    check("sale","兔","幼年")
+    check("sale","兔","安哥拉兔")
     selected(room_ok)
     for value in ("猫","狗","全部","兔"):
         species_filter(value)
-        for stage in (*STAGES[1:],"全部"):
-            growth(stage)
-            check("sale",value,stage)
+        check("sale",value)
+        breed_filter(BREEDS[value][0])
+        check("sale",value,BREEDS[value][0])
     home()
     tap(name="Hotspot_rooms")
     at("rooms")
@@ -301,11 +319,11 @@ def verify(browser, process, width):
     page.wait_for_function("()=>marketQA.visit().args.species==='cat' && marketQA.find('BreedFilter')")
     growth("已故")
     tap(copy="挑选出售")
-    assert not check("sale","猫","已故")
+    assert check("sale","猫")==[IDS[7]]
     tap(copy="全选本页")
-    tap(copy="核对出售")
-    at("sale")
-    selected([])
+    selected([IDS[7]])
+    quote([IDS[7]])
+    tap(copy="修改选择")
 
     home()
     tap(name="Hotspot_market")
@@ -324,24 +342,6 @@ def verify(browser, process, width):
         process.stdin.flush()
         assert process.stdout.readline().strip()=="advanced"
 
-    # When the only selected juvenile grows up, the old stage-bound quote is refused.
-    species_filter("兔")
-    growth("幼年")
-    tap(copy="全选本页")
-    selected([IDS[4]])
-    young=quote([IDS[4]])
-    def birthday(route):
-        next_minute()
-        route.continue_()
-    page.route("**/api/action",birthday,times=1)
-    with page.expect_response(lambda r:r.url.endswith("/api/action") and r.request.post_data_json["type"]=="sale.commit") as aged:
-        tap(copy=young["label"])
-    assert aged.value.status==409 and all(t in aged.value.json()["error"] for t in ("栗子","幼年","成长"))
-    stable,unsold=ledger()
-    assert stable["coins"]==after["coins"] and unsold==new_ids
-    home()
-    tap(name="Hotspot_market")
-    at("market")
     # Between quote and settlement another client protects one animal and the other reaches natural death.
     remaining=[IDS[4],IDS[7]]
     tap(copy="全选本页")
@@ -363,7 +363,7 @@ def verify(browser, process, width):
     assert unchanged["coins"]==after["coins"] and still_there==new_ids
     assert not errors,errors
     page.close()
-    print(width,"market & room filters, selection, true sale and atomic rejection passed",flush=True)
+    print(width,"species/breed filters, room filters, selection, true sale and atomic rejection passed",flush=True)
     return image
 
 

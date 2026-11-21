@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { getPetTags } from './animal-traits.mjs';
-import { initCare, careAction, carePage, stageOf } from './care.mjs';
+import { initCare, careAction, carePage, SPECIES, BREEDS } from './care.mjs';
 import { initBusiness, tickBusiness, businessHeartbeat, businessPage as view, businessAction as act,
   purchasePrice, youngPurchaseBase, salePrice, readyOrderId } from './business.mjs';
 
@@ -143,7 +143,7 @@ test('从房间挑选、报价和交付同物种的多只动物，从市场柜�
   assert.deepEqual(s.pets.map(p=>p.id),[cat.id]);
 });
 
-test('市场两个入口按物种和成长状态筛选，并保留禁售原因与报价范围', () => {
+test('市场两个入口按物种和品种联动筛选，并保留禁售原因与报价范围', () => {
   const s = fresh(), [mother,father] = s.pets;
   father.bred = true;
   function add(id, fields) {
@@ -157,7 +157,6 @@ test('市场两个入口按物种和成长状态筛选，并保留禁售原因�
   const cat = add('cat-seed',{species:'cat',breedKey:'british',retained:true});
   const dog = add('dog',{species:'dog',breedKey:'shiba'});
   const saleable=[mother,father,dog], species=['','rabbit','cat','dog'], labels=['全部','兔','猫','狗'];
-  const stages=['全部','幼年','成长','成年','老年','已故'];
   s.rooms.rabbit.job = {motherId:busy.id,fatherId:'unregistered'};
   for (const page of ['market','sale']) {
     const start={channel:'market',...(page==='sale'&&{species:'rabbit'})};
@@ -167,7 +166,7 @@ test('市场两个入口按物种和成长状态筛选，并保留禁售原因�
     for (const [index,choice] of list.filters[0].entries()) {
       const key=species[index], scope={channel:'market',...(key&&{species:key})};
       assert.equal(choice.page,page);
-      assert.deepEqual(choice.args,{...scope,stage:'全部'});
+      assert.deepEqual(choice.args,scope);
       const listed=view(s,page,choice.args,t0);
       const pets=s.pets.filter(p=>!key||p.species===key);
       assert.deepEqual(listed.rows.map(r=>r.link.args.id),pets.map(p=>p.id));
@@ -194,14 +193,17 @@ test('市场两个入口按物种和成长状态筛选，并保留禁售原因�
       }
       assert.equal(listed.actions.length,Number(listed.visual.eligibleCount>0));
       if(listed.actions.length)assert.deepEqual(listed.actions[0].args,scope);
-      assert.deepEqual(listed.filters[1].map(o=>o.label),stages);
+      const breeds=(key?[key]:Object.keys(SPECIES)).flatMap(k=>SPECIES[k].breeds);
+      assert.deepEqual(listed.filters[1].map(o=>o.label),['全部',...breeds.map(k=>BREEDS[k].name)]);
       for(const choice of listed.filters[1]){
-        const stage=choice.label;
-        assert.deepEqual(choice.args,{...scope,stage});
+        const breed=choice.args.breed;
+        assert.deepEqual(choice.args,{...scope,...(breed&&{breed})});
         const filtered=view(s,page,choice.args,t0);
-        const matches=pets.filter(p=>stage==='全部'||stage===stageOf(p,t0));
+        const matches=pets.filter(p=>!breed||!p.mixed&&p.breedKey===breed);
         assert.deepEqual(filtered.rows.map(r=>r.link.args.id),matches.map(p=>p.id));
-        assert.ok(filtered.filters[0].every(o=>o.args.stage===stage));
+        assert.equal(filtered.filters[1].find(o=>o.active).label,choice.label);
+        assert.ok(filtered.filters[0].every(o=>!('breed' in o.args)&&!('stage' in o.args)));
+        if(filtered.actions.length)assert.deepEqual(filtered.actions[0].args,choice.args);
       }
     }
   }
@@ -209,15 +211,38 @@ test('市场两个入口按物种和成长状态筛选，并保留禁售原因�
   assert.equal(quote.actions[0].args.species,'dog');
   assert.throws(()=>view(s,'saleQuote',{channel:'market',species:'dog',ids:[mother.id]},t0),/不再符合交付条件/);
   const legacy=view(s,'market',{filter:'已故'},t0);
-  assert.deepEqual(legacy.filters.map(group=>group.find(o=>o.active).label),['全部','已故']);
-  assert.deepEqual(legacy.rows.map(row=>row.link.args.id),[dead.id]);
+  assert.deepEqual(legacy.filters.map(group=>group.find(o=>o.active).label),['全部','全部']);
+  assert.deepEqual(legacy.rows.map(row=>row.link.args.id),s.pets.map(p=>p.id));
 });
 
-test('市场成长阶段进入新报价的凭据，跨阶段整批拒绝，旧报价按原条件成交',()=>{
+test('市场切换物种重置品种，品种报价不可混入其他品种或篡改条件',()=>{
+  const s=fresh(),[a,b]=s.pets;
+  a.breedKey='domestic';
+  b.breedKey='angora';
+  const mixed={...structuredClone(a),id:'mixed',mixed:true};s.pets.push(mixed);
+  const scope={channel:'market',species:'rabbit',breed:'domestic'};
+  const list=view(s,'market',scope,t0);
+  assert.deepEqual(list.rows.map(r=>r.animal.id),[a.id]);
+  assert.equal(list.filters[1].at(-1).label,'杂交');
+  assert.deepEqual(view(s,'market',list.filters[1].at(-1).args,t0).rows.map(r=>r.animal.id),[mixed.id]);
+  const cat=list.filters[0].find(o=>o.args.species==='cat');
+  assert.equal(cat.args.breed,undefined);
+  assert.deepEqual(view(s,'market',{...cat.args,breed:'angora'},t0).filters[1].map(o=>o.label),
+    ['全部',...SPECIES.cat.breeds.map(key=>BREEDS[key].name)]);
+  const quote=view(s,'saleQuote',{...scope,ids:[a.id]},t0).actions[0];
+  assert.equal(quote.args.breed,'domestic');
+  assert.throws(()=>view(s,'saleQuote',{...scope,ids:[a.id,b.id]},t0),/不符合「原色兔」筛选/);
+  assert.throws(()=>act(s,quote.type,{...quote.args,breed:undefined},t0),/重新核价/);
+  assert.deepEqual(s.pets.map(p=>p.id),[a.id,b.id,mixed.id]);
+  act(s,quote.type,quote.args,t0);
+  assert.deepEqual(s.pets.map(p=>p.id),[b.id,mixed.id]);
+});
+
+test('市场列表移除成长筛选后，已有阶段报价仍按原条件整批复核',()=>{
   const s=fresh(),[a,b]=s.pets,scope={channel:'market',species:'rabbit',filter:'未繁育',stage:'幼年'};
   a.bornAt=t0-12*min+1;b.bornAt=t0;
   const list=view(s,'sale',scope,t0);
-  assert.deepEqual(list.actions[0].args,scope);
+  assert.deepEqual(list.actions[0].args,{channel:'market',species:'rabbit'});
   const ids=[a.id,b.id], command=view(s,'saleQuote',{...scope,ids},t0).actions[0];
   assert.equal(command.args.stage,'幼年');
   assert.throws(()=>act(s,command.type,{...command.args,stage:'全部'},t0),/重新核价/);
@@ -232,12 +257,12 @@ test('市场成长阶段进入新报价的凭据，跨阶段整批拒绝，旧�
   assert.deepEqual(s.pets.map(p=>p.id),[b.id]);assert.equal(s.coins,680+amount);
 });
 
-test('市场筛选报价和成交复核个体状态；在全部中已繁育、空闲、未留种的动物可售', () => {
+test('已有状态报价继续复核；当前市场已繁育、空闲、未留种的动物可售', () => {
   const s=fresh(), [a,b]=s.pets;
   const scope={channel:'market',species:'rabbit',filter:'未繁育'};
   const list=view(s,'sale',scope,t0);
-  assert.deepEqual(list.actions[0].args,scope);
-  const ids=[a.id], confirm=view(s,'saleQuote',{...list.actions[0].args,ids},t0).actions[0];
+  assert.deepEqual(list.actions[0].args,{channel:'market',species:'rabbit'});
+  const ids=[a.id], confirm=view(s,'saleQuote',{...scope,ids},t0).actions[0];
   assert.equal(confirm.args.filter,scope.filter);
   assert.throws(()=>act(s,confirm.type,{...confirm.args,filter:'全部'},t0),/重新核价/);
   s.rooms.rabbit.job={motherId:a.id,fatherId:b.id};

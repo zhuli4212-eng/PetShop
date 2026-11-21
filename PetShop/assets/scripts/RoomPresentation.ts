@@ -215,9 +215,9 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const countText=count===matched?count+' 只登记':'符合 '+matched+' / 共 '+count+' 只';
     section(c,name+'房名册',countText);
     guideNote(c);
-    const stage=c.p.filters?.[1]?.find(option=>option.active)?.args?.stage||'全部';
+    const selectedBreed=c.p.filters?.[0]?.find(option=>option.active)?.args?.breed;
     if(!c.p.guide){
-        buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,stage},label:'挑选出售'}]);
+        buttons(c,[{...breed,label:'进繁育台'},{page:'sale',args:{channel:'market',species:room,...(selectedBreed&&{breed:selectedBreed})},label:'挑选出售'}]);
         animalFilters(c,'品种');
     }
     c.startList();
