@@ -10,6 +10,12 @@
 
 证书由 Let's Encrypt 签发。首次切换前用 DNS 验证，切换后改用 Certbot 独立 HTTP-01 自动续期，80 端口由 Certbot 验证时临时监听。`55-petshop-play-direct` 续期钩子检查证书域名和密钥配对，原子切换站点证书的符号链接，再重启网页服务。
 
+## 新游戏入口
+
+2026-11-21，`https://www.petshop-trial.fun/` 接入同一台香港 ECS。HTTPS 根路径跳转到 `/petshop/`。新入口使用相同正式游戏目录、账号服务和数据库，Nginx 为新域名加载独立的 DigiCert 证书。当前证书于北京时间 2027-02-19 07:59:59 到期，需单独续期。公网入口为 HTTPS。
+
+`/etc/petshop/play-direct/play-direct.conf` 持久引用 `/etc/petshop/www-direct/www-direct.conf`。新入口的启动脚本只额外允许自身来源，账号代理仍由现有服务验证登录凭证。移除这个新入口时，在持久配置中移除这条引用，用当前正式包重新生成 Nginx 配置，检查配置后平滑重载。首次切换前的配置和服务端收据见部署记录。[新入口部署记录](../../output/aliyun/deployment-20261121-www-direct-hk.json)
+
 ## 回退
 
 如需回到原路由，先把 `play` 恢复为 `dream-hunter.pages.dev` 的 CNAME，启用代理并选自动 TTL。等旧路由从公网返回可用后，再停用 `55-play-direct.conf`，重新加载 systemd 并重启 `petshop-web.service`。旧路由仍使用网关和同一份数据库。

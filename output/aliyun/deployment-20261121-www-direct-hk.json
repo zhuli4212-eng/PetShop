@@ -1,0 +1,42 @@
+{
+  "activatedAt": "2026-11-21T18:27:38.429214+08:00",
+  "region": "cn-hongkong",
+  "dnsAddress": "47.243.58.106",
+  "site": "https://www.petshop-trial.fun/petshop/",
+  "gameRelease": {
+    "version": "2026.11.21.11",
+    "sourceCommit": "a277225f5a73b60da5e94696e88607c1947ab06b",
+    "clientEntry": "src/entry.e782ae6bc39d476c.js",
+    "clientBundle": "assets/main/index.5f086fc2fa617e7e.js",
+    "clientSha256": "232c2cd978f1aa0447768cb43c765e44674d6c826f7d34d0558c1a88207ad801"
+  },
+  "releaseDirectory": "/opt/petshop/release.uhm2zxxg",
+  "servicePids": {
+    "petshop.service": "38697",
+    "petshop-web.service": "32803"
+  },
+  "certificate": {
+    "issuer": "DigiCert Encryption Everywhere DV TLS CA - G2",
+    "expiresAt": "2027-02-18T23:59:59Z",
+    "fingerprintSha256": "b1c48be0887b7b29e4339ffb8944f0de27d0e197cf6e7dbfbcfc58f1114a3868"
+  },
+  "activeNginxConfig": "/etc/petshop/www-direct/www-direct.conf",
+  "serverReceipt": "/etc/petshop/www-direct/deployment.json",
+  "previousConfigDirectory": "/etc/petshop/www-direct/previous-config",
+  "checks": {
+    "tlsHostnameAndChainValid": true,
+    "rootRedirect": 302,
+    "gamePage": 200,
+    "startupLoaderOriginAllowed": true,
+    "mainBundleMatchesReleaseSha256": true,
+    "sameOriginApiHealth": 200,
+    "anonymousShopApi": 401,
+    "otherOriginShopApi": 403,
+    "originalEntrypointsMatchGameRelease": [
+      "https://play.zhu-li-4212.xyz/petshop/",
+      "https://petshop-trial.pages.dev/"
+    ],
+    "plainHttp": "connection refused",
+    "playerLoginPerformed": false
+  }
+}
