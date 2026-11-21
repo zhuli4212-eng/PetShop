@@ -22,7 +22,7 @@ function releasePackedAsset(path) {
   blobs.delete(key);
 }
 
-async function download(part, controller, progress) {
+async function download(part, controller, progress, cache) {
   let idle;
   const activity = () => {
     clearTimeout(idle);
@@ -31,7 +31,7 @@ async function download(part, controller, progress) {
   activity();
   try {
     const response = await fetch(new URL(part.path, document.baseURI), {
-      signal: controller.signal, cache: 'force-cache',
+      signal: controller.signal, cache,
     });
     if (!response.ok) throw new Error('游戏资源下载失败。');
     const reader = response.body?.getReader();
@@ -63,11 +63,22 @@ async function download(part, controller, progress) {
   }
 }
 
-export async function preloadGameResources(manifestPath, progress) {
+export async function preloadGameResources(manifestPath, progress, refresh = false) {
+  for (const url of urls.values()) URL.revokeObjectURL(url);
+  urls.clear();
+  blobs.clear();
+
+  const manifest = new URL(manifestPath, document.baseURI);
+  const cacheKey = 'petshop.trial.resource-manifest:' + new URL('.', manifest).pathname;
+  let cache = 'reload';
+  try {
+    if (!refresh && localStorage.getItem(cacheKey) === manifest.href) cache = 'force-cache';
+  } catch {}
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 90000);
   try {
-    const response = await fetch(manifestPath, { signal: controller.signal, cache: 'force-cache' });
+    const response = await fetch(manifest, { signal: controller.signal, cache });
     if (!response.ok) throw new Error('无法获取游戏资源清单。');
     const { parts } = await response.json();
     clearTimeout(timer);
@@ -77,7 +88,7 @@ export async function preloadGameResources(manifestPath, progress) {
     async function downloadParts() {
       while (queue.length) {
         const part = queue.shift();
-        const content = await download(part, controller, progress);
+        const content = await download(part, controller, progress, cache);
         let offset = 0;
         for (const [path, size, type] of part.files) {
           blobs.set(assetKey(path), content.slice(offset, offset + size, type));
@@ -108,6 +119,7 @@ export async function preloadGameResources(manifestPath, progress) {
     }));
     const audio = document.getElementById('login-music');
     audio.src = packedUrl(audio.dataset.petshopSrc);
+    try { localStorage.setItem(cacheKey, manifest.href); } catch {}
   } catch (error) {
     controller.abort();
     throw error;
