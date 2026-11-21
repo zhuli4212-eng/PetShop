@@ -1,0 +1,93 @@
+{
+  "version": "2026.11.21.12",
+  "gameSourceCommit": "5efb4064bee6c14891a924bf140ea5a80baf25cc",
+  "deployedAt": "2026-11-21T18:43:00.845435+08:00",
+  "releaseDirectory": "/opt/petshop/release.f2c8ltx2",
+  "previousReleaseDirectory": "/opt/petshop/release.uhm2zxxg",
+  "previousVersion": "2026.11.21.11",
+  "deploymentSha256": "68242ff339e429afb36058f94ac79b33af156543801a9b198bea945f42e76cbd",
+  "database": "/var/lib/petshop/shop.sqlite",
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/2026.11.21.12.ybn5ncxe/shop-before-deploy.sqlite",
+  "backupSha256": "6bb98a7dafba781791664e616b78b7e9ebe004899af17061ecec588bfddf56b6",
+  "backupChecksPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 116,
+    "trial_auth_limits": 2
+  },
+  "accountServiceRestarted": true,
+  "webServicePreserved": true,
+  "previousServicePids": {
+    "petshop.service": "38697",
+    "petshop-web.service": "32803"
+  },
+  "servicePids": {
+    "petshop.service": "42164",
+    "petshop-web.service": "32803"
+  },
+  "changeScope": "approved room, breeding, profile, scenes, opening, letter, order and guest UI; production show scoring remains version 1",
+  "receipt": "/var/lib/petshop/rollback/2026.11.21.12.ybn5ncxe/deployment.json",
+  "site": "https://www.petshop-trial.fun/petshop/",
+  "alternateSites": [
+    "https://play.zhu-li-4212.xyz/petshop/",
+    "https://petshop-trial.pages.dev/"
+  ],
+  "mainMergeCommit": "05234763690bd7583278bd14819f8e252e4b62fa",
+  "previousArchiveSha256": "16405a2d8a688bb1277462590b3f96b03bf6f50878cf4fc1f9383857bbafbf8b",
+  "archive": "output/aliyun/petshop-production-20261121.12-hk.tar.gz",
+  "client": {
+    "version": "2026.11.21.12",
+    "sourceCommit": "5efb4064bee6c14891a924bf140ea5a80baf25cc",
+    "clientEntry": "src/entry.a471674121c75323.js",
+    "clientBundle": "assets/main/index.8e24e87a44a20757.js",
+    "clientSha256": "085fa872144d410f16076a4adf05c7726e8153bfb78036f5efe248bf471f8649"
+  },
+  "accountServiceSha256": "ca2ec19e773caa159b2c057cf70caf45960d647773a49f08d1deb97648aae94e",
+  "productionShowScoringVersion": 1,
+  "newShowRulesEnabled": false,
+  "localTestIncluded": false,
+  "normalFeatureLocksPreserved": true,
+  "testWalletIncluded": false,
+  "verification": {
+    "serverTests": {
+      "passed": 151,
+      "failed": 0
+    },
+    "isolatedUpgrade": {
+      "previous": "2026.11.21.11",
+      "candidate": "2026.11.21.12",
+      "isolatedSQLite": true,
+      "identityAndPasswordPreserved": true,
+      "sessionsPreserved": true,
+      "petsCoinsRoomsAndGuidePreserved": true,
+      "priorActionReplayedOnce": true,
+      "permanentNinePageLetter": true,
+      "productionScoringVersion": 1,
+      "normalFeatureLocks": true,
+      "walletCheatRejected": true,
+      "productionDatabaseUsed": false
+    },
+    "postDeployData": {
+      "allPriorAccountsAndPasswordsPreserved": true,
+      "priorAccounts": 17,
+      "currentAccounts": 17,
+      "allShowsUseOnlineRules": true
+    },
+    "publicChecks": {
+      "aliyunDirect": 19,
+      "existingGateway": 19,
+      "newTrialDomain": 19
+    },
+    "publicLoginBrowsers": "Edge 390x844 on new and original domains; Edge 1280x900 on Pages; no account login or write",
+    "loginRegisterSwitchWithoutResourceReload": true,
+    "fontRequests": 0,
+    "iPhoneHardwareTestPerformed": false
+  },
+  "rollback": {
+    "programDirectory": "/opt/petshop/release.uhm2zxxg",
+    "archive": "output/aliyun/petshop-production-20261121.11-hk.tar.gz",
+    "databasePolicy": "Keep the current database; do not restore the snapshot for an application-only rollback."
+  }
+}
