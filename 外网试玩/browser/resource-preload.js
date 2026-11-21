@@ -1,5 +1,10 @@
 const blobs = new Map();
 const urls = new Map();
+// Keep the browser policy aligned with ShopTypography: these clients use system fonts.
+const browserAgent = navigator.userAgent;
+const isTabletOrMacSafari = /\b(?:iPad|Macintosh)\b/.test(browserAgent)
+  && /\bVersion\/[\d.]+\s+(?:Mobile\/\S+\s+)?Safari\/[\d.]+$/.test(browserAgent);
+const useSystemFonts = /\biPhone\b/.test(browserAgent) || isTabletOrMacSafari;
 
 function assetKey(path) {
   const url = new URL(path, document.baseURI);
@@ -82,9 +87,12 @@ export async function preloadGameResources(manifestPath, progress, refresh = fal
     if (!response.ok) throw new Error('无法获取游戏资源清单。');
     const { parts } = await response.json();
     clearTimeout(timer);
-    progress.beginResources(parts.reduce((sum, part) => sum + part.bytes, 0));
+    const requiredParts = useSystemFonts
+      ? parts.filter(part => !part.files.every(([, , type]) => type.startsWith('font/')))
+      : parts;
+    progress.beginResources(requiredParts.reduce((sum, part) => sum + part.bytes, 0));
 
-    const queue = parts.slice();
+    const queue = requiredParts.slice();
     async function downloadParts() {
       while (queue.length) {
         const part = queue.shift();
@@ -97,7 +105,7 @@ export async function preloadGameResources(manifestPath, progress, refresh = fal
         if (offset !== part.bytes) throw new Error('游戏资源清单不匹配。');
       }
     }
-    await Promise.all(Array.from({ length: Math.min(parts.length, 3) }, downloadParts));
+    await Promise.all(Array.from({ length: Math.min(requiredParts.length, 3) }, downloadParts));
     progress.prepareGame();
 
     window.petshopAssetUrl = packedUrl;

@@ -16,13 +16,16 @@ const useSystemFonts = /\biPhone\b/.test(browserAgent) || isTabletOrMacSafari;
 
 function bind(label:Label,key:FontKey):void {
     roles.set(label,key);
-    const font=fonts[key];
     label.isBold=useSystemFonts && key!=='sans';
     label.isItalic=false;
-    label.useSystemFont=useSystemFonts && !!font;
+    label.useSystemFont=useSystemFonts;
+    if(useSystemFonts) {
+        label.fontFamily=key==='serif'?'serif':'sans-serif';
+        return;
+    }
+    const font=fonts[key];
     if(font) {
-        if(useSystemFonts) label.fontFamily=key==='serif'?'serif':'sans-serif';
-        else label.font=font;
+        label.font=font;
         if(pending.has(label)){label.enabled=pending.get(label)!;pending.delete(label);}
     } else {
         if(!pending.has(label))pending.set(label,label.enabled);
@@ -141,6 +144,7 @@ async function waitForWebFont(font:Font):Promise<void> {
 }
 
 export function loadShopFonts():Promise<void> {
+    if(useSystemFonts)return Promise.resolve();
     if(loading)return loading;
     const browser=typeof document==='undefined'?undefined:window as WebFontWindow;
     const controller=browser&&typeof AbortController==='function'?new AbortController():undefined;
