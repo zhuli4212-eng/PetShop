@@ -329,18 +329,9 @@ function researchDetail(c:PageCanvas):void {
 }
 function decor(c:PageCanvas):void {
     section(c,'装饰小铺','固定位置 · 可摆放或收起');
-    const width=c.inner,unit=width/512,height=288*unit;
+    const width=c.inner,height=width*9/16;
     const n=box(c.body,'Miniature',0,c.slot(height,10),width,height,'#4A3224');
     picture(n,'Scene','shop-modules/decor-room',0,0,width,height);
-    const position:Record<string,number[]>={
-        fence:[-86,-104,78,54],lamp:[136,-65,52,76],plant:[-160,-68,62,66],rug:[25,-103,126,58]
-    };
-    rows(c).forEach(r=>{
-        if(r.action?.type!=='decor.place'||r.action.args?.placed!==false)return;
-        const v=position[r.action.args.key];
-        if(v&&r.art)picture(n,'Placed'+r.action.args.key,r.art,v[0]*unit,v[1]*unit,v[2]*unit,v[3]*unit);
-    });
-    picture(n,'Keeper','shopkeeper/step-0',0,-43*unit,48*unit,72*unit);
     c.startList();
     rows(c).forEach((r,i)=>{
         const w=c.inner,n=card(c,'Decor'+i,60,cream,6),tw=w-151,tx=-w/2+53+tw/2;
