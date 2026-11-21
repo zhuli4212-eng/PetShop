@@ -105,10 +105,10 @@ function loadScript(source) {
   });
 }
 
-async function refreshGameMain() {
+async function refreshGameMain(refresh) {
   const url = new URL(mainScript, document.baseURI);
   const key = 'petshop.trial.game-main:' + url.pathname;
-  try { if (localStorage.getItem(key) === mainVersion) return; } catch {}
+  try { if (!refresh && localStorage.getItem(key) === mainVersion) return; } catch {}
   const response = await fetch(url, {cache:'reload', credentials:'same-origin'});
   if (!response.ok) throw Error('无法更新游戏资源，请重新登录。');
   const digest = await crypto.subtle.digest('SHA-256',await response.arrayBuffer());
@@ -175,14 +175,15 @@ window.petshopBeforeShop = showEntry => {
 };
 
 async function bootGame() {
-  await refreshGameMain();
+  const refreshAssets = params.get('refresh-assets') === '1';
+  await refreshGameMain(refreshAssets);
   let completed = 1;
   window.petshopLoading.step(completed);
   for (const tag of document.querySelectorAll('[data-game-script]')) {
     await loadScript(tag.dataset.gameScript);
     window.petshopLoading.step(++completed);
   }
-  await preloadGameResources('./__PETSHOP_RESOURCE_MANIFEST__', window.petshopLoading);
+  await preloadGameResources('./__PETSHOP_RESOURCE_MANIFEST__', window.petshopLoading, refreshAssets);
   await window.System.import(gameEntry);
 }
 
