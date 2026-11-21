@@ -113,7 +113,7 @@ test('旧档跳过开场；回收不触发首次活体交易，来客兼首售�
   assert.equal(next.journal.length,0);
   recordMilestone(next,'sale.commit',{channel:'guest'},f.now);
   assert.equal(next.visitBook.stories.length,1);
-  assert.match(next.visitBook.stories[0].text,/第一笔[\s\S]*书店/);
+  assert.match(next.visitBook.stories[0].text,/第一笔[\s\S]*来客/);
   recordMilestone(next,'care.unlock',{species:'cat'},f.now);
   recordMilestone(next,'care.unlock',{species:'dog'},f.now);
   assert.equal(next.visitBook.stories.length,2);
@@ -147,7 +147,16 @@ test('正式 HTTP 入口传递读信回执，跳过引导后可以从登记簿�
   assert.equal(skipped.letter,null);
   assert.ok((await request('page',{page:'login'})).page.rows.some(r=>r.link?.page==='openingGuide'));
   const archive=await request('page',{page:'openingGuide'});
-  assert.equal(archive.page.title,'旧店交接');
+  assert.equal(archive.page.title,'交接信');
+  assert.equal(archive.page.visual.openingBooklet.length,9);
+  assert.equal(archive.page.visual.openingBooklet[0].art,'onboarding/letter-0');
+  assert.match(archive.page.visual.openingBooklet[1].caption,/免费开放兔房/);
   assert.deepEqual(archive.page.readNoteIds,[]);
   assert.deepEqual(f.store.state.care.claimIds,[]);
+  assert.equal(f.store.state.onboarding,undefined);
+  assert.equal(f.store.state.pets.length,2);
+  assert.equal(f.store.state.coins,680);
+  f.restart();
+  assert.equal(f.store.page('openingGuide',{}).page.visual.openingBooklet.length,9);
+  assert.ok(f.store.page('login',{}).page.rows.some(r=>r.link?.page==='openingGuide'));
 });

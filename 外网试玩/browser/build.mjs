@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
-import { loginArtFile, loginMusicFile } from '../../PetShop/server/multiplayer-login.mjs';
+import { loginArtFile, loginWideArtFile, loginMusicFile } from '../../PetShop/server/multiplayer-login.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cloud = path.resolve(here, '../../云端经营版');
@@ -140,13 +140,16 @@ if (values.demo) {
     await readFile(path.join(here,'opening.css'),'utf8');
   let opening = await readFile(path.join(here,'opening.html'),'utf8');
   const browserAssets = ['trial-shopfront.png'];
-  for (const name of ['shopfront','rabbit','envelope']) {
+  for (const name of ['shopfront','rabbit','dog','cat','envelope']) {
     const image = await readFile(path.join(here,'opening',name+'.png'));
-    const asset = `src/opening-${name}.${fingerprint(image)}.png`;
+    const asset = name==='shopfront'?'trial-shopfront.png':`src/opening-${name}.${fingerprint(image)}.png`;
     await writeFile(path.join(dist,asset),image);
-    browserAssets.push(asset);
+    if(name!=='shopfront')browserAssets.push(asset);
     opening = opening.replace(`src="./opening/${name}.png"`, `data-petshop-src="./${asset}"`);
   }
+  opening=opening.replaceAll('./opening/shopfront-wide.png','./trial-shopfront-wide.png');
+  // The wide picture is requested only on wide screens; phones preload the portrait once for both pages.
+  await cp(loginWideArtFile,path.join(dist,'trial-shopfront-wide.png'));
   const openingScript = await readFile(path.join(here,'opening.js'));
   const openingModule = `src/opening.${fingerprint(openingScript)}.js`;
   const loginMusic = await readFile(loginMusicFile);

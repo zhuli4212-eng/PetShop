@@ -1,6 +1,7 @@
 import { bindLoginMusic } from './login-music.mjs';
 
-export const loginArtFile = new URL('../assets/resources/shop-modules/opening.png', import.meta.url);
+export const loginArtFile = new URL('./media/login-shopfront-expanded.png', import.meta.url);
+export const loginWideArtFile = new URL('./media/login-shopfront-wide.png', import.meta.url);
 export const loginMusicFile = new URL('./media/login-waltz.mp3', import.meta.url);
 
 export function renderMultiplayerLogin() {
@@ -16,7 +17,9 @@ export function renderMultiplayerLogin() {
 </head>
 <body>
   <main class="ledger">
-    <img class="shopfront" src="/auth/shopfront.png" width="384" height="576" alt="">
+    <picture>
+      <img class="shopfront" src="/auth/shopfront.png" alt="">
+    </picture>
     <section class="sheet" aria-labelledby="heading">
       <header class="shop-brand">
         <span class="brand" id="shop-name">麦穗宠物店</span>
@@ -69,20 +72,22 @@ export const loginStyles = `
 [hidden] { display: none !important; }
 body {
   min-height: 100vh; min-height: 100svh; margin: 0;
-  display: grid; align-items: center; justify-items: center;
-  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
-           max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  display: flex; flex-direction: column;
+  padding: 0;
 }
 .ledger {
-  width: min(100%, 420px); border: 2px solid #463c2c;
-  background: var(--paper); box-shadow: 0 4px 0 #172a23;
+  position:relative; isolation:isolate; width:min(100%,430px); min-height:100dvh; margin:auto; flex:none;
+  display:flex; flex-direction:column; justify-content:flex-end;
+  padding:20px max(20px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
+  background:#805032;
 }
+@media (min-width:641px){.ledger{width:390px;min-height:min(100dvh,844px)}}
 .shopfront {
-  display: block; width: 100%; height: 126px; height: clamp(105px, 20svh, 166px);
-  object-fit: cover; object-position: 50% 55%; image-rendering: pixelated;
-  border-bottom: 3px solid #795b33;
+  position:absolute; inset:0; z-index:-1; display:block; width:100%; height:100%;
+  object-fit:cover; object-position:50% 20%;
 }
-.sheet { padding: clamp(20px, 5vw, 34px); }
+.sheet { width:100%; max-width:390px; margin-inline:auto; padding:clamp(20px,5vw,34px);
+  background:var(--paper); border:2px solid #785a32; box-shadow:inset 0 0 0 2px #e6c990,0 3px 0 #503b26; }
 .shop-brand { display: flex; gap: 8px; align-items: center; justify-content: space-between; color: var(--green); }
 .brand { font: bold clamp(20px, 6vw, 26px)/1.3 "Songti SC", SimSun, serif; letter-spacing: .06em; }
 .music-control {
@@ -115,17 +120,11 @@ input[aria-invalid="true"] { border-color: #984729; }
 #error { color: #8a3220; font-weight: 600; line-height: 1.6; margin: 14px 0 0; overflow-wrap: anywhere; }
 #current-name { font-size: 23px; font-weight: 700; overflow-wrap: anywhere; margin: 0 0 26px; }
 @media (max-width: 699px) and (max-height: 620px) {
-  .shopfront { height: 96px; }
   .sheet { padding-block: 17px; }
   h1 { margin-block: 8px 15px; }
   .modes { margin-bottom: 18px; }
   .hint { margin-bottom: 12px; }
   .notice { margin-bottom: 16px; }
-}
-@media (min-width: 700px) and (min-height: 440px) {
-  .ledger { display: grid; grid-template-columns: minmax(0,.83fr) minmax(0,1fr); width: min(100%, 780px); }
-  .shopfront { height: 100%; min-height: 455px; border: 0; border-right: 3px solid #795b33; }
-  .sheet { align-self: center; padding: 34px; }
 }
 `;
 

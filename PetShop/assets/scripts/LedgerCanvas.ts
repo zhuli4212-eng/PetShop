@@ -4,6 +4,7 @@ import type { RoomFloor } from './RoomFloor';
 import { playTap } from './ShopAudio';
 import { allowsGuideTap } from './ShopNavigation';
 import { setTextFont, setTextStyle, setTextWeight } from './ShopTypography';
+import { petPortraitBounds } from './PetPortraitBounds';
 
 export const paper = {
     ink: '#443A29', muted: '#6C5E46', page: '#F6E9CB', card: '#FFF1D2',
@@ -181,7 +182,7 @@ export function animalSummary(c:PageCanvas,parent:Node,a:Animal,width:number,top
     const left=-width/2+checkWidth,textLeft=left+69;
     const textWidth=width-checkWidth-69-animalDetailsWidth-21;
     const thumb=box(parent,'Thumb',left+34,top-34,50,48,disabled?'#DBD6C8':'#ECDEB8');
-    const portrait=picture(thumb,'Portrait',a.art,0,0,48,46,a.stage);
+    const portrait=picture(thumb,'Portrait',a.art,0,0,48,46,a.stage,true);
     if(disabled)portrait.getComponent(Sprite)!.grayscale=true;
     if(a.retained)stockBadge(parent,left+28,top-13);
     caption(parent,'ScoreLabel','评分',left+23,top-69,23,18,11,'#5A523B').lineHeight=16;
@@ -243,14 +244,14 @@ export function press(parent: Node, name: string, title: string, x: number, y: n
 export function animalFilters(c:PageCanvas,field:'品种'|'物种',second:'品种'|'成长状态'='成长状态'):void {
     const groups=(c.p.filters||[]).filter(group=>group.length);
     if(!groups.length)return;
-    const gap=8,h=44,y=c.slot(h,10),w=(c.inner-gap*(groups.length-1))/groups.length;
+    const gap=8,h=34,y=c.slot(h,8),w=(c.inner-gap*(groups.length-1))/groups.length;
     const fields:FilterField[]=groups.map((options,i)=>{
         const current=options.find(a=>a.active)||options[0];
         const x=-c.inner/2+w/2+i*(w+gap);
         const title=i?second:field;
         const anchor=frame(c.body,title==='成长状态'?'GrowthStageFilter':title==='品种'?'BreedFilter':'SpeciesFilter',x,y,w,h,'#FFF1D2','#B39665',false);
         const label=title+'　'+current.label;
-        setTextWeight(caption(anchor,'Caption',label,-5,0,w-28,h-2,14,'#29483E'),true);
+        setTextWeight(caption(anchor,'Caption',label,-5,0,w-28,h-2,13,'#29483E'),true);
         const arrow=box(anchor,'Arrow',w/2-16,-1,10,8);
         for(let j=0;j<3;j++)solidRect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');
         tap(anchor,()=>c.ui.openFilter(fields,i));
@@ -312,9 +313,10 @@ function stageArt(art: string, stage: string): string {
 }
 
 export function picture(parent: Node, name: string, art: string, x: number, y: number, w: number, h: number,
-                        stage = ''): Node {
+                        stage = '',fillFrame=false): Node {
     const resolved = stageArt(art, stage);
-    const size = stage === '成长' ? .85 : stage === '老年' ? .94 : 1;
+    const bounds=fillFrame?petPortraitBounds[resolved]:undefined;
+    const size = bounds?1:stage === '成长' ? .85 : stage === '老年' ? .94 : 1;
     const n = box(parent, name, x, y - (1-size)*h*.36, 1, 1);
     const sp = n.addComponent(Sprite);
     sp.sizeMode = Sprite.SizeMode.CUSTOM;
@@ -322,8 +324,9 @@ export function picture(parent: Node, name: string, art: string, x: number, y: n
         if (!isValid(n, true)) return;
         sp.spriteFrame = image;
         const {width, height} = image.originalSize;
-        const scale = Math.min(w/width, h/height) * size;
+        const scale = Math.min(w/(bounds?bounds[2]-bounds[0]:width),h/(bounds?bounds[3]-bounds[1]:height)) * size;
         n.getComponent(UITransform)!.setContentSize(width*scale, height*scale);
+        if(bounds)n.setPosition(x-(bounds[0]+bounds[2]-width)*scale/2,y+(bounds[1]+bounds[3]-height)*scale/2);
     };
     const path=resolved+'/spriteFrame';
     const cached=resources.get(path,SpriteFrame);
@@ -336,12 +339,14 @@ export function picture(parent: Node, name: string, art: string, x: number, y: n
 // can attach slow images later, so their requests must not hold up the ledger.
 export async function prepareIllustration(key:string, args:Args, page:LedgerPage):Promise<void> {
     const counters:Record<string,string>={
-        lab:'lab',research:'lab',market:'market',orders:'orders',credits:'orders',orderDesk:'orders',
+        lab:'lab',research:'lab',market:'market',orders:'orders',guest:'orders',credits:'orders',orderDesk:'orders',
         recycle:'lab',show:'stage','show.board':'stage','show.tier':'stage'
     };
     const counter=counters[key==='sale'?String(args.channel):key] || (key==='sale'&&args.channel==='order'?'orders':'');
     const paths=new Set<string>();
     if(page.art)paths.add(stageArt(page.art, page.stage || ''));
+    if(key==='orders')for(const row of page.rows||[])if(row.art)paths.add(row.art);
+    if(['pair','pairConfirm'].includes(page.presentation?.kind||''))paths.add('rooms/breeding-room');
     for(const pageArt of page.visual?.openingBooklet??[])paths.add(pageArt.art);
     if(counter)paths.add('shop-modules/'+counter);
     if(key==='show'&&page.visual?.pet)paths.add(stageArt(page.visual.pet,page.visual.petStage||''));

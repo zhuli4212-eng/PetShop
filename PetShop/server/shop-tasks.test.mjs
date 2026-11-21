@@ -96,7 +96,8 @@ test('独立任务入口保留旧进度，锁定页可查看条件且不计完�
   const reopened=new RequestGameStore(old,options);
   assert.deepEqual(panel(reopened).rows.map(r=>r.done),[true,true,true,true,false,false]);
   assert.equal(reopened.state.visitBook.tutorial,undefined);
-  assert.equal(reopened.page('openingGuide',{}).page.actions[0].page,'tasks');
+  assert.equal(reopened.page('openingGuide',{}).page.title,'交接信');
+  assert.equal(reopened.page('openingGuide',{}).page.visual.openingBooklet.length,9);
 });
 
 test('十五组自动开启，只记录本组动作，重进和重放领奖保持进度',()=>{

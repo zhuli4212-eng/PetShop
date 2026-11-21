@@ -1,5 +1,5 @@
-// 2026-11-20 approved scoring rules. This module is deliberately not connected
-// to show.mjs: registration prices, public rewards and migration remain separate.
+// 2026-11-20 approved scoring rules. show-live-v2.mjs connects these rules to
+// isolated local-test events; ordinary and historical legacy events stay on v1.
 // Grade indices follow care/show: E=0, D=1, C=2, B=3, A=4, S=5, S+=6.
 export const SHOW_SCORING_VERSION = 2;
 

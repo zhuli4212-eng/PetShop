@@ -52,9 +52,9 @@ export function thumbTabs(c:PageCanvas,items:Choice[]):void {
         if(!a.disabled)tap(n,()=>c.ui.choose({...a,replace:true}));
     });
 }
-const ratios:Record<string,number>={orders:512/220,lab:512/288,market:512/288,stage:384/256};
+const ratios:Record<string,number>={orders:512/220,lab:512/288,market:512/288,'decor-room':512/288,stage:384/256};
 export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'research'|'services'|'stage'|'rank'='normal',animal?:string,animalStage?:string):Node {
-    const full=variant==='normal'||variant==='research'||variant==='services',w=full?c.width:c.inner;
+    const w=c.width;
     const h=w/(ratios[art]||1);
     const n=box(c.body,'Artwork',0,c.slot(h+3,10),w,h+3,'#856235');
     const scene=box(n,'Scene',0,1.5,w,h);
@@ -66,10 +66,6 @@ export function banner(c:PageCanvas,art:string,title:string,variant:'normal'|'re
     if(title&&variant==='rank'){
         const stripe=box(scene,'CaptionStrip',0,-h/2+19,w,38,'#294F41');
         heading(stripe,'Title',title,0,0,w-18,32,17,'#FFF0CE');
-    }else if(title){
-        const pw=title.length*16+18;
-        const sign=frame(scene,'Sign',-w/2+12+pw/2,-h/2+22,pw,27,'#28483D','#CBA771');
-        heading(sign,'Caption',title,0,0,pw-4,25,15,'#FFE8AE',true);
     }
     return scene;
 }

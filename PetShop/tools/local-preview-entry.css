@@ -1,0 +1,36 @@
+#local-login {
+  position: fixed; inset: 0; z-index: 2;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+  background: #202c26; color: #2e493b;
+  font: 16px/1.5 "Microsoft YaHei", "PingFang SC", sans-serif;
+  text-align: left;
+}
+#local-login[hidden], #local-login [hidden] { display: none; }
+#local-login .ledger {
+  width: min(100%,430px); min-height: 100dvh; margin: auto; flex: none;
+  position: relative; isolation: isolate;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  box-sizing: border-box; padding: 20px 20px max(24px, env(safe-area-inset-bottom));
+  background: #805032;
+}
+@media (min-width:641px){#local-login .ledger{width:390px;min-height:min(100dvh,844px)}}
+#local-login .shopfront {
+  position: absolute; inset: 0; z-index: -1; display: block;
+  width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%;
+}
+#local-login .sheet {
+  width: 100%; max-width: 390px; margin-inline: auto; box-sizing: border-box;
+  padding: 16px 18px; border: 2px solid #785a32;
+  background: #fff0d0; box-shadow: inset 0 0 0 2px #e6c990, 0 3px 0 #503b26;
+}
+#local-login .shop-brand { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#local-login .shop-brand h1 { margin: 0; font: 700 24px/1.25 "Songti SC", SimSun, serif; }
+#local-login button { min-height: 44px; font: inherit; cursor: pointer; }
+#local-login .music-control { padding: 0 8px; border: 1px solid #b39c72; background: #f3e2bb; color: #355b46; font-size: 13px; }
+#local-login .primary {
+  width: 100%; margin-top: 14px;
+  color: #fff6e2; background: #345b47; border: 1px solid #253f32;
+  box-shadow: 0 2px 0 #263c2f; font-weight: 700;
+}
+#local-login button:focus-visible, .intro-skip:focus-visible { outline: 3px solid #995022; outline-offset: 2px; }

@@ -256,7 +256,7 @@ def verify(browser, process, width):
     # Reopening the same animal's dossier explicitly creates a one-animal selection.
     tap(row=0,name="Details")
     at("pet")
-    tap(copy="前往自由市场")
+    tap(copy="去市场")
     at("market")
     selected([IDS[0]])
     tap(copy="全选本页")
@@ -265,7 +265,7 @@ def verify(browser, process, width):
     selected([i for i in market_ids if i!=IDS[0]])
     tap(row=0,name="Details")
     at("pet")
-    tap(copy="前往自由市场")
+    tap(copy="去市场")
     at("market")
     selected([IDS[0]])
     species_filter("兔")

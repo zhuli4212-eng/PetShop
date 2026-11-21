@@ -11,6 +11,23 @@ const baseValues = { rabbit: 100, cat: 1200, dog: 1300 };
 const breedFactors = [100, 110, 120, 135];
 const stageFactors = { 幼年: 80, 成长: 92, 成年: 100, 老年: 65, 已故: 0 };
 const channelNames = { market: '自由市场', order: '订单交付', recycle: '动物回收', guest: '来客委托' };
+const visitorProfiles=[
+  {name:'园艺师来客',art:'shop-modules/guest-gardener'},
+  {name:'裁缝来客',art:'shop-modules/guest-tailor'},
+  {name:'画家来客',art:'shop-modules/guest-painter'},
+  {name:'舞蹈老师来客',art:'shop-modules/guest-dancer'},
+  {name:'登山客',art:'shop-modules/guest-hiker'},
+];
+function visitorProfile(requirement) {
+  return (requirement?.tag||requirement?.tagId)&&Number.isInteger(requirement.dimension)
+    ? visitorProfiles[requirement.dimension]??{name:'书店来客',art:'shop-modules/guest'}
+    : {name:'书店来客',art:'shop-modules/guest'};
+}
+function orderIcon(order) {
+  const kind=order.breed?'breed':order.tag||order.tagId?'trait':'neighbor';
+  const variant=createHash('sha256').update('order-icon:'+order.id).digest()[0]%2?'b':'a';
+  return 'shop-modules/order-'+kind+'-'+variant;
+}
 const researchNames = ['稀有标签研究', '五维选育研究', '繁育后价值研究'];
 const researchBases = { rabbit: 100, cat: 250, dog: 400 };
 const ornaments = {
@@ -508,6 +525,7 @@ export function businessPage(s, page, args, now) {
       const available=canFillOrder(s,order,now);
       const choices=orderActions(s,order.id);
       return {...linkRow('第 ' + (i + 1) + ' 单 · ' + difficulty, condition + ' · 基础估值 ×' + (order.rate / 100), 'orderDesk', { id:order.id }),
+        art:orderIcon(order),
         visual:{name:order.breed?'品种收养委托':order.tag?'特征收养委托':'街坊的委托',condition,difficulty,rate:order.rate/100,available,choices}};
     }),
       actions: [nextPage('额外取消次数', 'credits')] };
@@ -539,7 +557,8 @@ export function businessPage(s, page, args, now) {
       { title: '今日到店', text: s.businessDay.arrived + ' / 6 位' },
     ] };
     const hasMatch = s.pets.some(p => !saleBlock(s, p, now, 'guest') && matchesVisit(p, g.requirement, now));
-    return { title: '书店来客', subtitle: visitCondition(g), rows: [
+    const profile=visitorProfile(g.requirement);
+    return { title:profile.name,art:profile.art,subtitle: visitCondition(g), rows: [
       { title: '来客报价', text: '基础估值 ×2.15，荣誉另计。' },
       { title: '离店时间', text: timeLabel(g.endsAt) + '（北京时间）' },
       ...(!hasMatch ? [{ title: '暂时无法交付', text: '店内空闲动物尚未满足这份委托，可在客人离店前再次查看。' }] : []),

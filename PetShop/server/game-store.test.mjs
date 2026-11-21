@@ -21,7 +21,9 @@ test('旧动物可在档案留种或取消，重启后名册和交易名单使�
   assert.equal(g.page('roomRoster',{}).page.rows.find(r=>r.animal?.id===id).animal.retained,true);
   assert.ok(!g.page('market',{}).page.rows.some(r=>r.select===id));
   assert.match(g.page('market',{}).page.subtitle,/种源保护 1 只/);
-  assert.ok(!details().actions.some(a=>a.page==='market'||a.page==='recycle'));
+  assert.equal(details().actions.find(a=>a.page==='market').args.preselectId,id);
+  assert.ok(!details().actions.some(a=>a.page==='recycle'));
+  assert.throws(()=>g.page('saleQuote',{channel:'market',ids:[id]}),/种源|保护|不可/);
   const undo=mark();assert.equal(undo.label,'取消留种');commit(undo,'undo-retain-from-file');
   assert.equal(details().presentation.animal.retained,false);assert.equal(g.shop().coins,shop.coins);
   assert.ok(g.page('market',{}).page.rows.some(r=>r.select===id));

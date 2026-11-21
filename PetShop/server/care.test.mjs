@@ -79,6 +79,68 @@ test('繁育候选优先显示各房仍可配对的种源，同组维持名册�
   }
 });
 
+test('繁育物种与品种联动，筛品种保留已选亲本，换物种清空配对草稿',()=>{
+  const s=fresh(),[mother,father]=s.pets;
+  const lop={...structuredClone(father),id:'lop-father',breedKey:'lop'};
+  const mixed={...structuredClone(father),id:'mixed-father',mixed:true};
+  const cats=[mother,father].map((p,i)=>({...structuredClone(p),id:'cat-'+i,species:'cat',breedKey:'british',bornAt:T-D}));
+  s.rooms.cat=structuredClone(s.rooms.rabbit);s.pets.push(lop,mixed,...cats);
+  const read=args=>carePage(s,'breed',args,T);
+  const first=read({species:'rabbit'});
+  assert.deepEqual(first.filters[0].map(o=>o.args.species),['rabbit','cat','dog']);
+  assert.equal(first.filters[0][2].locked,true);
+  assert.deepEqual(first.filters[1].map(o=>o.label),['全部','原色兔','垂耳兔','安哥拉兔','狮子兔','杂交']);
+  const angora=read({...first.filters[1].find(o=>o.label==='安哥拉兔').args,mother:mother.id});
+  assert.deepEqual(angora.presentation.candidates.map(p=>p.id),[mother.id,father.id]);
+  const lopChoice=angora.filters[1].find(o=>o.label==='垂耳兔');
+  const picked=read({...lopChoice.args,father:lop.id});
+  assert.deepEqual(picked.presentation.parents.map(p=>p.id),[mother.id,lop.id]);
+  assert.deepEqual(picked.presentation.candidates.map(p=>p.id),[lop.id]);
+  assert.equal(picked.presentation.confirm.args.breed,'lop');
+  const confirmed=read(picked.presentation.confirm.args);
+  const tools=confirmed.actions.find(o=>o.page==='breedItems');
+  const done=carePage(s,'breedItems',tools.args,T).actions[0];
+  assert.equal(done.args.breed,'lop');
+  assert.equal(confirmed.actions.find(o=>o.label==='取消繁育').args.breed,'lop');
+  const cat=read(picked.filters[0][1].args);
+  assert.deepEqual(cat.presentation.parents,[null,null]);
+  assert.deepEqual(cat.presentation.candidates.map(p=>p.id),cats.map(p=>p.id));
+  assert.deepEqual(cat.filters[1].map(o=>o.label),['全部','英国短毛猫','美国短毛猫','波斯猫','缅因猫']);
+  assert.equal(cat.filters[1][0].active,true);
+  assert.ok(read({species:'cat',breed:'angora'}).filters[1][0].active);
+  assert.deepEqual(read({species:'rabbit',breed:'mixed'}).presentation.candidates.map(p=>p.id),[mixed.id]);
+  assert.deepEqual(read({species:'rabbit',breed:'lionhead'}).presentation.candidates,[]);
+  const locked=read(picked.filters[0][2].args);
+  assert.equal(locked.presentation.kind,'locked');assert.equal(locked.filters.length,1);
+  assert.ok(!s.rooms.dog);
+});
+
+test('确认配对在规则下展示已添加道具和作用属性，未提交不扣库存',()=>{
+  const s=fresh(),[mother,father]=s.pets,room=s.rooms.rabbit;
+  Object.assign(room.items,{guide:2,single:2,double:2});
+  const args={species:'rabbit',mother:mother.id,father:father.id};
+  const read=extra=>carePage(s,'breed',{...args,...extra},T);
+  const stock=structuredClone(room.items),sample=guideField(s,mother,father),field=mother.traits[sample].type;
+  assert.deepEqual(read().rows.map(row=>row.title),['一生仅一次繁育']);
+  const guided=read({useGuide:true});
+  assert.equal(guided.rows[1].title,'选育指导单 · '+field);
+  assert.match(guided.rows[1].text,/双亲同档.*整窝.*绿色/);
+  mother.traits[sample].grade='A';
+  assert.match(read({useGuide:true}).rows[1].text,/80%.*自然升降.*整窝/);
+  for(const [item,chosen,names] of [['single',[0],'性格'],['double',[0,2],'性格、毛发']]){
+    const selected=read({selection:{item,fields:chosen}});
+    assert.equal(selected.rows.length,2);
+    assert.equal(selected.rows[1].title,(item==='single'?'单项':'双项')+'选育单 · '+names);
+    assert.match(selected.rows[1].text,/随机一只.*双亲较高等级.*蓝色/);
+    const both=read({useGuide:true,selection:{item,fields:chosen}});
+    assert.deepEqual(both.rows.map(row=>row.title),['一生仅一次繁育','选育指导单 · '+field,selected.rows[1].title]);
+    assert.equal(both.actions.find(o=>o.type==='care.breed').args.selection.item,item);
+  }
+  assert.deepEqual(room.items,stock);assert.equal(room.job,null);
+  room.items.guide=0;room.items.double=0;
+  assert.deepEqual(read({useGuide:true,selection:{item:'double',fields:[0,2]}}).rows.map(row=>row.title),['一生仅一次繁育']);
+});
+
 test('确认配对后实际出生按七档累计概率结算，旧亲本的第六项不影响结果',t=>{
   let draw;
   t.mock.method(Math,'random',()=>draw);

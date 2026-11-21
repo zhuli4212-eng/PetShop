@@ -2,16 +2,17 @@
   font-family:"Noto Serif SC","Songti SC","Source Han Serif SC","SimSun",serif}
 #opening{position:fixed;inset:0;display:grid;place-items:center;background:var(--ink);z-index:3;transition:opacity .8s}
 #opening.intro-out{opacity:0;pointer-events:none}
-/* 舞台：按店面图 384×576 的比例，竖屏铺满 */
-.intro-stage{position:relative;width:min(100vw,calc(100svh * 2 / 3));aspect-ratio:2/3;overflow:hidden;isolation:isolate;}
+/* 与游戏共用竖屏画幅，扩图只铺满画幅内部。 */
+.intro-stage{position:relative;width:min(100%,430px);height:100dvh;overflow:hidden;isolation:isolate;}
+@media (min-width:641px){.intro-stage{width:390px;height:min(100dvh,844px)}}
+.intro-world{position:absolute;inset:0;transform-origin:50% 64%;}
 .intro-stage img{image-rendering:pixelated;display:block}
-/* 推进过程中保留店面图的四条边。 */
 .intro-stage .intro-bg{
   position:absolute;inset:0;width:100%;height:100%;
-  image-rendering:auto;transform-origin:50% 64%;transform:translateZ(0) scale(1);
+  object-fit:cover;object-position:50% 20%;image-rendering:auto;
 }
-.intro-ready .intro-bg{animation:push 11s ease-out forwards;will-change:transform}
-@keyframes push{from{transform:translateZ(0) scale(.96)}to{transform:translateZ(0) scale(1)}}
+.intro-ready .intro-world{animation:push 11s ease-out forwards;will-change:transform}
+@keyframes push{from{transform:translateZ(0) scale(1)}to{transform:translateZ(0) scale(1.035)}}
 .intro-fade{position:absolute;inset:0;background:#0d1812}
 .intro-ready .intro-fade{animation:unveil 1.6s ease-out forwards}
 @keyframes unveil{to{opacity:0;visibility:hidden}}
@@ -20,11 +21,20 @@
   background:linear-gradient(115deg,transparent 30%,rgba(255,226,150,.30) 50%,transparent 70%)}
 .intro-s-light .intro-sweep{animation:sweep 2.4s ease-in-out forwards}
 @keyframes sweep{0%{opacity:1;transform:translateX(-100%)}100%{opacity:1;transform:translateX(100%)}}
-/* 小兔蹦到门口 */
-.intro-rabbit{position:absolute;left:27%;top:74%;width:15%;opacity:0}
-.intro-s-rabbit .intro-rabbit{animation:show .2s forwards,hop .5s .2s 3 cubic-bezier(.3,.8,.5,1)}
+/* 三只动物使用工程里的四帧走路图，在门前小范围往返。 */
+.intro-animals{position:absolute;left:62%;top:63.5%;display:flex;align-items:flex-end;gap:2px;
+  transform:translate(-50%,-100%);opacity:0;pointer-events:none;--pet-size:78px}
+.intro-pet{display:block;width:var(--pet-size);height:var(--pet-size);overflow:hidden;flex:none}
+.intro-pet img{width:400%;height:100%;max-width:none}
+.intro-s-rabbit .intro-animals{animation:show .2s forwards}
+.intro-s-rabbit .intro-pet{animation:patrol 3s linear infinite}
+.intro-s-rabbit .intro-pet-rabbit{animation-duration:2.6s}
+.intro-s-rabbit .intro-pet-cat{animation-duration:3.6s}
+.intro-s-rabbit .intro-pet img{animation:walk .6s steps(4,end) infinite}
+@keyframes walk{to{transform:translateX(-100%)}}
+@keyframes patrol{0%{transform:translateX(8px) scaleX(1)}49.9%{transform:translateX(-8px) scaleX(1)}
+  50%{transform:translateX(-8px) scaleX(-1)}99.9%{transform:translateX(8px) scaleX(-1)}100%{transform:translateX(8px) scaleX(1)}}
 @keyframes show{to{opacity:1}}
-@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-16%)}}
 /* 交接信落下，火漆微光 */
 .intro-mail{position:absolute;left:30%;width:40%;top:-20%;transform:rotate(-8deg);opacity:0;
   filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}
@@ -46,7 +56,7 @@
 /* 标题 */
 .intro-dim{position:absolute;inset:0;background:#0d1812;opacity:0;transition:opacity 1.2s}
 .intro-s-title .intro-dim{opacity:.78}
-.intro-s-title .intro-mail,.intro-s-title .intro-rabbit{opacity:0;transition:opacity .6s;animation:none}
+.intro-s-title .intro-mail,.intro-s-title .intro-animals{opacity:0;transition:opacity .6s;animation:none}
 .intro-title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6em;
   opacity:0;transform:translateY(12px);transition:opacity 1.2s .4s,transform 1.2s .4s;pointer-events:none}
 .intro-s-title .intro-title{opacity:1;transform:none}
@@ -57,11 +67,8 @@
 .intro-skip{cursor:pointer;min-height:44px;position:absolute;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:5;
   background:rgba(13,24,18,.55);color:#e6d3a3;border:1px solid #8a6b3d;padding:.35em .8em;font:inherit;font-size:13px}
 
-@media (min-width:530px) {
-  .intro-stage {width:min(clamp(310px,46.21svh,390px), calc(100svh * 2 / 3));}
-}
 @media (prefers-reduced-motion:reduce) {
   #opening,.intro-title,.intro-dim {transition:none;}
-  .intro-ready .intro-bg,.intro-ready .intro-fade {animation:none;}
+  .intro-ready .intro-world,.intro-ready .intro-fade,.intro-s-rabbit .intro-pet,.intro-s-rabbit .intro-pet img {animation:none;}
   .intro-fade {display:none;}
 }

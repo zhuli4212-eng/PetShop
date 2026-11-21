@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { getPetTags } from './animal-traits.mjs';
-import { initCare, careAction, carePage, SPECIES, BREEDS } from './care.mjs';
+import { initCare, careAction, carePage, SPECIES, BREEDS, stageOf } from './care.mjs';
 import { initBusiness, tickBusiness, businessHeartbeat, businessPage as view, businessAction as act,
   purchasePrice, youngPurchaseBase, salePrice, readyOrderId } from './business.mjs';
 
@@ -15,6 +15,42 @@ function fresh() {
 }
 const quoted = (s, channel, ids, targetId, at = t0) =>
   view(s, 'saleQuote', { channel, ids, targetId }, at).actions[0].args;
+
+test('订单夹板按实际委托分类且同一订单刷新不换图，六款图标不改报价与条件',()=>{
+  const s=fresh(),seen=new Set();
+  for(const [kind,condition] of [['neighbor',{}],['breed',{breed:'angora'}],['trait',{tag:'温顺'}]]){
+    for(let i=0;i<20;i++){
+      const order={id:'icon-'+kind+'-'+i,species:'rabbit',diff:kind==='neighbor'?0:1,rate:kind==='neighbor'?135:155,...condition};
+      s.orders[0].order=order;const before=structuredClone(order);
+      const row=view(s,'orders',{},t0).rows[0],again=view(s,'orders',{},t0).rows[0];
+      assert.match(row.art,new RegExp('^shop-modules/order-'+kind+'-[ab]$'));
+      assert.equal(row.art,again.art);assert.equal(row.visual.rate,order.rate/100);
+      assert.deepEqual(order,before);seen.add(row.art);
+    }
+  }
+  assert.equal(seen.size,6);
+});
+
+test('五类特征需求匹配五位新来客，花色及旧单保留书店来客，刷新不改需求和报价',()=>{
+  const s=fresh(),p=s.pets[0],names=['园艺师来客','裁缝来客','画家来客','舞蹈老师来客','登山客'];
+  p.traits.forEach(t=>{t.grade='A';});
+  const tags=getPetTags(p);
+  for(let dimension=0;dimension<5;dimension++){
+    const tag=tags.find(t=>t.dimension===dimension);
+    // Legacy animals can have fewer tags; the identity mapping still follows the declared request dimension.
+    const requirement={species:p.species,breed:p.breedKey,stage:stageOf(p,t0),dimension,
+      tag:tag?.label??'温顺',...(tag&&{tagId:tag.tagId}),tagRulesVersion:2};
+    s.visitors.active={id:'visitor-'+dimension,requirement,endsAt:t0+30*min};
+    const before=structuredClone(s.visitors.active),page=view(s,'guest',{},t0);
+    assert.equal(page.title,names[dimension]);assert.match(page.art,/^shop-modules\/guest-/);
+    assert.equal(page.rows[0].text,'基础估值 ×2.15，荣誉另计。');
+    assert.deepEqual(view(s,'guest',{},t0),page);assert.deepEqual(s.visitors.active,before);
+  }
+  s.visitors.active.requirement={species:p.species,breed:p.breedKey,stage:stageOf(p,t0),coat:BREEDS[p.breedKey].coats[p.coatIndex-1]};
+  assert.equal(view(s,'guest',{},t0).title,'书店来客');assert.equal(view(s,'guest',{},t0).art,'shop-modules/guest');
+  delete s.visitors.active;
+  assert.equal(view(s,'guest',{},t0).title,'特殊来客');
+});
 
 test('订单区分缺项、占用及未持有的货架幼体，采购预计收入与实际成交一致', () => {
   const s = fresh(), [mother, father] = s.pets;

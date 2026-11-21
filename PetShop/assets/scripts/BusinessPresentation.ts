@@ -15,6 +15,7 @@ interface RowVisual {
     unit?:'张'|'份';
 }
 interface PageVisual {
+    scoringVersion?:number;
     remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
     nextBatchAt?:number;
     schedule?:Record<string,{close:string;result:string;payout:string}>; pet?:string; petStage?:string; tierOptions?:LedgerRow[];
@@ -26,10 +27,13 @@ const rows=(c:PageCanvas):DisplayRow[]=>c.p.rows||[];
 const act=(label:string,page:string,args:Record<string,any>={}):Choice=>({label,page,args});
 const back={label:'返回',type:'ui.back'};
 
-function orders(c:PageCanvas):void {
+function orderCounter(c:PageCanvas):void {
     banner(c,'orders','订单柜台');
     c.strip(c.p.tabs||[],'OrderTab');
     c.startList();
+}
+function orders(c:PageCanvas):void {
+    orderCounter(c);
     if(c.p.visual?.preview){
         section(c,'普通订单','新手预览');
         note(c,c.p.subtitle||'店铺达到 2 级后可交付或取消订单。');
@@ -40,9 +44,11 @@ function orders(c:PageCanvas):void {
         const v=r.visual;
         if(!v?.choices){info(c,{...r,...(!c.p.guide&&{art:'shop-modules/order-clock'})},i);return;}
         const h=155,n=card(c,'Order'+i,h),w=c.inner-20;
-        text(n,'Name',v.name||'收养委托',-46,h/2-22,w-92,25,16,ink,'left',true);
+        picture(n,'OrderIcon',r.art||'shop-modules/order-neighbor-a',-w/2+28,45,60,60);
+        const textLeft=-w/2+66,titleWidth=w-154;
+        text(n,'Name',v.name||'收养委托',textLeft+titleWidth/2,h/2-22,titleWidth,25,16,ink,'left',true);
         text(n,'Slot','第 '+(i+1)+' 槽',w/2-40,h/2-22,80,24,12,brown,'right');
-        text(n,'Condition',v.condition||r.text||'',0,31,w,24,15);
+        text(n,'Condition',v.condition||r.text||'',textLeft+(w-66)/2,31,w-66,28,14);
         const pill=box(n,'Difficulty',-w/2+43,3,86,23,'#EED8AB');
         text(pill,'Label',(v.difficulty||'')+' · ×'+v.rate,0,0,84,22,12,brown,'center');
         text(n,'Inventory',v.available?'有合适的动物':'暂无符合条件的动物，委托保留',47,3,w-94,24,12,brown);
@@ -328,10 +334,7 @@ function researchDetail(c:PageCanvas):void {
     dock(c,controls,controls.length-1,controls.length===3?3:2);
 }
 function decor(c:PageCanvas):void {
-    section(c,'装饰小铺','固定位置 · 可摆放或收起');
-    const width=c.inner,height=width*9/16;
-    const n=box(c.body,'Miniature',0,c.slot(height,10),width,height,'#4A3224');
-    picture(n,'Scene','shop-modules/decor-room',0,0,width,height);
+    banner(c,'decor-room','');
     c.startList();
     rows(c).forEach((r,i)=>{
         const w=c.inner,n=card(c,'Decor'+i,60,cream,6),tw=w-151,tx=-w/2+53+tw/2;
@@ -344,9 +347,9 @@ function decor(c:PageCanvas):void {
     });
 }
 function visitor(c:PageCanvas):void {
-    c.strip(c.p.tabs||[],'OrderTab');
+    orderCounter(c);
     const w=c.inner,hero=card(c,'GuestPortrait',86);
-    picture(hero,'Portrait','shop-modules/guest',-w/2+44,0,60,76);
+    picture(hero,'Portrait',c.p.art||'shop-modules/guest',-w/2+44,0,60,76);
     text(hero,'Type','特殊来客',38,22,w-94,20,12,brown);
     heading(hero,'Name',c.p.actions?.length?c.p.title:'特殊来客',38,0,w-94,25,18,green);
     text(hero,'Status',c.p.actions?.length?'到店委托':'等候客人上门',38,-21,w-94,20,13,brown);
@@ -365,6 +368,7 @@ function shows(c:PageCanvas):void {
     const gate=v.raceAccess?.[mode];
     if(gate&&!gate.unlocked)note(c,'开店第 '+v.shopDay+' 天 · '+modeName[mode]+'在开店第 '+gate.opensDay+' 天开放报名，可先查看主题。');
     const topics=rows(c).filter(r=>r.visual?.mode===mode),times=v.schedule?.[mode];
+    if(v.scoringVersion===2&&mode==='public')note(c,'本地测试 · 报名费用与奖励暂沿用测试参数。');
     if(times){
         const h=times.payout?112:91,w=c.inner,n=card(c,'Schedule',h,cream,6);
         heading(n,'Theme',mode==='public'?(topics[0]?.title||'本周主题'):'本轮主题 · 三选一',-45,h/2-15,w-110,23,15,green);

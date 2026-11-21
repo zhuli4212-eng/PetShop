@@ -5,6 +5,7 @@ import { stageOf, isBusy, breedName, petArt, specimen } from './care.mjs';
 import { cardQualityScore } from './animal-traits.mjs';
 import { shopRules } from './shop-features.mjs';
 import { shopRaceAccess } from './shop-progression.mjs';
+import {privateShowTypes,publicShowTypes,v2Theme,v2Match,v2PrivateTier,v2Board,v2RuleRows,trialEconomyNote} from './show-live-v2.mjs';
 
 // Fixed calendar for the local edition: Monday 20:00, Beijing time.
 export const GAME_EPOCH = Date.parse('2026-11-09T20:00:00+08:00');
@@ -29,7 +30,7 @@ export const themes = events.map(({id,name,targets,weights}) => ({
   id,name, mode:id[0]==='P'?'private':'public', targets:targets.map(x=>grades.indexOf(x)), weights,
 }));
 const groups = { private:themes.filter(t=>t.mode==='private'), public:themes.filter(t=>t.mode==='public') };
-const byTheme = Object.fromEntries(themes.map(t=>[t.id,t]));
+const byTheme = Object.fromEntries([...themes,...privateShowTypes,...publicShowTypes].map(t=>[t.id,t]));
 export const shopRating = s => (s.ratingBps || 0) / 10000;
 export const petHonor = (s,pet) => pet.honor || 0;
 
@@ -74,14 +75,17 @@ function offset(key,profile,event,species,bot,dim) {
   }
 }
 function publicTheme(s,index) {
+  if(s.show.scoringVersion===2&&index>=(s.show.v2FirstWeek??0))
+    return v2Theme(s,'public',index,index%2?5:4,roundStart(s,'public',index));
   const cycle=s.show.calendar.themes;
   return cycle[index%cycle.length];
 }
 function makeWeek(s,round,kinds=Object.keys(animals)) {
   const theme=structuredClone(publicTheme(s,round.index)), key=Buffer.from(s.rootSeed,'hex');
   const bots={};
+  if(theme.rules)kinds=[theme.species];
   for(const kind of kinds) {
-    bots[kind]=Array.from({length:99}, (_,i)=>theme.targets.map((target,dim)=>
+    bots[kind]=Array.from({length:99}, (_,i)=>(theme.targets??[4,4,4,4,4,4]).map((target,dim)=>
       Math.max(0,Math.min(6,target+offset(key,s.profileId,round.id,kind,i+1,dim)))));
   }
   const seed=digest(key,1,'tie_seed_v1',s.profileId,round.id,'','','',0);
@@ -90,13 +94,15 @@ function makeWeek(s,round,kinds=Object.keys(animals)) {
 function syncRounds(s,now) {
   const daily=period(s,'private',now);
   if(daily && s.show.activePrivate?.id!==daily.id) {
-    const choices=[0,9,18].map(shift=>structuredClone(groups.private[(daily.index+shift)%28]));
+    const choices=s.show.scoringVersion===2?[1,3,5].map(count=>v2Theme(s,'private',daily.index,count,daily.start)):
+      [0,9,18].map(shift=>structuredClone(groups.private[(daily.index+shift)%28]));
     s.show.activePrivate={...daily,choices};
   }
   const week=period(s,'public',now);
   if(week && !s.show.weeks[week.id]) s.show.weeks[week.id]=makeWeek(s,week);
 }
 export function matchScores(scores,theme) {
+  if(theme.rules)return v2Match(scores,theme);
   const dims=theme.targets.map((target,i)=>[100,70,30,0][Math.min(3,Math.abs(scores[i]-target))]);
   const total=theme.weights.reduce((n,w,i)=>n+w*dims[i],0);
   const divisor=theme.weights.reduce((sum,w)=>sum+w,0);
@@ -130,7 +136,7 @@ function drawToken(seed,input) {
   return createHmac('sha256',Buffer.from(seed,'hex')).update(input,'utf8').digest('hex');
 }
 function board(s,week,species) {
-  const entries=week.bots[species].map((scores,i)=>{
+  const entries=(week.bots[species]??[]).map((scores,i)=>{
     const ordinal=String(i+1).padStart(2,'0');
     return {accountId:'bot-'+species+'-'+ordinal,name:'模拟'+animals[species]+ordinal,scores};
   });
@@ -138,6 +144,7 @@ function board(s,week,species) {
   if(reg && !reg.voided && reg.pet.species===species) {
     entries.push({accountId:s.profileId,name:reg.pet.name,scores:reg.pet.scores,player:true});
   }
+  if(week.theme.rules)return v2Board(entries,week.theme,rankCash);
   for(const e of entries) {
     e.match=matchScores(e.scores,week.theme);
     e.draw=drawToken(week.seed,week.id+'|'+e.accountId);
@@ -174,7 +181,7 @@ function recordCup(s,entry,outcome) {
 }
 function settle(s,e) {
   const match=matchScores(e.pet.scores,e.theme);
-  if(e.mode==='private') e.outcome={match,tier:privateTier(match),guarantee:0,rankReward:0};
+  if(e.mode==='private') e.outcome={match,tier:e.theme.rules?v2PrivateTier(match,e.theme):privateTier(match),guarantee:0,rankReward:0};
   else {
     const ranked=board(s,s.show.weeks[e.id],e.pet.species), own=ranked.entries.find(r=>r.player);
     e.outcome={match,tier:own.tier,position:own.position,tieRank:own.tieRank,tieSize:own.tieSize,n:ranked.entries.length,nq:ranked.nq,guarantee:own.guarantee,rankReward:own.rankReward};
@@ -243,6 +250,7 @@ function review(s,a,now,rules) {
   if(!theme) throw Error('本轮没有这场主题赛。');
   const pet=s.pets.find(p=>p.id===a.pet);
   if(!eligible(s,pet,now)) throw Error('请选店内成年或老年、空闲的动物。');
+  if(theme.rules?.mode==='public'&&pet.species!==theme.species)throw Error('本期仅限'+animals[theme.species]+'组报名。');
   const snapshot=petSummary(pet,now), fee=feeFor(s,mode,pet.species);
   const token=createHash('sha256').update(JSON.stringify([round.id,theme,snapshot,fee])).digest('hex');
   return {round,theme,snapshot,fee,token,match:matchScores(snapshot.scores,theme)};
@@ -291,6 +299,7 @@ export function voidShowRound(s,id,reason,now) {
 const link=(page,args={})=>({page,args});
 const action=(label,page,args={})=>({label,page,args});
 function themeLine(theme) {
+  if(theme.rules)return theme.rules.mode==='private'?'考核 '+theme.rules.attributes.map(i=>dimensions[i]).join('、'):'按最终整数总分排名，同分并列同奖。';
   return '目标 '+gradeList(theme.targets);
 }
 function eventHome(s,now,rules) {
@@ -314,7 +323,7 @@ function eventHome(s,now,rules) {
         ...(entry?{link:link('show.result',{event:entry.id})}:{})});
     } else if(mode==='private') {
       if(entry) rows.push({title:'私人赛 · '+entry.theme.name,text:'本轮已报名 '+entry.pet.name,link:link('show.result',{event:entry.id})});
-      else for(const t of round.choices) rows.push({title:t.name,text:'私人三选一 · '+status,
+      else for(const t of round.choices) rows.push({title:t.name,text:(t.rules?themeLine(t)+' · ':'私人三选一 · ')+status,
         link:link('show.round',{mode,event:round.id,theme:t.id})});
     } else {
       rows.push({title:round.theme.name,text:'本地模拟公开赛 · '+(entry?'已报名 '+entry.pet.name:status),
@@ -335,7 +344,7 @@ function eventHome(s,now,rules) {
       bestScore=score;
     }
   }
-  return {title:'比赛',art:topicArt,visual:{schedule,...day,pet:model?petArt(model):null,petStage:model?stageOf(model,now):null},subtitle:'北京时间 · 同一轮只可报名一只动物',rows,empty:'赛历 '+time(s.show.epoch)+' 开放',
+  return {title:'比赛',art:topicArt,visual:{schedule,...day,scoringVersion:s.show.scoringVersion??1,pet:model?petArt(model):null,petStage:model?stageOf(model,now):null},subtitle:'北京时间 · 同一轮只可报名一只动物',rows,empty:'赛历 '+time(s.show.epoch)+' 开放',
     actions:[action('奖杯收藏','collection'),action('参赛记录','show.history'),action('公开赛历届榜单','show.archive')]};
 }
 function roundPage(s,a,now,rules) {
@@ -344,23 +353,24 @@ function roundPage(s,a,now,rules) {
   const theme=(mode==='private'?round.choices:[round.theme]).find(t=>t.id===a.theme);
   if(!theme) return eventHome(s,now,rules);
   const day=shopRaceAccess(rules,s.createdAt,now), access=day.raceAccess[mode];
-  const rows=[
+  const rows=theme.rules?[...v2RuleRows(theme),
+    {title:'赛程',text:'报名截止 '+time(round.close)+' · 结果 '+time(round.result)}]:[
     {title:'六维目标',text:dimensions.map((d,i)=>d+' '+grades[theme.targets[i]]).join(' · ')},
     {title:'匹配规则',text:'距目标0/1/2/更多档，依次得100/70/30/0分。高于和低于目标同样扣分。'},
     {title:'报名截止 '+time(round.close),text:'结果 '+time(round.result)+(round.payout?' · 排名现金 '+time(round.payout):'')},
   ];
-  if(mode==='public') {
+  if(!theme.rules&&mode==='public') {
     const order=[0,1,2,3,4,5].sort((x,y)=>theme.weights[y]-theme.weights[x]||x-y);
     rows.push({title:'六维权重',text:dimensions.map((d,i)=>d+' '+theme.weights[i]+'%').join(' · ')},
       {title:'同分比较',text:'先比最低单维和命中数，再比 '+order.map(i=>dimensions[i]).join('、')+'。仍并列时抽签定杯，现金按并列平分。'},
       {title:'本地模拟抽签承诺 · SHA-256',text:round.commit});
-  } else rows.push({title:'奖杯门槛',text:'68 分铜杯，82 分银杯，95 分金杯。'});
+  } else if(!theme.rules)rows.push({title:'奖杯门槛',text:'68 分铜杯，82 分银杯，95 分金杯。'});
   const reg=s.show.entries[round.id];
   if(s.show.voids?.[round.id])rows.push({title:'本期技术作废',text:s.show.voids[round.id].reason+' · '+nextRegistration(s,mode,access,now)});
   else if(reg) rows.push({title:'本轮已报名 · '+reg.pet.name,text:nextRegistration(s,mode,access,now),link:link('show.result',{event:reg.id})});
   else if(now<round.close&&!access.unlocked) rows.push({title:'报名尚未开放',text:registrationOpens(s,mode,access,now)});
   else if(now<round.close) {
-    const pets=s.pets.filter(p=>eligible(s,p,now));
+    const pets=s.pets.filter(p=>eligible(s,p,now)&&(!theme.rules||mode!=='public'||p.species===theme.species));
     if(!pets.length) rows.push({title:'暂无可报名动物',text:'需店内成年或老年、未在繁育中的动物。'});
     for(const p of pets) rows.push({title:p.name,text:'报名 '+feeFor(s,mode,p.species)+' 金币',
       animal:specimen(s,p,now),art:petArt(p),stage:stageOf(p,now),link:link('show.review',{mode,event:round.id,theme:theme.id,pet:p.id})});
@@ -374,8 +384,8 @@ function reviewPage(s,a,now,rules) {
   const {snapshot:p,match,theme,fee,token}=v;
   return {title:'报名核对',subtitle:PNAME[a.mode]+' · '+theme.name,art:p.art,stage:p.stage,rows:[
     {title:p.name+' · '+p.breed,text:p.sex+' · '+p.stage+' · '+gradeList(p.scores)},
-    {title:'六维匹配 '+displayScore(match)+' 分',text:themeLine(theme)+'\n逐维 '+match.dims.join(' / ')},
-    {title:'本次实付 '+fee+' 金币',text:(a.mode==='private'?'基准 '+privateFees[p.species]+' 金币。':'公开赛免费。')+'提交后固定动物快照，占用本轮唯一机会。参赛后仍可出售或配对。'},
+    {title:theme.rules?'评分规则':'六维匹配 '+displayScore(match)+' 分',text:theme.rules?themeLine(theme):themeLine(theme)+'\n逐维 '+match.dims.join(' / ')},
+    {title:'本次实付 '+fee+' 金币',text:(a.mode==='private'?'基准 '+privateFees[p.species]+' 金币。':theme.rules?trialEconomyNote:'公开赛免费。')+'提交后固定动物快照，占用本轮唯一机会。参赛后仍可出售或配对。'},
   ],actions:[{label:'提交报名',type:'show.enter',args:{mode:a.mode,event:a.event,theme:a.theme,pet:a.pet,token},
     confirm:'确定为「'+p.name+'」报名 '+theme.name+'？'+(a.mode==='private'?'基准 '+privateFees[p.species]+' 金币，':'')+'实付 '+fee+' 金币，提交后不能更换动物。',go:'show.result',goArgs:{event:a.event}},
     action('重选参赛动物','show.round',{mode:a.mode,event:a.event,theme:a.theme})]};
@@ -386,13 +396,13 @@ function resultPage(s,id) {
   const o=e.outcome, p=e.pet;
   const rows=[{title:e.theme.name,text:PNAME[e.mode]+' · 报名 '+time(e.submitted)+' · 实付 '+e.fee+' 金币'},
     {title:'报名快照 · '+p.name,text:p.breed+' · '+p.sex+' · 报名时'+p.stage+'\n'+gradeList(p.scores),art:p.art,stage:p.stage},
-    {title:'比赛目标',text:themeLine(e.theme)+'\n权重 '+e.theme.weights.join(' / ')}];
+    {title:e.theme.rules?'评分规则':'比赛目标',text:e.theme.rules?themeLine(e.theme):themeLine(e.theme)+'\n权重 '+e.theme.weights.join(' / ')}];
   if(e.voided) rows.push({title:'本期技术作废',text:e.voided+' · 已退 '+e.fee+' 金币'});
   else if(!o) rows.push({title:'已报名，等待结果',text:'公布 '+time(e.result)});
   else {
     rows.push({title:o.tier?'获得'+trophies[o.tier]:'本场未获杯',art:o.tier?'awards/'+o.tier:undefined,
-      text:displayScore(o.match)+' 分 · '+time(e.result)+'\n逐维 '+o.match.dims.join(' / ')});
-    if(e.mode==='public') rows.push({title:'第 '+o.position+' / '+o.n+' 位 · 达标 '+o.nq+' 位',text:'真正并列 '+o.tieSize+' 人，起始名次 '+o.tieRank},
+      text:displayScore(o.match)+' 分 · '+time(e.result)+(e.theme.rules?'':'\n逐维 '+o.match.dims.join(' / '))});
+    if(e.mode==='public') rows.push(e.theme.rules?{title:o.tieRank?'第 '+o.tieRank+' 分数档 · 同分 '+o.tieSize+' 只':'未过资格线',text:'本场过线 '+o.nq+' 只 · 同分并列同奖。'}:{title:'第 '+o.position+' / '+o.n+' 位 · 达标 '+o.nq+' 位',text:'真正并列 '+o.tieSize+' 人，起始名次 '+o.tieRank},
       {title:'达标现金 +'+o.guarantee,text:e.cashClosed?'周日补差 +'+e.cashPaid+'，现金已结清。':'排名补差 '+time(e.payout)+' 结算。'});
     if(o.tier) rows.push({title:'本档权益',text:'本档覆盖较低收益资格；收藏仅计本次实际获得的'+trophies[o.tier]+'。'});
   }
@@ -404,10 +414,13 @@ function resultPage(s,id) {
 function collectionPage(s,mode) {
   const selected=mode==='public'?'public':'private';
   const held=Object.values(s.show.cups).filter(c=>byTheme[c.themeId]?.mode===selected);
-  return {title:'奖杯收藏',subtitle:PNAME[selected]+' · 已收集 '+held.length+' / '+(groups[selected].length*tiers[selected].length),
-    rows:groups[selected].map(t=>{
+  const current=s.show.scoringVersion===2?(selected==='private'?privateShowTypes:publicShowTypes):groups[selected];
+  const legacy=groups[selected].filter(t=>!current.some(v=>v.id===t.id)&&held.some(c=>c.themeId===t.id));
+  const collected=held.filter(c=>current.some(t=>t.id===c.themeId)).length;
+  return {title:'奖杯收藏',subtitle:PNAME[selected]+' · 已收集 '+collected+' / '+(current.length*tiers[selected].length)+(legacy.length?' · 历史主题 '+legacy.length:''),
+    rows:[...current,...legacy].map(t=>{
       const earned=held.filter(c=>c.themeId===t.id);
-      return {title:t.name,text:earned.length?earned.map(c=>trophies[c.tier]+' ×'+c.count).join(' · '):'尚未获杯',link:link('collection.theme',{theme:t.id})};
+      return {title:(legacy.includes(t)?'历史 · ':'')+t.name,text:earned.length?earned.map(c=>trophies[c.tier]+' ×'+c.count).join(' · '):'尚未获杯',link:link('collection.theme',{theme:t.id})};
     }),actions:[action('私人杯册','collection',{mode:'private'}),action('模拟公开杯册','collection',{mode:'public'})]};
 }
 function collectionTheme(s,id) {
@@ -454,11 +467,13 @@ function publishedWeek(s,id,species,now) {
   return makeWeek(s,period(s,'public',roundStart(s,'public',index)),[species]);
 }
 function boardPage(s,a,now,list) {
-  const species=Object.hasOwn(animals,a.species)?a.species:'rabbit';
+  let species=Object.hasOwn(animals,a.species)?a.species:'rabbit';
   const w=publishedWeek(s,a.event,species,now);
   if(!w) return {title:'本地模拟公开赛',rows:[],empty:'本期暂无可查看的结果。'};
+  if(w.theme.rules)species=w.theme.species;
   const {entries,nq}=board(s,w,species);
-  const actions=Object.keys(animals).map(id=>action(animals[id]+'榜','show.board',{event:w.id,species:id}));
+  const kinds=w.theme.rules?[species]:Object.keys(animals);
+  const actions=kinds.map(id=>action(animals[id]+'榜','show.board',{event:w.id,species:id}));
   if(list) {
     const tier=tiers.public.includes(a.tier)?a.tier:'laurel';
     const selected=entries.filter(e=>e.tier===tier);
@@ -469,13 +484,14 @@ function boardPage(s,a,now,list) {
       title:e.position+'. '+(e.player?'本店 · ':'')+e.name,
       art:e.player&&snapshot.art?snapshot.art:speciesPortrait[species],
       ...(e.player&&snapshot.art?{stage:snapshot.stage}:{}),
-      text:(e.player?'本店参赛 · '+s.profileId.slice(-6)+(snapshot.art?'':' · 物种示意图'):'模拟选手 · '+e.accountId)+' · '+displayScore(e.match)+' 分\n逐维 '+e.match.dims.join(' / '),
+      text:(e.player?'本店参赛 · '+s.profileId.slice(-6)+(snapshot.art?'':' · 物种示意图'):'模拟选手 · '+e.accountId)+' · '+displayScore(e.match)+' 分'+(w.theme.rules?' · 第 '+e.tieRank+' 分数档 · 同分同奖':'\n逐维 '+e.match.dims.join(' / ')),
       link:e.player?link('show.result',{event:w.id}):link('show.bot',{event:w.id,species,id:e.accountId})
-    })),actions:Object.keys(animals).map(id=>action(animals[id]+'榜','show.tier',{event:w.id,species:id,tier})),empty:'本物种榜没有获得此档的动物。'};
+    })),actions:kinds.map(id=>action(animals[id]+'榜','show.tier',{event:w.id,species:id,tier})),empty:'本物种榜没有获得此档的动物。'};
   }
   const rows=tiers.public.map(tier=>({title:trophies[tier],art:'awards/'+tier,text:entries.filter(e=>e.tier===tier).length+' 位',
     link:link('show.tier',{event:w.id,species,tier})}));
-  rows.push({title:'模拟抽签校验',text:'种子 '+w.seed+'\nSHA-256 承诺 '+w.commit});
+  rows.push(w.theme.rules?{title:'过线与并列',text:'过线 '+nq+' 只，同分按同一分数档获奖。'+trialEconomyNote}:
+    {title:'模拟抽签校验',text:'种子 '+w.seed+'\nSHA-256 承诺 '+w.commit});
   return {title:'本地模拟公开赛',subtitle:w.theme.name+' · '+animals[species]+'榜 '+entries.length+' 位，现金达标 '+nq+' 位',rows,actions};
 }
 function botPage(s,a,now) {
@@ -485,6 +501,10 @@ function botPage(s,a,now) {
   if(!w) return archivePage(s,now);
   const e=board(s,w,species).entries.find(entry=>!entry.player&&entry.accountId===a.id);
   if(!e) return archivePage(s,now);
+  if(w.theme.rules)return {title:e.name,subtitle:'本地模拟公开赛 · '+w.theme.name,rows:[
+    {title:'模拟选手 '+e.accountId,art:speciesPortrait[species],text:(e.tieRank?'第 '+e.tieRank+' 分数档':'未过资格线')+' · '+(trophies[e.tier]??'未获杯')+' · '+displayScore(e.match)+' 分'},
+    {title:'六维快照',text:gradeList(e.scores)},
+  ]};
   return {title:e.name,subtitle:'本地模拟公开赛 · '+w.theme.name,rows:[
     {title:'模拟选手 '+e.accountId,art:speciesPortrait[species],text:'第 '+e.position+' 名 · '+trophies[e.tier]+' · '+displayScore(e.match)+' 分\n头像为'+animals[species]+'榜物种示意。'},
     {title:'六维快照',text:gradeList(e.scores)+'\n目标 '+gradeList(w.theme.targets)},

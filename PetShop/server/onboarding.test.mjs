@@ -115,6 +115,15 @@ test('首窝保留一公一母，只卖一只，奖励和后续道具到账一�
   assert.equal(f.state.rooms.rabbit.nutritionStock.quality,1);
   assert.match(f.page('tasks').subtitle,/经营第一批兔子 · 0 \/ 3/);
   assert.deepEqual(f.page('tasks').visual.rewards.map(r=>r.name),['金币','兔用选育指导单']);
+  const afterRewards=structuredClone(f.state);
+  assert.equal(f.page('openingGuide').visual.openingBooklet.length,9);
+  assert.ok(f.page('login').rows.some(r=>r.link?.page==='openingGuide'));
+  f.reopen();
+  assert.equal(f.page('openingGuide').visual.openingBooklet.length,9);
+  assert.equal(f.state.coins,afterRewards.coins);
+  assert.deepEqual(f.state.onboarding,afterRewards.onboarding);
+  assert.deepEqual(f.state.pets,afterRewards.pets);
+  assert.deepEqual(f.state.tasks,afterRewards.tasks);
 });
 
 test('主动出售原亲本仍结算另一只寿终、回收补种、补贴和首单特殊定价',t=>{
