@@ -79,6 +79,9 @@ class Controls:
         self.page.wait_for_timeout(60)
         if scope:self.ready()
     def option(self,field,label):
+        if field=='SpeciesFilter':
+            self.tap('RoomSwitch'+str(['兔','猫','狗'].index(label)))
+            return
         self.tap(field)
         labels=self.page.evaluate("pairQA.find('Options').children.filter(n=>n.name.startsWith('Option')).map(n=>n.getChildByName('Caption').getComponent(cc.Label).string)")
         assert label in labels,(field,label,labels)

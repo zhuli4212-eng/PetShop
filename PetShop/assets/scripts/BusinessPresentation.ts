@@ -15,6 +15,7 @@ interface RowVisual {
     unit?:'张'|'份';
 }
 interface PageVisual {
+    scoringVersion?:number;
     remaining?:number; protectedCount?:number; saleExperience?:number; levels?:number[]; open?:boolean; handbook?:string; description?:string; status?:string;
     nextBatchAt?:number;
     schedule?:Record<string,{close:string;result:string;payout:string}>; pet?:string; petStage?:string; tierOptions?:LedgerRow[];
@@ -365,6 +366,7 @@ function shows(c:PageCanvas):void {
     const gate=v.raceAccess?.[mode];
     if(gate&&!gate.unlocked)note(c,'开店第 '+v.shopDay+' 天 · '+modeName[mode]+'在开店第 '+gate.opensDay+' 天开放报名，可先查看主题。');
     const topics=rows(c).filter(r=>r.visual?.mode===mode),times=v.schedule?.[mode];
+    if(v.scoringVersion===2&&mode==='public')note(c,'本地测试 · 报名费用与奖励暂沿用测试参数。');
     if(times){
         const h=times.payout?112:91,w=c.inner,n=card(c,'Schedule',h,cream,6);
         heading(n,'Theme',mode==='public'?(topics[0]?.title||'本周主题'):'本轮主题 · 三选一',-45,h/2-15,w-110,23,15,green);

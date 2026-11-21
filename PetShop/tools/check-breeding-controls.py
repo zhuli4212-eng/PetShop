@@ -314,8 +314,7 @@ def verify(browser, web, width, output, motion=False):
             for room_index,sample in enumerate(samples):
                 species,initial = sample["species"],sample["cards"]
                 if room_index:
-                    touch.tap("SpeciesFilter",scope="DeskPage")
-                    touch.tap("Option"+str(room_index),scope="FilterMenu")
+                    touch.tap("RoomSwitch"+str(room_index),scope="DeskPage")
                     touch.kind("pair")
                 for i in range(2):
                     # The parent names in the selection slots also appear in the rows.
@@ -415,8 +414,7 @@ def verify(browser, web, width, output, motion=False):
             process.stdin.write("finish-litters\n")
             process.stdin.flush()
             assert process.stdout.readline().strip()=="advanced"
-            touch.tap("SpeciesFilter",scope="DeskPage")
-            touch.tap("Option0",scope="FilterMenu")
+            touch.tap("RoomSwitch0",scope="DeskPage")
             touch.kind("pair")
             touch.tap(text="查看最近一窝",scope="DeskPage")
             touch.kind("litter")

@@ -146,7 +146,8 @@ function detail(s,a,now) {
         '用 1 份后，老年期会多 1 天。还可用 '+(antiAgeLimit-doses)+' 次。','pet',{id:p.id})]:[]),
       ...(hasReshape&&['幼年','成长'].includes(stage)&&reshaped<reshapeLimit?[act('使用缺陷重塑剂','care.reshape',{species:p.species,id:p.id},
         '55% 减轻一档，45% 加重一档。若结果超过最高或最低档，会保留原档，仍消耗 1 份。还可用 '+(reshapeLimit-reshaped)+' 次。','pet',{id:p.id})]:[]),
-      ...(!isBusy(s,p)&&!p.retained?[stage==='已故'?go('前往动物回收','recycle',{species:p.species,preselectId:p.id}):go('前往自由市场','market',{preselectId:p.id})]:[])]};
+      ...(stage!=='已故'?[go('前往自由市场','market',{preselectId:p.id})]:
+        !isBusy(s,p)&&!p.retained?[go('前往动物回收','recycle',{species:p.species,preselectId:p.id})]:[])]};
 }
 function pairPage(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
