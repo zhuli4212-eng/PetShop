@@ -4,6 +4,7 @@ import {GAME_EPOCH,showPage,recordCup,rankCash} from '../../PetShop/server/show.
 import {v2Theme,v2Board} from '../../PetShop/server/show-live-v2.mjs';
 import {stageOf,isBusy,petArt,breedName,specimen} from '../../PetShop/server/care.mjs';
 import {shopRaceAccess} from '../../PetShop/server/shop-progression.mjs';
+import {scoreShowGrades} from '../../PetShop/server/show-rules-v2.mjs';
 
 const DAY=86400000,WEEK=7*DAY,HOUR=3600000;
 const grades=['E','D','C','B','A','S','S+'];
@@ -16,7 +17,7 @@ const link=(page,args={})=>({page,args});
 const button=(label,page,args={})=>({label,page,args});
 const indexOf=id=>typeof id==='string'&&/^online-public-(0|[1-9]\d*)$/.test(id)&&Number.isSafeInteger(Number(id.slice(14)))?Number(id.slice(14)):null;
 const requireValue=(ok,message)=>{if(!ok)throw new GameError(message);};
-const cashNote='公开赛报名暂为 0 金币；过线获奖保底 20 金币，排名现金按当前五档奖励规则结算。';
+const cashNote='公开赛报名费为 0 金币；过线获奖保底 20 金币，排名现金按当前五档奖励规则结算。';
 
 // Applied only to cloud accounts. Legacy/offline snapshots cannot import a
 // shared entry or award; the shared entry table is the registration authority.
@@ -146,6 +147,7 @@ class OnlineShows {
       coatIndex:p.coatIndex,sex:p.sex,art:petArt(p),stage:stageOf(p,gameNow),scores:p.traits.map(t=>grades.indexOf(t.grade)),
       traits:p.traits.map(({type,label,rarity,grade})=>({type,label,rarity,grade}))};
     const fee=0;
+    try{scoreShowGrades(pet.scores,round.theme.rules);}catch{throw new GameError('动物评分数据无效，请选择另一只动物。');}
     const token=createHash('sha256').update(JSON.stringify([round.id,round.theme,pet,fee])).digest('hex');
     return {round,pet,fee,token};
   }
