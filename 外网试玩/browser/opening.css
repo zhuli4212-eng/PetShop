@@ -2,8 +2,9 @@
   font-family:"Noto Serif SC","Songti SC","Source Han Serif SC","SimSun",serif}
 #opening{position:fixed;inset:0;display:grid;place-items:center;background:var(--ink);z-index:3;transition:opacity .8s}
 #opening.intro-out{opacity:0;pointer-events:none}
-/* 扩图铺满屏幕，世界层里的动物与门前地面一起推进。 */
-.intro-stage{position:relative;width:100%;height:100%;overflow:hidden;isolation:isolate;}
+/* 与游戏共用竖屏画幅，扩图只铺满画幅内部。 */
+.intro-stage{position:relative;width:min(100%,430px);height:100dvh;overflow:hidden;isolation:isolate;}
+@media (min-width:641px){.intro-stage{width:390px;height:min(100dvh,844px)}}
 .intro-world{position:absolute;inset:0;transform-origin:50% 64%;}
 .intro-stage img{image-rendering:pixelated;display:block}
 .intro-stage .intro-bg{

@@ -72,7 +72,6 @@ const entryMarkup = `
 <div id="local-login" hidden>
   <main class="ledger">
     <picture>
-      <source media="(min-aspect-ratio: 1/1)" srcset="./local-opening/shopfront-wide.png">
       <img class="shopfront" src="./local-opening/shopfront.png" alt="">
     </picture>
     <section class="sheet" aria-labelledby="heading">

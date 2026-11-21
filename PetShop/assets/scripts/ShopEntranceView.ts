@@ -45,7 +45,7 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
     const inner=width-2*pad;
     const gap=width<=350?8:10;
     // These pages open with an edge-to-edge illustration immediately below the header.
-    const startsWithScene=['orders','market','recycle','research','lab','credits','orderDesk','decor','show','show.board','show.tier'].includes(key)
+    const startsWithScene=['orders','guest','market','recycle','research','lab','credits','orderDesk','decor','show','show.board','show.tier'].includes(key)
         || (key==='sale' && ['order','market','recycle'].includes(args.channel))
         || (['shelf','services'].includes(key) && p.art==='shop-modules/lab');
     let cursor=startsWithScene&&!modal?0:pad;

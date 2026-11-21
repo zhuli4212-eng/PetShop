@@ -18,7 +18,6 @@ export function renderMultiplayerLogin() {
 <body>
   <main class="ledger">
     <picture>
-      <source media="(min-aspect-ratio: 1/1)" srcset="/auth/shopfront-wide.png">
       <img class="shopfront" src="/auth/shopfront.png" alt="">
     </picture>
     <section class="sheet" aria-labelledby="heading">
@@ -73,15 +72,16 @@ export const loginStyles = `
 [hidden] { display: none !important; }
 body {
   min-height: 100vh; min-height: 100svh; margin: 0;
-  display: grid; align-items: center; justify-items: center;
+  display: flex; flex-direction: column;
   padding: 0;
 }
 .ledger {
-  position:relative; isolation:isolate; width:100%; min-height:100dvh;
+  position:relative; isolation:isolate; width:min(100%,430px); min-height:100dvh; margin:auto; flex:none;
   display:flex; flex-direction:column; justify-content:flex-end;
   padding:20px max(20px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
   background:#805032;
 }
+@media (min-width:641px){.ledger{width:390px;min-height:min(100dvh,844px)}}
 .shopfront {
   position:absolute; inset:0; z-index:-1; display:block; width:100%; height:100%;
   object-fit:cover; object-position:50% 20%;

@@ -27,10 +27,13 @@ const rows=(c:PageCanvas):DisplayRow[]=>c.p.rows||[];
 const act=(label:string,page:string,args:Record<string,any>={}):Choice=>({label,page,args});
 const back={label:'返回',type:'ui.back'};
 
-function orders(c:PageCanvas):void {
+function orderCounter(c:PageCanvas):void {
     banner(c,'orders','订单柜台');
     c.strip(c.p.tabs||[],'OrderTab');
     c.startList();
+}
+function orders(c:PageCanvas):void {
+    orderCounter(c);
     if(c.p.visual?.preview){
         section(c,'普通订单','新手预览');
         note(c,c.p.subtitle||'店铺达到 2 级后可交付或取消订单。');
@@ -344,7 +347,7 @@ function decor(c:PageCanvas):void {
     });
 }
 function visitor(c:PageCanvas):void {
-    c.strip(c.p.tabs||[],'OrderTab');
+    orderCounter(c);
     const w=c.inner,hero=card(c,'GuestPortrait',86);
     picture(hero,'Portrait',c.p.art||'shop-modules/guest',-w/2+44,0,60,76);
     text(hero,'Type','特殊来客',38,22,w-94,20,12,brown);

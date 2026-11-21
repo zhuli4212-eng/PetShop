@@ -23,6 +23,7 @@ function animalArt(parent:Node,a:Pick<Animal,'art'|'stage'>,x:number,y:number,w:
     return picture(parent,'Portrait',a.art,x,y,w,h,a.stage);
 }
 function floorArt(parent:Node,a:Animal,size:number,feet:number):Node {
+    if(a.art.startsWith('pets/maine-')&&a.stage!=='已故')size*=1.5;
     // All live canvases are 96×96; the resting canvases are 96×64.
     const centerToFeet=a.stage==='已故'?(58-32)/96:(90-48)/96;
     return animalArt(parent,a,0,feet+size*centerToFeet,size,size);

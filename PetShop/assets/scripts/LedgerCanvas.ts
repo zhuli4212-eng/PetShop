@@ -339,7 +339,7 @@ export function picture(parent: Node, name: string, art: string, x: number, y: n
 // can attach slow images later, so their requests must not hold up the ledger.
 export async function prepareIllustration(key:string, args:Args, page:LedgerPage):Promise<void> {
     const counters:Record<string,string>={
-        lab:'lab',research:'lab',market:'market',orders:'orders',credits:'orders',orderDesk:'orders',
+        lab:'lab',research:'lab',market:'market',orders:'orders',guest:'orders',credits:'orders',orderDesk:'orders',
         recycle:'lab',show:'stage','show.board':'stage','show.tier':'stage'
     };
     const counter=counters[key==='sale'?String(args.channel):key] || (key==='sale'&&args.channel==='order'?'orders':'');

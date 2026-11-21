@@ -23,13 +23,13 @@
 #petshop-loading-retry:focus-visible { outline: 2px solid #fff0d0; outline-offset: 3px; }
 #account-layer {
   position: fixed; inset: 0; z-index: 2; overflow-y: auto;
-  display: grid; place-items: center;
+  display: flex; flex-direction: column;
   background: #202c26; color: #392f1f; text-align: left;
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
   user-select: text; -webkit-user-select: text;
 }
 .ledger {
-  width: 100%; min-height: 100vh; min-height: 100dvh;
+  width: min(100%,430px); min-height: 100vh; min-height: 100dvh; margin: auto; flex: none;
   position: relative; isolation: isolate;
   display: flex; flex-direction: column; justify-content: flex-end;
   padding: 22px max(20px, env(safe-area-inset-right)) max(26px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
@@ -39,6 +39,7 @@
   position: absolute; inset: 0; z-index: -1; display: block;
   width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%;
 }
+@media (min-width:641px){.ledger{width:390px;min-height:min(100dvh,844px)}}
 .sheet {
   max-width: 390px; margin-inline: auto;
   width: 100%; padding: 16px 18px; border: 2px solid #785a32;
