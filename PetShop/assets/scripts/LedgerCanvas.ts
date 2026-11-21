@@ -241,17 +241,17 @@ export function press(parent: Node, name: string, title: string, x: number, y: n
     return n;
 }
 
-export function animalFilters(c:PageCanvas,field:'品种'|'物种',second:'品种'|'成长状态'='成长状态',compact=false):void {
+export function animalFilters(c:PageCanvas,field:'品种'|'物种',second:'品种'|'成长状态'='成长状态'):void {
     const groups=(c.p.filters||[]).filter(group=>group.length);
     if(!groups.length)return;
-    const gap=8,h=compact?34:44,y=c.slot(h,compact?8:10),w=(c.inner-gap*(groups.length-1))/groups.length;
+    const gap=8,h=34,y=c.slot(h,8),w=(c.inner-gap*(groups.length-1))/groups.length;
     const fields:FilterField[]=groups.map((options,i)=>{
         const current=options.find(a=>a.active)||options[0];
         const x=-c.inner/2+w/2+i*(w+gap);
         const title=i?second:field;
         const anchor=frame(c.body,title==='成长状态'?'GrowthStageFilter':title==='品种'?'BreedFilter':'SpeciesFilter',x,y,w,h,'#FFF1D2','#B39665',false);
         const label=title+'　'+current.label;
-        setTextWeight(caption(anchor,'Caption',label,-5,0,w-28,h-2,compact?13:14,'#29483E'),true);
+        setTextWeight(caption(anchor,'Caption',label,-5,0,w-28,h-2,13,'#29483E'),true);
         const arrow=box(anchor,'Arrow',w/2-16,-1,10,8);
         for(let j=0;j<3;j++)solidRect(arrow,-5+2*j,2-2*j,10-4*j,2,'#6A583C');
         tap(anchor,()=>c.ui.openFilter(fields,i));
@@ -345,6 +345,7 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
     const counter=counters[key==='sale'?String(args.channel):key] || (key==='sale'&&args.channel==='order'?'orders':'');
     const paths=new Set<string>();
     if(page.art)paths.add(stageArt(page.art, page.stage || ''));
+    if(key==='orders')for(const row of page.rows||[])if(row.art)paths.add(row.art);
     if(['pair','pairConfirm'].includes(page.presentation?.kind||''))paths.add('rooms/breeding-room');
     for(const pageArt of page.visual?.openingBooklet??[])paths.add(pageArt.art);
     if(counter)paths.add('shop-modules/'+counter);

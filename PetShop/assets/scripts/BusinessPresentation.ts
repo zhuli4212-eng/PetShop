@@ -41,9 +41,11 @@ function orders(c:PageCanvas):void {
         const v=r.visual;
         if(!v?.choices){info(c,{...r,...(!c.p.guide&&{art:'shop-modules/order-clock'})},i);return;}
         const h=155,n=card(c,'Order'+i,h),w=c.inner-20;
-        text(n,'Name',v.name||'收养委托',-46,h/2-22,w-92,25,16,ink,'left',true);
+        picture(n,'OrderIcon',r.art||'shop-modules/order-neighbor-a',-w/2+28,45,60,60);
+        const textLeft=-w/2+66,titleWidth=w-154;
+        text(n,'Name',v.name||'收养委托',textLeft+titleWidth/2,h/2-22,titleWidth,25,16,ink,'left',true);
         text(n,'Slot','第 '+(i+1)+' 槽',w/2-40,h/2-22,80,24,12,brown,'right');
-        text(n,'Condition',v.condition||r.text||'',0,31,w,24,15);
+        text(n,'Condition',v.condition||r.text||'',textLeft+(w-66)/2,31,w-66,28,14);
         const pill=box(n,'Difficulty',-w/2+43,3,86,23,'#EED8AB');
         text(pill,'Label',(v.difficulty||'')+' · ×'+v.rate,0,0,84,22,12,brown,'center');
         text(n,'Inventory',v.available?'有合适的动物':'暂无符合条件的动物，委托保留',47,3,w-94,24,12,brown);
@@ -347,7 +349,7 @@ function decor(c:PageCanvas):void {
 function visitor(c:PageCanvas):void {
     c.strip(c.p.tabs||[],'OrderTab');
     const w=c.inner,hero=card(c,'GuestPortrait',86);
-    picture(hero,'Portrait','shop-modules/guest',-w/2+44,0,60,76);
+    picture(hero,'Portrait',c.p.art||'shop-modules/guest',-w/2+44,0,60,76);
     text(hero,'Type','特殊来客',38,22,w-94,20,12,brown);
     heading(hero,'Name',c.p.actions?.length?c.p.title:'特殊来客',38,0,w-94,25,18,green);
     text(hero,'Status',c.p.actions?.length?'到店委托':'等候客人上门',38,-21,w-94,20,13,brown);

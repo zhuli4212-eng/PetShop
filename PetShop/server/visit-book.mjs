@@ -37,7 +37,7 @@ export function recordMilestone(s,type,args,now) {
   if(type==='care.unlock')add('room','研究所联络员送来'+SPECIES[args.species].name+'房资料：“这对幼崽有自己的成长周期，看看它们什么时候成年吧。”');
   if(type==='sale.commit' && ['market','order','guest'].includes(args.channel)){
     add('trade','第一笔生意完成了。你在账簿上记下收入，也重新看了看店里留下的动物。');
-    if(args.channel==='guest')add('guest','书店来客收下了心仪的动物。你之前选出的特征，正好合了这次委托。');
+    if(args.channel==='guest')add('guest','来客收下了心仪的动物。你之前选出的特征，正好合了这次委托。');
   }
   if(!lines.length)return;
   if(finishStory(s,now))lines.push(ending);

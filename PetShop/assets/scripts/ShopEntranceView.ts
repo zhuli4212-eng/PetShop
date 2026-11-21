@@ -412,10 +412,22 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
         fixedHeight=Math.min(split.height,available-minListHeight);
         const fixed=box(sheet,'Fixed',0,top,width,split.height);
         fixed.getComponent(UITransform)!.setAnchorPoint(.5,1);
-        const scale=fixedHeight/split.height;
-        fixed.setScale(scale,scale,1);
         const children=content.children.slice();
+        const filters=children.slice(0,split.count).filter(n=>['SpeciesFilter','BreedFilter','GrowthStageFilter'].includes(n.name));
+        const filterTop=filters.length?Math.min(...filters.map(n=>-n.position.y-n.getComponent(UITransform)!.height/2)):split.height;
+        const filterHeight=split.height-filterTop;
+        const scale=(fixedHeight-filterHeight)/filterTop;
+        fixed.setScale(scale,scale,1);
         for(const child of children.slice(0,split.count))child.setParent(fixed);
+        if(filters.length){
+            // Keep dropdowns at their shared size when short screens compress the illustration above them.
+            const row=box(sheet,'FixedFilters',0,top-fixedHeight+filterHeight,width,filterHeight);
+            row.getComponent(UITransform)!.setAnchorPoint(.5,1);
+            for(const child of filters){
+                child.setParent(row);
+                child.setPosition(child.position.x,child.position.y+filterTop,child.position.z);
+            }
+        }
         for(const child of children.slice(split.count))child.setPosition(child.position.x,child.position.y+split.height,child.position.z);
     }
     let vh=available-fixedHeight,listHeight=(footer?.height??extent)-(split?.height||0);

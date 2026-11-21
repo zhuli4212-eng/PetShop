@@ -113,7 +113,7 @@ test('旧档跳过开场；回收不触发首次活体交易，来客兼首售�
   assert.equal(next.journal.length,0);
   recordMilestone(next,'sale.commit',{channel:'guest'},f.now);
   assert.equal(next.visitBook.stories.length,1);
-  assert.match(next.visitBook.stories[0].text,/第一笔[\s\S]*书店/);
+  assert.match(next.visitBook.stories[0].text,/第一笔[\s\S]*来客/);
   recordMilestone(next,'care.unlock',{species:'cat'},f.now);
   recordMilestone(next,'care.unlock',{species:'dog'},f.now);
   assert.equal(next.visitBook.stories.length,2);

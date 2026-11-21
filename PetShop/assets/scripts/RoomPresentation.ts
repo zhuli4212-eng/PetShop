@@ -228,7 +228,7 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     const plaque=frame(scene,'RoomCount',c.width/2-countW/2-10,-c.width*9/32+16,countW,25,'#294C40','#BB965E',true);
     heading(plaque,'Caption',countText,0,0,countW-6,23,13,'#FFF0C4',true);
     guideNote(c);
-    if(!c.p.guide)animalFilters(c,'品种','成长状态',true);
+    if(!c.p.guide)animalFilters(c,'品种','成长状态');
     c.startList();
     all.forEach((a,i)=>rosterLine(c,a,i));
     if(!all.length)note(c,c.p.empty||'当前筛选下没有动物。');
@@ -452,7 +452,7 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     section(c,'选择亲本','成年或老年 · 一公一母');
     guideNote(c);
     c.startList();
-    animalFilters({...c,p:{...c.p,filters:c.p.filters?.slice(1)}},'品种','成长状态',true);
+    animalFilters({...c,p:{...c.p,filters:c.p.filters?.slice(1)}},'品种','成长状态');
     const candidates=m.candidates!;
     candidates.forEach((p,i)=>{
         const key=p.sex==='母'?'mother':'father',active=parents.some(v=>v?.id===p.id);
