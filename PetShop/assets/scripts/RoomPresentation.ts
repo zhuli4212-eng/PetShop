@@ -451,8 +451,8 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     }
     section(c,'选择亲本','成年或老年 · 一公一母');
     guideNote(c);
-    c.startList();
     animalFilters({...c,p:{...c.p,filters:c.p.filters?.slice(1)}},'品种','成长状态');
+    c.startList();
     const candidates=m.candidates!;
     candidates.forEach((p,i)=>{
         const key=p.sex==='母'?'mother':'father',active=parents.some(v=>v?.id===p.id);
