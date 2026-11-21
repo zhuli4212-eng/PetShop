@@ -5,8 +5,8 @@ import { preloadGameResources } from './__PETSHOP_RESOURCE_PRELOAD__';
 
 const byId = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const setup = params.has('set-password');
-const register = !setup && params.has('register');
+let setup = params.has('set-password');
+let register = !setup && params.has('register');
 const nameKey = 'petshop.trial.lastUsername';
 const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const allowedSites = __PETSHOP_ACCOUNT_ORIGINS__;
@@ -26,7 +26,7 @@ const ledger = accountLayer.querySelector('.ledger');
 let completeLogin;
 let setLoginMusicActive;
 let accountReady;
-const submitText = setup ? '设置密码并登录' : register ? '注册并开店' : '登录店铺';
+let submitText;
 
 function statusError(message) {
   byId('error').hidden = !message;
@@ -136,29 +136,55 @@ async function showAccountForm() {
   }
   byId('heading').textContent = setup ? '设置密码' : register ? '注册店主' : '店主登录';
   document.title = byId('heading').textContent + ' · 麦穗宠物店';
-  byId(register || setup ? 'login-tab' : 'register-tab').hidden = false;
+  byId('login-tab').hidden = !register && !setup;
+  byId('register-tab').hidden = register || setup;
   byId('set-password-link').hidden = register || setup;
   byId('password-label').textContent = setup ? '新密码' : '密码';
   byId('password-hint').hidden = !(register || setup);
   passwordInput.autocomplete = register || setup ? 'new-password' : 'current-password';
+  submitText = setup ? '设置密码并登录' : register ? '注册并开店' : '登录店铺';
   submit.textContent = submitText;
-  if (!register) {
+  if (!register && !nameInput.value) {
     try { nameInput.value = localStorage.getItem(nameKey) || ''; } catch {}
   }
-  if (setup) {
-    byId('setup-proof').hidden = false;
-    codeInput.disabled = false;
-    codeInput.required = true;
-  }
+  byId('setup-proof').hidden = !setup;
+  byId('legacy-choice').hidden = true;
+  byId('old-proof-choice').hidden = true;
+  codeInput.disabled = !setup;
+  codeInput.required = setup;
   if (register || setup) {
     try {
       const legacy = await readLegacyShop();
       if (register) byId('legacy-choice').hidden = !legacy;
-      else byId('old-proof-choice').hidden = !legacyProof(legacy);
+      else if (setup) byId('old-proof-choice').hidden = !legacyProof(legacy);
     } catch { statusError('暂时无法读取浏览器里的旧店，请刷新重试。'); }
   }
   byId('anonymous').hidden = false;
 }
+
+function switchAccountForm(search, push) {
+  if (submit.disabled || accountLayer.hidden) return;
+  const next = new URLSearchParams(search);
+  setup = next.has('set-password');
+  register = !setup && next.has('register');
+  if (push) history.pushState(null, '', entry + search);
+  passwordInput.value = '';
+  codeInput.value = '';
+  proofChoice.checked = false;
+  byId('import-legacy').checked = false;
+  byId('code-field').hidden = false;
+  statusError('');
+  void showAccountForm().catch(error => statusError(error.message));
+}
+
+for (const id of ['register-tab', 'login-tab', 'set-password-link']) {
+  byId(id).addEventListener('click', event => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    switchAccountForm(new URL(byId(id).href).search, true);
+  });
+}
+window.addEventListener('popstate', () => switchAccountForm(location.search, false));
 
 window.petshopBeforeShop = showEntry => {
   if (accountReady) return accountReady;

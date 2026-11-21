@@ -342,6 +342,7 @@ export async function prepareIllustration(key:string, args:Args, page:LedgerPage
     const counter=counters[key==='sale'?String(args.channel):key] || (key==='sale'&&args.channel==='order'?'orders':'');
     const paths=new Set<string>();
     if(page.art)paths.add(stageArt(page.art, page.stage || ''));
+    if(['pair','pairConfirm'].includes(page.presentation?.kind||''))paths.add('rooms/breeding-room');
     for(const pageArt of page.visual?.openingBooklet??[])paths.add(pageArt.art);
     if(counter)paths.add('shop-modules/'+counter);
     if(key==='show'&&page.visual?.pet)paths.add(stageArt(page.visual.pet,page.visual.petStage||''));

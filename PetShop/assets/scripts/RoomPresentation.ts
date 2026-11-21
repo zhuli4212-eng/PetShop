@@ -227,7 +227,8 @@ function inRoom(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     c.actions(extras.filter(r=>r.link?.page==='litter'||r.link?.page==='roomReceipt').map(r=>({...r.link!,label:r.title})));
 }
 function locked(c:PageCanvas,m:RoomPage):void {
-    tabs(c,true);
+    if(c.key==='breed')animalFilters(c,'物种');
+    else tabs(c,true);
     const scene=roomScene(c,c.p.art!,[],m.species!,!!c.p.visual?.openingRoom);
     c.startList();
     if(c.p.visual?.openingRoom){
@@ -385,17 +386,23 @@ function compareParents(c:PageCanvas,traits:NonNullable<RoomPage['parentTraits']
         });
     });
 }
-function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
-    const hasConfirm=m.kind==='pairConfirm',card=book(c,'ParentPair',100),parents=m.parents!;
-    const x=c.inner*.26;
+function pairingScene(c:PageCanvas,parents:(Animal|null)[]):void {
+    c.slot(-(c.width-c.inner)/2,0);
+    const h=c.width*9/16;
+    const scene=box(c.body,'ParentPair',0,c.slot(h,10),c.width,h);
+    picture(scene,'Room','rooms/breeding-room',0,0,c.width,h);
     ['选择母本','选择父本'].forEach((label,i)=>{
-        const px=i?x:-x,animal=parents[i];
-        const holder=frame(card,'Slot'+i,px,11,62,58,animal?'#ECDEB8':'#FCF0CE','#C5AA7E');
-        if(animal)animalArt(holder,animal,0,0,58,54);
-        else caption(holder,'Sex',i?'♂':'♀',0,0,55,51,24,'#AC9470',true);
-        heading(card,'Name'+i,animal?animal.name:label,px,-30,c.inner*.42,22,14,ink,true);
+        const x=c.width*(i ? .73 : .27)-c.width/2,animal=parents[i],size=c.width*.23;
+        const holder=box(scene,'Slot'+i,x,h*(.5-.745),size,size);
+        if(animal)floorArt(holder,animal,size,0);
+        else caption(holder,'Sex',i?'♂':'♀',0,12,55,44,26,'#65462D',true);
+        const plate=frame(scene,'NamePlate'+i,x,h*(.5-.91),c.width*.38,25,'#F8E9C9','#AB8654',true);
+        heading(plate,'Name'+i,animal?animal.name:label,0,0,c.width*.38-8,22,13,ink,true);
     });
-    caption(card,'Cross','×',0,0,34,46,24,'#987951',true);
+}
+function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
+    const hasConfirm=m.kind==='pairConfirm',parents=m.parents!;
+    pairingScene(c,parents);
     if(hasConfirm) {
         section(c,'核对亲本','五项评分与缺陷等级');
         c.startList();
@@ -419,6 +426,7 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
     section(c,'选择亲本','成年或老年 · 一公一母');
     guideNote(c);
     c.startList();
+    animalFilters(c,'物种','品种');
     const candidates=m.candidates!;
     candidates.forEach((p,i)=>{
         const key=p.sex==='母'?'mother':'father',active=parents.some(v=>v?.id===p.id);
@@ -427,15 +435,15 @@ function pairing(c:PageCanvas,m:RoomPage,rows:AnimalRow[]):void {
             c.ui.choose({page:'breed',args,replace:true});
         },active?'已选':'选择',i===candidates.length-1,active,{page:'pet',args:{id:p.id}});
     });
-    if(!candidates.length)note(c,'当前没有可配对的亲本。');
+    if(!candidates.length)note(c,'当前筛选下没有可配对的亲本。');
     c.startFooter();
     const dock=frame(c.body,'PairDock',0,c.slot(76,8),c.inner,76,'#F7E7C5','#AA9169');
     caption(dock,'Rule',m.species+'一生仅能繁育一窝，预计 '+(m.waitText||m.wait+' 分钟')+'后出生。',0,24,c.inner-20,20,13,muted);
     press(dock,'Review','核对亲本',0,-11,c.inner-20,()=>{if(m.confirm)c.ui.choose(m.confirm);},true,!m.confirm);
     if(!c.p.guide?.next)c.actions((c.p.actions||[]).filter(a=>a.page==='litter'));
-    tabs(c);
 }
 function breeding(c:PageCanvas,m:RoomPage):void {
+    animalFilters(c,'物种');
     roomScene(c,c.p.art!,m.parents!.filter((a):a is Animal=>!!a),m.species!,true,true);
     c.startList();
     section(c,'这窝正在培育','繁育台已占用');
@@ -446,7 +454,6 @@ function breeding(c:PageCanvas,m:RoomPage):void {
     caption(card,'Parents',m.parents!.filter(a=>a).map(a=>a!.name).join(' × '),0,-32,w,24,13,muted);
     guideNote(c);
     c.startFooter();
-    tabs(c);
     buttons(c,c.p.actions||[]);
 }
 

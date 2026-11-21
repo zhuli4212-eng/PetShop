@@ -150,30 +150,38 @@ function detail(s,a,now) {
 }
 function pairPage(s,a,now) {
   const species=speciesKey(a),room=s.rooms[species],cfg=SPECIES[species];
-  if(!room||(species==='rabbit'&&rabbitWaitingForOpening(s))) return closedRoom(s,species,'breed',now);
+  const speciesFilter=options(s,'breed',species).map(choice=>({...choice,
+    label:SPECIES[choice.args.species].name+(choice.locked?' · 未开放':''),args:{...choice.args,picking:true}}));
+  if(!room||(species==='rabbit'&&rabbitWaitingForOpening(s)))
+    return {...closedRoom(s,species,'breed',now),filters:[speciesFilter]};
   if(room.job) return {title:'繁育台',art:cfg.art,subtitle:'繁育进行中',
     presentation:{kind:'breeding',species:cfg.name,endsAt:room.job.endsAt,remaining:room.job.endsAt-now,
       parents:[room.job.mother,room.job.father].map(p=>specimen(s,p,now))},
     rows:[{title:room.job.mother.name+' × '+room.job.father.name,text:'预计 '+describeRemaining(room.job.endsAt-now)+' 后出生。离开店铺也会继续计时。'}],
-    tabs:options(s,'breed',species),actions:[go('前往动物房间','rooms',{species})]};
+    tabs:options(s,'breed',species),filters:[speciesFilter],actions:[go('前往动物房间','rooms',{species})]};
   const choices=s.pets.filter(p=>p.species===species&&canBreed(s,p,now))
     .sort((a,b)=>Number(b.retained===true)-Number(a.retained===true));
   const mother=choices.find(p=>p.id===a.mother&&p.sex==='母'),father=choices.find(p=>p.id===a.father&&p.sex==='公');
-  const args={species,...(mother?{mother:mother.id}:{}),...(father?{father:father.id}:{})};
+  const breed=cfg.breeds.includes(a.breed)||a.breed==='mixed'?a.breed:undefined;
+  const args={species,...(breed&&{breed}),...(mother?{mother:mother.id}:{}),...(father?{father:father.id}:{})};
   const guide=mother&&father&&a.useGuide===true&&room.items.guide>0&&!a.picking?guideField(s,mother,father):-1;
   const selection=validSelection(room,a.selection)&&!a.picking?a.selection:null;
   const [rare=0,mutation=0]=s.research?.[species]??[];
   const preview=mother&&father?mutationPreview(mother,father,guide,mutation,!!room.mutationEnabled):undefined;
   if(!mother||!father||a.picking) {
-    const sex=!mother?'母':'公',pool=choices.filter(p=>p.sex===sex);
+    const shown=choices.filter(p=>!breed||(p.mixed?'mixed':p.breedKey)===breed);
+    const sex=!mother?'母':'公',pool=shown.filter(p=>p.sex===sex);
+    const breeds=[...cfg.breeds,...(choices.some(p=>p.mixed)||breed==='mixed'?['mixed']:[])];
+    const breedFilter=[[undefined,'全部'],...breeds.map(key=>[key,key==='mixed'?'杂交':BREEDS[key].name])]
+      .map(([key,label])=>({...go(label,'breed',{...args,breed:key??null,picking:true}),active:key===breed}));
     return {title:'繁育台',art:'shop-modules/breeding-guide',subtitle:'挑选一公一母 · 目前可配 '+choices.length+' 只',
       presentation:{kind:'pair',species:cfg.name,wait:cfg.wait,parents:[mother,father].map(p=>p?specimen(s,p,now):null),mutationPreview:preview,
-        candidates:choices.map(p=>specimen(s,p,now)),confirm:mother&&father?go('核对亲本','breed',args):null},
+        candidates:shown.map(p=>specimen(s,p,now)),confirm:mother&&father?go('核对亲本','breed',args):null},
       rows:[
         {title:mother?'母本：'+mother.name:father?'父本：'+father.name:'选择亲本',text:'点选一只可配的'+sex+'性作为'+(sex==='母'?'母本':'父本')+'。'},
         ...pool.map(p=>petRow(s,p,now,'breed',{...args,[sex==='母'?'mother':'father']:p.id})),
         ...(!pool.length?[{title:'暂无合适的'+sex+'性亲本',text:'成年、老年且未繁育的空闲动物可参与配对。'}]:[])],
-      tabs:options(s,'breed',species),actions:[...(room.lastLitter&&!room.lastLitter.viewed?[go(room.lastLitter.bornAt===s.onboarding?.firstLitterAt?'查看首窝':'查看最近一窝','litter',{species})]:[]),go('查看房间','rooms',{species})]};
+      tabs:options(s,'breed',species),filters:[speciesFilter,breedFilter],actions:[...(room.lastLitter&&!room.lastLitter.viewed?[go(room.lastLitter.bornAt===s.onboarding?.firstLitterAt?'查看首窝':'查看最近一窝','litter',{species})]:[]),go('查看房间','rooms',{species})]};
   }
   const registration=mixedOffspring(mother,father)?'杂交':BREEDS[mother.breedKey].name;
   const summary=['确认让 '+mother.name+' 和 '+father.name+' 使用一生唯一的繁育机会？','后代品种 '+registration];
@@ -181,12 +189,18 @@ function pairPage(s,a,now) {
   if(rare>0)research.push('稀有率+'+(rare*5)+'%');
   if(room.mutationEnabled&&mutation>0)research.push('属性提升+'+(mutation*3)+'%');
   if(research.length)summary.push('研究加成 '+research.join('，'));
+  const selectedItems=[];
   if(guide>=0){
     const same=mother.traits[guide].grade===father.traits[guide].grade;
     summary.push('选育指导单抽中「'+fields[guide]+'」。'+(same?'父母同档，照常遗传。':'每只幼崽有 80% 的机会从较高档起算，之后自然升降。')+'整窝显示绿色「优选」。');
+    selectedItems.push({title:'选育指导单 · '+fields[guide],text:(same?'双亲同档，照常遗传。':'双亲异档时，80% 从较高档起算，再自然升降。')+'整窝显示绿色「优选」。'});
   }
-  if(selection)summary.push(selectionItemNames[selection.item]+'：随机一只幼崽的'+selection.fields.map(i=>fields[i]).join('、')+
-    '保留双亲较高等级，并显示蓝色「优选」。');
+  if(selection){
+    const selectedFields=selection.fields.map(i=>fields[i]).join('、');
+    summary.push(selectionItemNames[selection.item]+'：随机一只幼崽的'+selectedFields+'保留双亲较高等级，并显示蓝色「优选」。');
+    selectedItems.push({title:selectionItemNames[selection.item]+' · '+selectedFields,
+      text:'随机一只幼崽保留所选项的双亲较高等级，显示蓝色「优选」。'});
+  }
   const breedingArgs={...args,...(guide>=0&&{useGuide:true}),...(selection&&{selection})};
   if(mother.retained||father.retained)summary.push('幼体出生时，双亲自动取消留种。');
   return {title:'确认配对',subtitle:mother.name+' × '+father.name,art:cfg.art,animals:[petArt(mother),petArt(father)],animalStages:[stageOf(mother,now),stageOf(father,now)],
@@ -194,7 +208,7 @@ function pairPage(s,a,now) {
       guide:{count:room.items.guide,index:guide},mutationPreview:preview,
       parentTraits:fields.map((name,i)=>({name,...Object.fromEntries([['mother',mother],['father',father]].map(([side,pet])=>
         [side,{...pet.traits[i],label:i===5?defectDisplayLabel(pet.traits[i].grade):(pet.traits[i].label||'—')}]))}))},
-    rows:[{title:'一生仅一次繁育',text:'开始后不可取消或换亲本。等待 '+cfg.wait+' 分钟，预计 '+cfg.min+'–'+(cfg.min+cfg.litter.length-1)+' 只。'}],
+    rows:[{title:'一生仅一次繁育',text:'开始后不可取消或换亲本。等待 '+cfg.wait+' 分钟，预计 '+cfg.min+'–'+(cfg.min+cfg.litter.length-1)+' 只。'},...selectedItems],
     actions:[act('开始繁育','care.breed',breedingArgs,summary.join('\n'),'breed',{species}),
       go('取消繁育','breed',{...args,picking:true}),
       act(room.mutationEnabled?'关闭五维加成':'启用五维加成','care.toggle',{species,enabled:!room.mutationEnabled},undefined,'breed',breedingArgs),
@@ -213,7 +227,7 @@ function breedingItems(s,a,now) {
   const chosen=picked&&Array.isArray(a.selection.fields)
     ? [...new Set(a.selection.fields.filter(i=>Number.isInteger(i)&&i>=0&&i<5))].slice(0,count) : [];
   const selection=picked?{item,fields:chosen}:null;
-  const initial={species,mother:start.args.mother,father:start.args.father};
+  const initial={species,mother:start.args.mother,father:start.args.father,...(start.args.breed&&{breed:start.args.breed})};
   const current={...initial,useGuide,selection};
   const guideTitle=(useGuide?'✓ ':'')+'选育指导单 · 持有 '+room.items.guide+' 张';
   const rows=[{
