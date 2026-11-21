@@ -4,6 +4,7 @@ import type { RoomFloor } from './RoomFloor';
 import { playTap } from './ShopAudio';
 import { allowsGuideTap } from './ShopNavigation';
 import { setTextFont, setTextStyle, setTextWeight } from './ShopTypography';
+import { petPortraitBounds } from './PetPortraitBounds';
 
 export const paper = {
     ink: '#443A29', muted: '#6C5E46', page: '#F6E9CB', card: '#FFF1D2',
@@ -181,7 +182,7 @@ export function animalSummary(c:PageCanvas,parent:Node,a:Animal,width:number,top
     const left=-width/2+checkWidth,textLeft=left+69;
     const textWidth=width-checkWidth-69-animalDetailsWidth-21;
     const thumb=box(parent,'Thumb',left+34,top-34,50,48,disabled?'#DBD6C8':'#ECDEB8');
-    const portrait=picture(thumb,'Portrait',a.art,0,0,48,46,a.stage);
+    const portrait=picture(thumb,'Portrait',a.art,0,0,48,46,a.stage,true);
     if(disabled)portrait.getComponent(Sprite)!.grayscale=true;
     if(a.retained)stockBadge(parent,left+28,top-13);
     caption(parent,'ScoreLabel','评分',left+23,top-69,23,18,11,'#5A523B').lineHeight=16;
@@ -312,9 +313,10 @@ function stageArt(art: string, stage: string): string {
 }
 
 export function picture(parent: Node, name: string, art: string, x: number, y: number, w: number, h: number,
-                        stage = ''): Node {
+                        stage = '',fillFrame=false): Node {
     const resolved = stageArt(art, stage);
-    const size = stage === '成长' ? .85 : stage === '老年' ? .94 : 1;
+    const bounds=fillFrame?petPortraitBounds[resolved]:undefined;
+    const size = bounds?1:stage === '成长' ? .85 : stage === '老年' ? .94 : 1;
     const n = box(parent, name, x, y - (1-size)*h*.36, 1, 1);
     const sp = n.addComponent(Sprite);
     sp.sizeMode = Sprite.SizeMode.CUSTOM;
@@ -322,8 +324,9 @@ export function picture(parent: Node, name: string, art: string, x: number, y: n
         if (!isValid(n, true)) return;
         sp.spriteFrame = image;
         const {width, height} = image.originalSize;
-        const scale = Math.min(w/width, h/height) * size;
+        const scale = Math.min(w/(bounds?bounds[2]-bounds[0]:width),h/(bounds?bounds[3]-bounds[1]:height)) * size;
         n.getComponent(UITransform)!.setContentSize(width*scale, height*scale);
+        if(bounds)n.setPosition(x-(bounds[0]+bounds[2]-width)*scale/2,y+(bounds[1]+bounds[3]-height)*scale/2);
     };
     const path=resolved+'/spriteFrame';
     const cached=resources.get(path,SpriteFrame);

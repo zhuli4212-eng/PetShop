@@ -145,14 +145,21 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
 }
 
 function account(ctx: PageCanvas): boolean {
-    const {key,p,body,inner,slot,ui}=ctx;
+    const {key,p,body,width,inner,slot,ui}=ctx;
     if(key==='audioSettings'){
         ctx.actions(p.actions||[],1);
         return true;
     }
     if(key==='login') {
-        const bannerHeight=Math.min(inner*1.5,300);
-        if(p.art)picture(body,'Shopfront',p.art,0,slot(bannerHeight),inner,bannerHeight);
+        if(p.art){
+            slot(-(width-inner)/2,0);
+            const bannerHeight=width*9/16;
+            const scene=box(body,'AccountScene',0,slot(bannerHeight,10),width,bannerHeight,paper.page);
+            const mask=scene.addComponent(Mask);
+            mask.type=Mask.Type.SPRITE_STENCIL;
+            mask.spriteFrame=flatSpriteFrame();
+            picture(scene,'Shopfront',p.art,0,width/12,width,width*1.5);
+        }
         heading(body,'AccountHeading','小店账号',0,slot(26,6),inner,26,18,paper.ink);
         ctx.startList();
         const rows=p.rows||[], id=rows.find(r=>r.title==='店主编号'), assets=rows.find(r=>r.title==='店铺资产');
