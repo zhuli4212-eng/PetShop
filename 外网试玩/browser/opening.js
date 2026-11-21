@@ -5,6 +5,23 @@ export function playOpening(opening, login) {
   const timers = [];
   let finished = false;
 
+  function placeAnimals() {
+    const image = stage.querySelector('.intro-bg');
+    if (!image.naturalWidth || !image.naturalHeight) return;
+    const {width,height} = stage.getBoundingClientRect();
+    const scale = Math.max(width/image.naturalWidth,height/image.naturalHeight);
+    const w=image.naturalWidth*scale,h=image.naturalHeight*scale;
+    const wide=image.currentSrc.includes('wide');
+    const animals=stage.querySelector('.intro-animals');
+    animals.style.left=((width-w)/2+w*(wide ? .55 : .62))+'px';
+    animals.style.top=((height-h)*.2+h*(wide ? .84 : .635))+'px';
+    const frame=stage.querySelector('.intro-pet img').naturalHeight;
+    animals.style.setProperty('--pet-size',(frame*1.5*scale)+'px');
+  }
+  const resizeObserver=new ResizeObserver(placeAnimals);
+  resizeObserver.observe(stage);
+  stage.querySelector('.intro-bg').addEventListener('load',placeAnimals);
+
   function later(delay, action) {
     const timer = setTimeout(action, delay);
     timers.push(timer);
@@ -24,6 +41,7 @@ export function playOpening(opening, login) {
   function finish() {
     if (finished) return;
     finished = true;
+    resizeObserver.disconnect();
     timers.forEach(clearTimeout);
     opening.classList.add('intro-out');
     setTimeout(() => {
@@ -43,6 +61,7 @@ export function playOpening(opening, login) {
   Promise.all([...stage.querySelectorAll('img')].map(image => image.decode())).then(() => {
     if (finished) return;
     clearTimeout(assetTimeout);
+    placeAnimals();
     if (reducedMotion) {
       stage.classList.add('intro-s-title');
       later(1600, finish);

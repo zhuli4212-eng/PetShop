@@ -147,7 +147,16 @@ test('正式 HTTP 入口传递读信回执，跳过引导后可以从登记簿�
   assert.equal(skipped.letter,null);
   assert.ok((await request('page',{page:'login'})).page.rows.some(r=>r.link?.page==='openingGuide'));
   const archive=await request('page',{page:'openingGuide'});
-  assert.equal(archive.page.title,'旧店交接');
+  assert.equal(archive.page.title,'交接信');
+  assert.equal(archive.page.visual.openingBooklet.length,9);
+  assert.equal(archive.page.visual.openingBooklet[0].art,'onboarding/letter-0');
+  assert.match(archive.page.visual.openingBooklet[1].caption,/免费开放兔房/);
   assert.deepEqual(archive.page.readNoteIds,[]);
   assert.deepEqual(f.store.state.care.claimIds,[]);
+  assert.equal(f.store.state.onboarding,undefined);
+  assert.equal(f.store.state.pets.length,2);
+  assert.equal(f.store.state.coins,680);
+  f.restart();
+  assert.equal(f.store.page('openingGuide',{}).page.visual.openingBooklet.length,9);
+  assert.ok(f.store.page('login',{}).page.rows.some(r=>r.link?.page==='openingGuide'));
 });

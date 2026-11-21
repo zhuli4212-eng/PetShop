@@ -1,6 +1,6 @@
 #local-login {
   position: fixed; inset: 0; z-index: 2;
-  display: grid; place-items: center;
+  overflow-y: auto;
   background: #202c26; color: #2e493b;
   font: 16px/1.5 "Microsoft YaHei", "PingFang SC", sans-serif;
   text-align: left;
@@ -9,15 +9,16 @@
 #local-login .ledger {
   width: 100%; min-height: 100dvh;
   position: relative; isolation: isolate;
-  display: flex; flex-direction: column; justify-content: center; gap: 12px;
+  display: flex; flex-direction: column; justify-content: flex-end;
   box-sizing: border-box; padding: 20px 20px max(24px, env(safe-area-inset-bottom));
   background: #805032;
 }
 #local-login .shopfront {
-  width: 100%; max-height: max(160px, calc(100dvh - 200px)); object-fit: contain;
-  image-rendering: pixelated;
+  position: absolute; inset: 0; z-index: -1; display: block;
+  width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%;
 }
 #local-login .sheet {
+  width: 100%; max-width: 390px; margin-inline: auto; box-sizing: border-box;
   padding: 16px 18px; border: 2px solid #785a32;
   background: #fff0d0; box-shadow: inset 0 0 0 2px #e6c990, 0 3px 0 #503b26;
 }
@@ -31,6 +32,3 @@
   box-shadow: 0 2px 0 #263c2f; font-weight: 700;
 }
 #local-login button:focus-visible, .intro-skip:focus-visible { outline: 3px solid #995022; outline-offset: 2px; }
-@media (min-width: 530px) {
-  #local-login .ledger { width: clamp(310px, 46.21svh, 390px); min-height: min(100dvh, 844px); }
-}

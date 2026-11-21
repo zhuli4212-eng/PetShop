@@ -121,7 +121,7 @@ function openingPage(revisit) {
 }
 export function visitHistoryPage(s,key,now,access,args={}) {
   if(key==='openingGuide'||key==='onboarding'){
-    const page=s.onboarding?openingBooklet():openingPage(true);
+    const page=openingBooklet();
     return {...page,readNoteIds:s.visitBook.opening?['opening']:[]};
   }
   if(key==='lastVisit'&&s.visitBook.lastReport)return summaryPage(s,s.visitBook.lastReport,now,access);

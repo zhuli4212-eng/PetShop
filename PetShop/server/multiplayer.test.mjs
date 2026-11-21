@@ -167,7 +167,7 @@ test('公网启动等待固定来源，Cookie 带 Secure，来路和多人路由
   assert.equal(range.status,206);
   assert.equal(range.headers.get('content-range'),'bytes 0-1/'+clip.byteLength);
   assert.deepEqual(new Uint8Array(await range.arrayBuffer()),clip.subarray(0,2));
-  for(const asset of ['/auth/login.css','/auth/login.js','/auth/game-account.js','/auth/shopfront.png'])
+  for(const asset of ['/auth/login.css','/auth/login.js','/auth/game-account.js','/auth/shopfront.png','/auth/shopfront-wide.png'])
     assert.equal((await r(asset)).status,200);
   const form={data:{username:'试用店铺'}};
   assert.equal((await r('/auth/register',{...form,origin:null})).status,403);

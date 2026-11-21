@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loginArtFile, loginMusicFile } from '../server/multiplayer-login.mjs';
+import { loginArtFile, loginWideArtFile, loginMusicFile } from '../server/multiplayer-login.mjs';
 import { installLocalTestRuntime } from './local-test/package.mjs';
 
 const localTest = process.argv[3] === '--local-test';
@@ -60,6 +60,7 @@ await Promise.all([
   cp(path.join(game, 'tools/local-preview-entry.css'), path.join(splash, 'entry.css')),
   cp(path.join(game, 'tools/local-preview-entry.mjs'), path.join(splash, 'entry.mjs')),
   cp(loginArtFile, path.join(splash, 'shopfront.png')),
+  cp(loginWideArtFile, path.join(splash, 'shopfront-wide.png')),
   cp(loginMusicFile, path.join(splash, 'music.mp3')),
   cp(path.join(game, 'server/login-music.mjs'), path.join(splash, 'login-music.mjs')),
   cp(path.join(game, 'assets/resources/fonts/Sans-LICENSE.txt'), path.join(output, 'Sans-LICENSE.txt')),
@@ -70,7 +71,10 @@ if (localTest) await installLocalTestRuntime(runtime, web);
 const entryMarkup = `
 <div id="local-login" hidden>
   <main class="ledger">
-    <img class="shopfront" src="./local-opening/shopfront.png" alt="">
+    <picture>
+      <source media="(min-aspect-ratio: 1/1)" srcset="./local-opening/shopfront-wide.png">
+      <img class="shopfront" src="./local-opening/shopfront.png" alt="">
+    </picture>
     <section class="sheet" aria-labelledby="heading">
       <header class="shop-brand">
         <h1 id="heading">店主登录</h1>
@@ -81,7 +85,9 @@ const entryMarkup = `
     </section>
   </main>
 </div>
-${opening.replaceAll('./opening/', './local-opening/opening/')}
+${opening.replaceAll('./opening/shopfront.png', './local-opening/shopfront.png')
+  .replaceAll('./opening/shopfront-wide.png', './local-opening/shopfront-wide.png')
+  .replaceAll('./opening/', './local-opening/opening/')}
 <script>
   window.petshopBeforeShop = onVisible => import('./local-opening/entry.mjs')
     .then(({ enterLocalShop }) => enterLocalShop(onVisible));

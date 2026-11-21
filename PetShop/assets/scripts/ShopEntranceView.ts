@@ -45,9 +45,9 @@ function canvas(content: Node, width: number, key: string, args: Args, p: Ledger
     const inner=width-2*pad;
     const gap=width<=350?8:10;
     // These pages open with an edge-to-edge illustration immediately below the header.
-    const startsWithScene=['orders','market','recycle','research','lab','credits','orderDesk'].includes(key)
+    const startsWithScene=['orders','market','recycle','research','lab','credits','orderDesk','decor','show','show.board','show.tier'].includes(key)
         || (key==='sale' && ['order','market','recycle'].includes(args.channel))
-        || (key==='shelf' && p.art==='shop-modules/lab');
+        || (['shelf','services'].includes(key) && p.art==='shop-modules/lab');
     let cursor=startsWithScene&&!modal?0:pad;
     const slot=(h:number,after=gap)=>{const y=-cursor-h/2;cursor+=h+after;return y;};
     const boundaries:{height:number;count:number}[]=[];
@@ -402,14 +402,17 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
         }
     }
     const available=bodyHeight-footerHeight;
-    const minListHeight=Math.min(152,available*.32);
+    const minListHeight=Math.min(152,available*.25);
     const candidates=layout.boundaries.filter(b=>b.count<content.children.length);
     // Transaction filters and actions stay outside the mask, even on short phones.
-    const split=footer?layout.boundaries[layout.boundaries.length-1]:modal?undefined:
+    const preferred=footer?layout.boundaries[layout.boundaries.length-1]:modal?undefined:
         candidates.slice().reverse().find(b=>b.height<=available-minListHeight)||candidates[0];
+    // If a short screen cannot hold the fixed section, scroll more content instead of shrinking its scene.
+    const split=preferred&&(preferred.height<=available-minListHeight?preferred:
+        candidates.slice().reverse().find(b=>b.height<=available-minListHeight));
     let fixedHeight=0;
     if(split) {
-        fixedHeight=Math.min(split.height,available-minListHeight);
+        fixedHeight=split.height;
         const fixed=box(sheet,'Fixed',0,top,width,split.height);
         fixed.getComponent(UITransform)!.setAnchorPoint(.5,1);
         const children=content.children.slice();
@@ -445,7 +448,7 @@ export function drawLedger(parent:Node,p:LedgerPage,height:number,coins:number,u
     area.setContentSize(width,Math.max(vh,listHeight));
     scroll.vertical=listHeight>vh;
     const titles:Record<string,string>={rooms:'动物小屋',research:'研究',login:'账号',profile:'每日签到',pet:'个体档案',
-        collection:'荣誉',show:'赛事',lab:'培育中心',orders:'订单',guest:'订单'};
+        collection:'荣誉',show:'赛事',lab:'培育中心',orders:'订单柜台',guest:'订单柜台'};
     const title=(opts.ready!==false&&titles[key])||(key==='breed'&&p.title==='繁育台'?'繁育':p.title);
     drawHeader(sheet,width,actualHeight,title,coins,ui.back,modal,opts.backToTasks,p.visual?.guideDialog!==undefined);
     if(modal) {

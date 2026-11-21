@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { serveFile } from './main.mjs';
 import { MultiplayerStore } from './multiplayer-store.mjs';
-import { renderMultiplayerLogin, loginStyles, loginScript, loginArtFile, loginMusicFile, gameAccountScript } from './multiplayer-login.mjs';
+import { renderMultiplayerLogin, loginStyles, loginScript, loginArtFile, loginWideArtFile, loginMusicFile, gameAccountScript } from './multiplayer-login.mjs';
 
 const buildDirectory=fileURLToPath(new URL('../build/web-mobile/',import.meta.url));
 const multiplayerData=fileURLToPath(new URL('../local/multiplayer/',import.meta.url));
@@ -160,6 +160,7 @@ export function createMultiplayerServer({publicOrigin,dataDirectory=multiplayerD
       if(route==='/auth/login.js'&&get)return send(req,res,200,'text/javascript; charset=utf-8',loginScript);
       if(route==='/auth/game-account.js'&&get)return send(req,res,200,'text/javascript; charset=utf-8',gameAccountScript);
       if(route==='/auth/shopfront.png'&&get)return send(req,res,200,'image/png',await readFile(loginArtFile));
+      if(route==='/auth/shopfront-wide.png'&&get)return send(req,res,200,'image/png',await readFile(loginWideArtFile));
       if(route==='/auth/login-music.mp3'&&get)return sendLoginMusic(req,res,await readFile(loginMusicFile));
       if(route==='/auth/session'&&get){
         const account=store.session(token)?.account;

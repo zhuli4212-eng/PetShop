@@ -331,10 +331,7 @@ function researchDetail(c:PageCanvas):void {
     dock(c,controls,controls.length-1,controls.length===3?3:2);
 }
 function decor(c:PageCanvas):void {
-    section(c,'装饰小铺','固定位置 · 可摆放或收起');
-    const width=c.inner,height=width*9/16;
-    const n=box(c.body,'Miniature',0,c.slot(height,10),width,height,'#4A3224');
-    picture(n,'Scene','shop-modules/decor-room',0,0,width,height);
+    banner(c,'decor-room','');
     c.startList();
     rows(c).forEach((r,i)=>{
         const w=c.inner,n=card(c,'Decor'+i,60,cream,6),tw=w-151,tx=-w/2+53+tw/2;
