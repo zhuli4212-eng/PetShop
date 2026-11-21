@@ -1,0 +1,886 @@
+{
+  "version": "2026.11.21.10",
+  "gameSourceCommit": "962a1db79707aa001cafc17a862a8600a0b0a341",
+  "deployedAt": "2026-11-21T13:35:12.472069+08:00",
+  "releaseDirectory": "/opt/petshop/release.g2t1g56v",
+  "previousReleaseDirectory": "/opt/petshop/release.jixclwgb",
+  "previousVersion": "2026.11.21.9",
+  "deploymentSha256": "f7c55576876ad4ecd3e8a1aff634d4dabb88ce52bc03dc92aa962eccd82b0cc0",
+  "database": "/var/lib/petshop/shop.sqlite",
+  "sameDatabaseFile": true,
+  "resetPerformed": false,
+  "backup": "/var/lib/petshop/rollback/2026.11.21.10.3evfhdxx/shop-before-deploy.sqlite",
+  "backupSha256": "aaee6fd7a7275a810f5c631a32cbd19730f441237e01aff4a603b3dd34e5d4f2",
+  "backupChecksPassed": true,
+  "snapshotCounts": {
+    "trial_accounts": 17,
+    "trial_sessions": 110,
+    "trial_auth_limits": 2
+  },
+  "servicesNotRestarted": true,
+  "servicePids": {
+    "petshop.service": "38697",
+    "petshop-web.service": "32803"
+  },
+  "diagnosticEntry": "/petshop/gpu-diagnostic.html?probe=21.10",
+  "receipt": "/var/lib/petshop/rollback/2026.11.21.10.3evfhdxx/deployment.json",
+  "region": "cn-hongkong",
+  "currentReleaseSymlink": "/opt/petshop/current",
+  "deploymentArchive": "output/aliyun/petshop-production-20261121.10-hk.tar.gz",
+  "deploymentBytes": 70127979,
+  "previousDeploymentRecord": "output/aliyun/deployment-20261121.9-hk.json",
+  "versionTag": "petshop-v2026.11.21.10",
+  "baselineTag": "production-baseline-2026-11-21.10",
+  "client": {
+    "version": "2026.11.21.10",
+    "sourceCommit": "962a1db79707aa001cafc17a862a8600a0b0a341",
+    "clientEntry": "src/entry.56ef88b355b9b1e0.js",
+    "clientBundle": "assets/main/index.c8d33808f9e8f532.js",
+    "clientSha256": "2b31d633d3e9149dfa697c99135d892dd9248a863b94edbe16a6d6518a7477ed"
+  },
+  "testResults": [
+    {
+      "name": "iphone-chrome",
+      "engine": "edge",
+      "viewport": [
+        390,
+        844
+      ],
+      "systemFontExpected": true,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 0,
+        "systemFonts": 45
+      },
+      "toggleFenceAndReopen": true,
+      "pageErrors": [],
+      "preloadedBytes": 14796124,
+      "savedFontBytes": 35894412,
+      "fontRequests": 0,
+      "fontFaces": [],
+      "warmReload": false
+    },
+    {
+      "name": "iphone-safari",
+      "engine": "webkit",
+      "viewport": [
+        390,
+        844
+      ],
+      "systemFontExpected": true,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 0,
+        "systemFonts": 43
+      },
+      "toggleFenceAndReopen": true,
+      "pageErrors": [],
+      "preloadedBytes": 14796124,
+      "savedFontBytes": 35894412,
+      "fontRequests": 0,
+      "fontFaces": [],
+      "warmReload": true
+    },
+    {
+      "name": "iphone-safari-narrow",
+      "engine": "webkit",
+      "viewport": [
+        320,
+        680
+      ],
+      "systemFontExpected": true,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          302,
+          169.875
+        ],
+        "image": [
+          302,
+          169.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 0,
+        "systemFonts": 43
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 14796124,
+      "savedFontBytes": 35894412,
+      "fontRequests": 0,
+      "fontFaces": [],
+      "warmReload": false
+    },
+    {
+      "name": "ipad-safari-mobile",
+      "engine": "webkit",
+      "viewport": [
+        768,
+        1024
+      ],
+      "systemFontExpected": true,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 0,
+        "systemFonts": 39
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 14796124,
+      "savedFontBytes": 35894412,
+      "fontRequests": 0,
+      "fontFaces": [],
+      "warmReload": false
+    },
+    {
+      "name": "ipad-safari-desktop",
+      "engine": "webkit",
+      "viewport": [
+        820,
+        1180
+      ],
+      "systemFontExpected": true,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 0,
+        "systemFonts": 39
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 14796124,
+      "savedFontBytes": 35894412,
+      "fontRequests": 0,
+      "fontFaces": [],
+      "warmReload": false
+    },
+    {
+      "name": "mac-safari",
+      "engine": "webkit",
+      "viewport": [
+        1100,
+        850
+      ],
+      "systemFontExpected": true,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 0,
+        "systemFonts": 39
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 14796124,
+      "savedFontBytes": 35894412,
+      "fontRequests": 0,
+      "fontFaces": [],
+      "warmReload": false
+    },
+    {
+      "name": "ipad-chrome",
+      "engine": "webkit",
+      "viewport": [
+        768,
+        1024
+      ],
+      "systemFontExpected": false,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 99,
+        "systemFonts": 0
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 50690536,
+      "savedFontBytes": 0,
+      "fontRequests": 3,
+      "fontFaces": [
+        "loaded",
+        "loaded",
+        "loaded"
+      ],
+      "warmReload": false
+    },
+    {
+      "name": "mac-chrome",
+      "engine": "edge",
+      "viewport": [
+        1100,
+        850
+      ],
+      "systemFontExpected": false,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 102,
+        "systemFonts": 0
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 50690536,
+      "savedFontBytes": 0,
+      "fontRequests": 3,
+      "fontFaces": [
+        "loaded",
+        "loaded",
+        "loaded"
+      ],
+      "warmReload": false
+    },
+    {
+      "name": "windows-chrome",
+      "engine": "edge",
+      "viewport": [
+        1280,
+        900
+      ],
+      "systemFontExpected": false,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          366,
+          205.875
+        ],
+        "image": [
+          366,
+          205.875
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 102,
+        "systemFonts": 0
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 50690536,
+      "savedFontBytes": 0,
+      "fontRequests": 6,
+      "fontFaces": [
+        "loaded",
+        "loaded",
+        "loaded"
+      ],
+      "warmReload": true
+    },
+    {
+      "name": "android-chrome",
+      "engine": "edge",
+      "viewport": [
+        393,
+        851
+      ],
+      "systemFontExpected": false,
+      "render": {
+        "scene": true,
+        "sprite": true,
+        "frame": "decor-room",
+        "source": [
+          512,
+          288
+        ],
+        "window": [
+          369,
+          207.5625
+        ],
+        "image": [
+          369,
+          207.5625
+        ],
+        "children": [
+          "Scene"
+        ],
+        "canvasScale": 2,
+        "customFonts": 102,
+        "systemFonts": 0
+      },
+      "toggleFenceAndReopen": false,
+      "pageErrors": [],
+      "preloadedBytes": 50690536,
+      "savedFontBytes": 0,
+      "fontRequests": 3,
+      "fontFaces": [
+        "loaded",
+        "loaded",
+        "loaded"
+      ],
+      "warmReload": false
+    }
+  ],
+  "sourceValidation": {
+    "typescriptExitCode": 0,
+    "cocosBuildExitCode": 36,
+    "changedClientModules": [
+      "chunks:///_virtual/ShopTypography.ts"
+    ]
+  },
+  "followup": "User subsequently requested system fonts for every browser; 21.10 remains the rollback baseline while that change is prepared.",
+  "publicVerification": {
+    "aliyunDirect": [
+      {
+        "path": "index.html",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.214062,
+        "bodyBytes": 10018,
+        "sha256": "5b34f2dc9486ac1f1a12029804a002ddfd32445c10f69de24ae73419ee983d12",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "release.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.70814,
+        "bodyBytes": 290,
+        "sha256": "9d336a3208985ad1975c0706fba78e7e8baeba8d6a3ca9f473abd6eac1f61c40",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.js?v=95f5121f2abff296",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.183026,
+        "bodyBytes": 11578,
+        "sha256": "95f5121f2abff296492c2f9622e58aa5120e53eef365120fef665f42f2cdd6f6",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/entry.56ef88b355b9b1e0.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.182752,
+        "bodyBytes": 835,
+        "sha256": "56ef88b355b9b1e0afab94e2f01cf4f7ff8c428a3f81528f140d50173857867e",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/main/index.c8d33808f9e8f532.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.377342,
+        "bodyBytes": 155889,
+        "sha256": "2b31d633d3e9149dfa697c99135d892dd9248a863b94edbe16a6d6518a7477ed",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.6ff15ccd1b6d8d8b.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.251146,
+        "bodyBytes": 197154,
+        "sha256": "6ff15ccd1b6d8d8b304a75692be321ebc7ef4ed589349e068ae03fdb13947379",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/import-map.json",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.180173,
+        "bodyBytes": 40,
+        "sha256": "2be73d8f2e7e1d814627714ace691b6e1a9d445c779426a224e7f3685f0fa278",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/cc.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.561693,
+        "bodyBytes": 7886,
+        "sha256": "3258b1dfbb429210a817141d2116d18db2255eda4d280be6499a960744acbf9e",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/_virtual_cc-Bp5iGE8z.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.298904,
+        "bodyBytes": 2522764,
+        "sha256": "b75aefabc9e6b699305aafac2d12b1eff669d33c3781caac41b4c382b949369d",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "gpu-diagnostic.html",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.290015,
+        "bodyBytes": 9969,
+        "sha256": "fbbc77cf77b15368d768f5d6c5cb3ea76b19b00026e7ffba6f09603d5d8e609e",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "gpu-diagnostic.cf95e4fc1375b233.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.201902,
+        "bodyBytes": 9756,
+        "sha256": "cf95e4fc1375b233d3feacf2178ffd1b5a2b26112e7fe42a2dcccc6412c9cbdb",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.gpu-diagnostic.2615a5963f5922dd.js",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.219796,
+        "bodyBytes": 11881,
+        "sha256": "2615a5963f5922dd77b44c1e2c1bfc57668bea3b333ba953e5c1c4b33521899f",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/resources/native/fd/fd685f01-8b2e-46ef-abc4-f4e448943ef2.png",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.306245,
+        "bodyBytes": 223522,
+        "sha256": "b7fb5f50b240d1e0eb16a7ec63f85085bd844ed542e0f0d50fc955b1b1fd8d5c",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.b7c5a920780eb371.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.215067,
+        "bodyBytes": 64,
+        "sha256": "4036d719eb89308d676dd00c9cf2b307b36186bb40a00af93ea5f384b942f917",
+        "totalAssetBytes": 3123218
+      },
+      {
+        "path": "src/game-resources.c4a214c78b1fa5ce.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.634483,
+        "bodyBytes": 64,
+        "sha256": "1eded2b13d1f53639566599fc858a3312a1007c5ad3ab9e069f7f90e5bea6295",
+        "totalAssetBytes": 2946087
+      },
+      {
+        "path": "src/game-resources.a542ad6c5a3a10b4.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.215034,
+        "bodyBytes": 64,
+        "sha256": "866f86b61f11eb3b928039fb69ea463ba9f13ee7d206d3a1d3904aa9f5e03a40",
+        "totalAssetBytes": 2025786
+      },
+      {
+        "path": "assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.210633,
+        "bodyBytes": 64,
+        "sha256": "0cf4f03d0039b690fe86d3d3fe47eb7533717c5078e10c3329cc3d8f1eb16d64",
+        "totalAssetBytes": 10163964
+      },
+      {
+        "path": "src/game-resources.0241ca91277924fc.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 1.229478,
+        "bodyBytes": 64,
+        "sha256": "3eb2e312dcc3b443f7000335bb9dbfab96c4c7a5788d1ca78d1cfd5650b39a00",
+        "totalAssetBytes": 1975905
+      },
+      {
+        "path": "assets/resources/native/ab/ab8fdcc7-f3f3-4b5c-9030-84d0f6b1b276.5667fddaa41d7cb0.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.212018,
+        "bodyBytes": 64,
+        "sha256": "cc7548381ca3937d04f1f33f2cc6a40a78d372d00ab6ed5ce359cdfb0b4ba4ab",
+        "totalAssetBytes": 15387064
+      },
+      {
+        "path": "src/game-resources.efb21d72e80a57c4.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.566076,
+        "bodyBytes": 64,
+        "sha256": "7ba9e8e28898cbcc2b647d5d18f2c0b2cb3f08cf1bde8fbb669d444ea2f095e3",
+        "totalAssetBytes": 2793242
+      },
+      {
+        "path": "assets/resources/native/e8/e840e2dd-b0f5-43e6-8bec-b1c446a23c45.95dac98a72e4f5b7.woff2",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.206855,
+        "bodyBytes": 64,
+        "sha256": "2f4a50771bfa9971d132da5bfc1d7e749d89462eb9150ba4ebcad3c94a0f2340",
+        "totalAssetBytes": 10343384
+      },
+      {
+        "path": "src/game-resources.5e00c817e38a1721.bin",
+        "status": 206,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.30214,
+        "bodyBytes": 64,
+        "sha256": "9a021302f9e8df9421eaeb7a01891b9bbc2ed23d2ffaca35ea15f9c482edfc7a",
+        "totalAssetBytes": 1931886
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.31777,
+        "bodyBytes": 88,
+        "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.19921,
+        "bodyBytes": 39,
+        "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "47.243.58.106",
+        "firstByteSeconds": 0.86107,
+        "bodyBytes": 162,
+        "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87",
+        "totalAssetBytes": null
+      }
+    ],
+    "existingGateway": [
+      {
+        "path": "index.html",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 2.721136,
+        "bodyBytes": 10018,
+        "sha256": "5b34f2dc9486ac1f1a12029804a002ddfd32445c10f69de24ae73419ee983d12",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "release.json",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.244228,
+        "bodyBytes": 290,
+        "sha256": "9d336a3208985ad1975c0706fba78e7e8baeba8d6a3ca9f473abd6eac1f61c40",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "trial-start.js?v=95f5121f2abff296",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.271819,
+        "bodyBytes": 11578,
+        "sha256": "95f5121f2abff296492c2f9622e58aa5120e53eef365120fef665f42f2cdd6f6",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/entry.56ef88b355b9b1e0.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.300452,
+        "bodyBytes": 835,
+        "sha256": "56ef88b355b9b1e0afab94e2f01cf4f7ff8c428a3f81528f140d50173857867e",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/main/index.c8d33808f9e8f532.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.481451,
+        "bodyBytes": 155889,
+        "sha256": "2b31d633d3e9149dfa697c99135d892dd9248a863b94edbe16a6d6518a7477ed",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.6ff15ccd1b6d8d8b.json",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.360958,
+        "bodyBytes": 197154,
+        "sha256": "6ff15ccd1b6d8d8b304a75692be321ebc7ef4ed589349e068ae03fdb13947379",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/import-map.json",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.672503,
+        "bodyBytes": 40,
+        "sha256": "2be73d8f2e7e1d814627714ace691b6e1a9d445c779426a224e7f3685f0fa278",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/cc.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.867766,
+        "bodyBytes": 7886,
+        "sha256": "3258b1dfbb429210a817141d2116d18db2255eda4d280be6499a960744acbf9e",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "cocos-js/_virtual_cc-Bp5iGE8z.js",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.658862,
+        "bodyBytes": 2522764,
+        "sha256": "b75aefabc9e6b699305aafac2d12b1eff669d33c3781caac41b4c382b949369d",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "assets/resources/native/fd/fd685f01-8b2e-46ef-abc4-f4e448943ef2.png",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.14812,
+        "bodyBytes": 223522,
+        "sha256": "b7fb5f50b240d1e0eb16a7ec63f85085bd844ed542e0f0d50fc955b1b1fd8d5c",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "src/game-resources.b7c5a920780eb371.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.425096,
+        "bodyBytes": 64,
+        "sha256": "4036d719eb89308d676dd00c9cf2b307b36186bb40a00af93ea5f384b942f917",
+        "totalAssetBytes": 3123218
+      },
+      {
+        "path": "src/game-resources.c4a214c78b1fa5ce.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.849696,
+        "bodyBytes": 64,
+        "sha256": "1eded2b13d1f53639566599fc858a3312a1007c5ad3ab9e069f7f90e5bea6295",
+        "totalAssetBytes": 2946087
+      },
+      {
+        "path": "src/game-resources.a542ad6c5a3a10b4.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.871409,
+        "bodyBytes": 64,
+        "sha256": "866f86b61f11eb3b928039fb69ea463ba9f13ee7d206d3a1d3904aa9f5e03a40",
+        "totalAssetBytes": 2025786
+      },
+      {
+        "path": "assets/resources/native/75/758567ac-8422-46b1-a780-1e3a38dafee1.70e19a1ac04ab04b.woff2",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.859993,
+        "bodyBytes": 64,
+        "sha256": "0cf4f03d0039b690fe86d3d3fe47eb7533717c5078e10c3329cc3d8f1eb16d64",
+        "totalAssetBytes": 10163964
+      },
+      {
+        "path": "src/game-resources.0241ca91277924fc.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.701391,
+        "bodyBytes": 64,
+        "sha256": "3eb2e312dcc3b443f7000335bb9dbfab96c4c7a5788d1ca78d1cfd5650b39a00",
+        "totalAssetBytes": 1975905
+      },
+      {
+        "path": "assets/resources/native/ab/ab8fdcc7-f3f3-4b5c-9030-84d0f6b1b276.5667fddaa41d7cb0.woff2",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.776194,
+        "bodyBytes": 64,
+        "sha256": "cc7548381ca3937d04f1f33f2cc6a40a78d372d00ab6ed5ce359cdfb0b4ba4ab",
+        "totalAssetBytes": 15387064
+      },
+      {
+        "path": "src/game-resources.efb21d72e80a57c4.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.910133,
+        "bodyBytes": 64,
+        "sha256": "7ba9e8e28898cbcc2b647d5d18f2c0b2cb3f08cf1bde8fbb669d444ea2f095e3",
+        "totalAssetBytes": 2793242
+      },
+      {
+        "path": "assets/resources/native/e8/e840e2dd-b0f5-43e6-8bec-b1c446a23c45.95dac98a72e4f5b7.woff2",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.088191,
+        "bodyBytes": 64,
+        "sha256": "2f4a50771bfa9971d132da5bfc1d7e749d89462eb9150ba4ebcad3c94a0f2340",
+        "totalAssetBytes": 10343384
+      },
+      {
+        "path": "src/game-resources.5e00c817e38a1721.bin",
+        "status": 206,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 0.991137,
+        "bodyBytes": 64,
+        "sha256": "9a021302f9e8df9421eaeb7a01891b9bbc2ed23d2ffaca35ea15f9c482edfc7a",
+        "totalAssetBytes": 1931886
+      },
+      {
+        "path": "/petshop-api/v1/health",
+        "status": 200,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 2.109944,
+        "bodyBytes": 88,
+        "sha256": "6dd489a7b38465be1bffdabc4857b39e84c801ce1bfa95adf8a4cb62dca51a72",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "/petshop-api/v1/shop",
+        "status": 401,
+        "peer": "172.66.47.25",
+        "firstByteSeconds": 1.452876,
+        "bodyBytes": 39,
+        "sha256": "bf512228728e015362fc999b30468a32527d922dac9455c30f12107daf32522b",
+        "totalAssetBytes": null
+      },
+      {
+        "path": "local-opening/wallet.mjs",
+        "status": 404,
+        "peer": "172.66.44.231",
+        "firstByteSeconds": 1.222188,
+        "bodyBytes": 162,
+        "sha256": "340c8464c2007ce3f80682e15dfafa4180b641d53c14201b929906b7b0284d87",
+        "totalAssetBytes": null
+      }
+    ]
+  }
+}
